@@ -1,0 +1,19 @@
+{
+  "name": "universidad-unrc",
+  "services": {
+    "dojoia-access": {
+      "root": ".",
+      "framework": "nextjs",
+      "buildCommand": "npm ci && npm run build"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": {
+        "type": "service",
+        "service": "dojoia-access"
+      }
+    }
+  ]
+}
