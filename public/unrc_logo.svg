@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="100%" height="100%">
+  <!-- Deep Burgundy Background matching official identity -->
+  <rect width="800" height="500" fill="#5B142F" rx="16" />
+
+  <g transform="translate(90, 185)">
+    <!-- Official Golden Loop Symbol -->
+    <g fill="none" stroke="#E3C791" stroke-width="15" stroke-linecap="round" stroke-linejoin="round">
+      <!-- Outer Vertical Chain Loops -->
+      <path d="M 45,15 C 20,15 20,55 45,55 C 70,55 70,95 45,95 C 20,95 20,135 45,135 C 70,135 70,95 45,95 C 20,95 20,55 45,55 Z" />
+      <path d="M 20,75 C 20,40 70,40 70,75 C 70,110 20,110 20,75 Z" opacity="0.9" />
+    </g>
+    <!-- Solid Inner Gold Nodes -->
+    <circle cx="45" cy="35" r="7" fill="#E3C791" />
+    <circle cx="45" cy="75" r="7" fill="#E3C791" />
+    <circle cx="45" cy="115" r="7" fill="#E3C791" />
+    <circle cx="25" cy="75" r="6" fill="#E3C791" />
+    <circle cx="65" cy="75" r="6" fill="#E3C791" />
+  </g>
+
+  <!-- Typography Block -->
+  <!-- Bold White UNRC Monogram -->
+  <text x="215" y="275" font-family="'Georgia', 'Times New Roman', serif" font-weight="900" font-size="110" fill="#FFFFFF" letter-spacing="2">UNRC</text>
+
+  <!-- Golden Subtitle Text -->
+  <text x="218" y="325" font-family="'Inter', 'Arial', sans-serif" font-weight="600" font-size="28" fill="#E3C791" letter-spacing="0.5">Universidad Nacional Rosario Castellanos</text>
+</svg>
