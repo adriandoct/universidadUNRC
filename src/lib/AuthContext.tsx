@@ -93,31 +93,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loginWithGoogle = async (targetRole: 'alumno' | 'docente', accountOverride?: Partial<UserProfile>) => {
     setIsLoading(true);
 
-    // 1. Try real Supabase Google OAuth if configured
-    if (supabase) {
-      try {
-        const { error } = await supabase.auth.signInWithOAuth({
-          provider: 'google',
-          options: {
-            redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : undefined
-          }
-        });
-        if (!error) return;
-      } catch (e) {
-        console.warn('Supabase Google OAuth fallback to interactive demo profile:', e);
-      }
+    // If explicit account selected from modal picker
+    if (accountOverride) {
+      const baseUser = DEFAULT_USERS[targetRole];
+      const loggedUser: UserProfile = {
+        ...baseUser,
+        ...accountOverride,
+        role: targetRole,
+        email: accountOverride?.email || baseUser.email
+      };
+
+      saveSession(loggedUser, targetRole);
+      setIsLoading(false);
+      setIsAuthModalOpen(false);
+      return;
     }
 
-    // 2. Interactive Google Account Login (Immediate response for demonstration)
+    // Fallback to demo Gmail account for instantaneous sign-in
     const baseUser = DEFAULT_USERS[targetRole];
-    const loggedUser: UserProfile = {
-      ...baseUser,
-      ...accountOverride,
-      role: targetRole,
-      email: accountOverride?.email || baseUser.email
-    };
-
-    saveSession(loggedUser, targetRole);
+    saveSession(baseUser, targetRole);
     setIsLoading(false);
     setIsAuthModalOpen(false);
   };
