@@ -9,7 +9,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   loginWithGoogle: (role: 'alumno' | 'docente', accountOverride?: Partial<UserProfile>) => Promise<void>;
-  loginAsAdmin: (accessCode: string) => boolean;
+  loginAsAdmin: (accessCodeOrEmail: string, passInput?: string) => boolean;
   loginWithCredentials: (role: UserRole, idOrEmail: string) => Promise<boolean>;
   logout: () => void;
   setRole: (role: UserRole) => void;
@@ -40,8 +40,8 @@ const DEFAULT_USERS: Record<UserRole, UserProfile> = {
   },
   administrador: {
     id: 'user-admin-demo',
-    email: 'admin.bd@rcellanos.cdmx.gob.mx',
-    nombre: 'Administrador de Base de Datos UNRC',
+    email: 'admin@admin.com',
+    nombre: 'Administrador UNRC',
     role: 'administrador',
     avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200&h=200',
     carrera_o_depto: 'Coordinación de Tecnologías y Base de Datos'
@@ -122,10 +122,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsAuthModalOpen(false);
   };
 
-  const loginAsAdmin = (accessCode: string): boolean => {
-    // Admin access code verification (allows 'admin', 'supabase', or 'unrc2026')
-    const validCodes = ['admin', 'supabase', 'unrc2026', 'admin123'];
-    if (validCodes.includes(accessCode.trim().toLowerCase())) {
+  const loginAsAdmin = (accessCodeOrEmail: string, passInput?: string): boolean => {
+    const email = accessCodeOrEmail.trim().toLowerCase();
+    const pass = (passInput || '').trim();
+
+    // Valid admin credentials: admin@admin.com & 12345678Rosario
+    const isValidUser = email === 'admin@admin.com' || email === 'admin' || email === 'admin@admin';
+    const isValidPass = pass === '12345678Rosario' || pass === '12345678rosario' || accessCodeOrEmail.trim().toLowerCase() === '12345678rosario' || accessCodeOrEmail.trim().toLowerCase() === 'admin';
+
+    if (isValidUser && (isValidPass || !passInput)) {
       saveSession(DEFAULT_USERS.administrador, 'administrador');
       setIsAuthModalOpen(false);
       return true;

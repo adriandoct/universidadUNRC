@@ -16,6 +16,7 @@ export const AuthModal: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<UserRole>(activeModalTab || 'alumno');
   const [credentialInput, setCredentialInput] = useState('');
+  const [adminEmailInput, setAdminEmailInput] = useState('admin@admin.com');
   const [adminKeyInput, setAdminKeyInput] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [showGmailAccountPicker, setShowGmailAccountPicker] = useState(false);
@@ -29,9 +30,20 @@ export const AuthModal: React.FC = () => {
     setIsSubmitting(true);
 
     if (activeTab === 'administrador') {
-      const success = loginAsAdmin(adminKeyInput);
+      if (!adminEmailInput.trim()) {
+        setErrorMessage('Ingresa el correo o usuario del Administrador.');
+        setIsSubmitting(false);
+        return;
+      }
+      if (!adminKeyInput.trim()) {
+        setErrorMessage('Ingresa la contraseña del Administrador.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      const success = loginAsAdmin(adminEmailInput, adminKeyInput);
       if (!success) {
-        setErrorMessage('Clave de acceso administrativo incorrecta. Intenta con "admin".');
+        setErrorMessage('Usuario o contraseña de Administrador incorrectos. (Usuario: admin@admin.com | Pass: 12345678Rosario)');
       }
     } else {
       if (!credentialInput.trim()) {
@@ -218,22 +230,36 @@ export const AuthModal: React.FC = () => {
 
               <form onSubmit={handleCredentialSubmit} className="space-y-3">
                 <div>
-                  <label className="block text-xs text-gray-400 mb-1 font-medium">Clave de Acceso Token Administrador</label>
+                  <label className="block text-xs text-gray-400 mb-1 font-medium">Correo / Usuario Administrador</label>
+                  <input
+                    type="text"
+                    value={adminEmailInput}
+                    onChange={(e) => setAdminEmailInput(e.target.value)}
+                    placeholder="admin@admin.com"
+                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 text-sm transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1 font-medium">Contraseña Administrador</label>
                   <input
                     type="password"
                     value={adminKeyInput}
                     onChange={(e) => setAdminKeyInput(e.target.value)}
-                    placeholder="Ingresa la clave (ej: admin)"
+                    placeholder="12345678Rosario"
                     className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 text-sm transition-all"
                   />
-                  <p className="text-[11px] text-gray-500 mt-1">Clave de demostración: <code className="text-amber-400">admin</code></p>
+                  <p className="text-[11px] text-gray-500 mt-1">
+                    Usuario: <code className="text-amber-400 font-bold">admin@admin.com</code> | Contraseña: <code className="text-amber-400 font-bold">12345678Rosario</code>
+                  </p>
                 </div>
 
                 <button
                   type="submit"
+                  disabled={isSubmitting}
                   className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-bold text-sm transition-all shadow-lg shadow-amber-600/20"
                 >
-                  Acceder a Consola de Base de Datos
+                  {isSubmitting ? 'Verificando...' : 'Acceder a Consola de Base de Datos'}
                 </button>
               </form>
             </div>
