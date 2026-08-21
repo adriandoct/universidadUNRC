@@ -9,7 +9,7 @@ export default function AdminPage() {
   const { role, openAuthModal } = useAuth();
   
   // Custom Database connection override inputs
-  const [dbUrlInput, setDbUrlInput] = useState('');
+  const [dbUrlInput, setDbUrlInput] = useState('https://uyqkxqlovxkgurnuxnfd.supabase.co');
   const [dbKeyInput, setDbKeyInput] = useState('');
   const [customConnected, setCustomConnected] = useState(false);
 
