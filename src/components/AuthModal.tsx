@@ -11,7 +11,9 @@ export const AuthModal: React.FC = () => {
     activeModalTab,
     loginWithGoogle,
     loginAsAdmin,
-    loginWithCredentials
+    loginWithCredentials,
+    lastDetectedAccount,
+    loginWithLastAccount
   } = useAuth();
 
   const [activeTab, setActiveTab] = useState<UserRole>(activeModalTab || 'alumno');
@@ -20,6 +22,8 @@ export const AuthModal: React.FC = () => {
   const [adminKeyInput, setAdminKeyInput] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [showGmailAccountPicker, setShowGmailAccountPicker] = useState(false);
+  const [showCustomEmailInput, setShowCustomEmailInput] = useState(false);
+  const [customInstitutionalEmail, setCustomInstitutionalEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isAuthModalOpen) return null;
@@ -47,13 +51,13 @@ export const AuthModal: React.FC = () => {
       }
     } else {
       if (!credentialInput.trim()) {
-        setErrorMessage(`Ingresa tu ${activeTab === 'alumno' ? 'Matrícula' : 'Número de Empleado'}.`);
+        setErrorMessage(`Ingresa tu ${activeTab === 'alumno' ? 'Matrícula o Correo Institucional' : 'Número de Empleado o Correo'}.`);
         setIsSubmitting(false);
         return;
       }
       const success = await loginWithCredentials(activeTab, credentialInput);
       if (!success) {
-        setErrorMessage(`${activeTab === 'alumno' ? 'Matrícula' : 'Número de Empleado'} no encontrado en la base de datos.`);
+        setErrorMessage(`${activeTab === 'alumno' ? 'Matrícula o Correo' : 'Número de Empleado o Correo'} no encontrado.`);
       }
     }
     setIsSubmitting(false);
@@ -61,6 +65,8 @@ export const AuthModal: React.FC = () => {
 
   const handleGoogleClick = () => {
     setShowGmailAccountPicker(true);
+    setShowCustomEmailInput(false);
+    setCustomInstitutionalEmail('');
   };
 
   const handleSelectGmailAccount = (name: string, email: string, matriculaOrEmp: string) => {
@@ -70,6 +76,21 @@ export const AuthModal: React.FC = () => {
       email: email,
       matricula: activeTab === 'alumno' ? matriculaOrEmp : undefined,
       num_empleado: activeTab === 'docente' ? matriculaOrEmp : undefined
+    });
+  };
+
+  const handleCustomEmailSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customInstitutionalEmail.trim()) return;
+
+    let fullEmail = customInstitutionalEmail.trim();
+    if (!fullEmail.includes('@')) {
+      fullEmail = `${fullEmail}@rcellanos.cdmx.gob.mx`;
+    }
+
+    setShowGmailAccountPicker(false);
+    loginWithGoogle(activeTab as 'alumno' | 'docente', {
+      email: fullEmail
     });
   };
 
@@ -143,7 +164,45 @@ export const AuthModal: React.FC = () => {
         </div>
 
         {/* Modal Body */}
-        <div className="p-6 space-y-6">
+        <div className="p-6 space-y-5">
+
+          {/* DETECTED ACCOUNT QUICK LOGIN CARD */}
+          {lastDetectedAccount && (
+            <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-950/60 to-blue-950/60 border border-emerald-500/40 shadow-lg flex items-center justify-between space-x-3">
+              <div className="flex items-center space-x-3 overflow-hidden">
+                {lastDetectedAccount.avatar_url ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={lastDetectedAccount.avatar_url}
+                    alt={lastDetectedAccount.nombre}
+                    className="w-10 h-10 rounded-full object-cover border-2 border-emerald-400 shrink-0"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-emerald-700 text-white flex items-center justify-center font-bold text-sm shrink-0">
+                    {lastDetectedAccount.nombre.charAt(0)}
+                  </div>
+                )}
+                <div className="truncate">
+                  <div className="text-xs text-emerald-300 font-semibold flex items-center space-x-1">
+                    <span>✨ Cuenta Detectada</span>
+                    <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.2 rounded uppercase font-mono">
+                      {lastDetectedAccount.role}
+                    </span>
+                  </div>
+                  <div className="text-xs font-bold text-white truncate">{lastDetectedAccount.nombre}</div>
+                  <div className="text-[11px] text-gray-300 truncate">{lastDetectedAccount.email}</div>
+                </div>
+              </div>
+
+              <button
+                onClick={loginWithLastAccount}
+                className="shrink-0 px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs transition-all shadow-md shadow-emerald-500/20 flex items-center space-x-1"
+              >
+                <span>Acceso Inmediato</span>
+                <span>➔</span>
+              </button>
+            </div>
+          )}
 
           {/* Error Notice */}
           {errorMessage && (
@@ -174,7 +233,7 @@ export const AuthModal: React.FC = () => {
                     <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
                     <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
                   </svg>
-                  <span>Continuar con Gmail / Google Account</span>
+                  <span>Seleccionar o Escribir Cuenta Gmail</span>
                   <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold">
                     @rcellanos.cdmx.gob.mx
                   </span>
@@ -182,34 +241,40 @@ export const AuthModal: React.FC = () => {
               </div>
 
               {/* Divider */}
-              <div className="relative flex items-center justify-center py-2">
+              <div className="relative flex items-center justify-center py-1">
                 <div className="border-t border-white/10 w-full"></div>
                 <span className="bg-[#090D16] px-3 text-[11px] font-semibold text-gray-500 uppercase tracking-widest">
-                  O entra con tus datos
+                  O escribe tu cuenta directamente
                 </span>
               </div>
 
               {/* Credential Form */}
               <form onSubmit={handleCredentialSubmit} className="space-y-3">
                 <div>
-                  <label className="block text-xs text-gray-400 mb-1">
-                    {activeTab === 'alumno' ? 'Matrícula Institucional (ej: UNRC-2026-001)' : 'Número de Empleado (ej: DOC-UNRC-01)'}
+                  <label className="block text-xs text-gray-300 mb-1 font-medium">
+                    {activeTab === 'alumno' 
+                      ? 'Escribe tu Matrícula o Correo Institucional' 
+                      : 'Escribe tu N° de Empleado o Correo Institucional'}
                   </label>
                   <input
                     type="text"
                     value={credentialInput}
                     onChange={(e) => setCredentialInput(e.target.value)}
-                    placeholder={activeTab === 'alumno' ? 'UNRC-2026-001' : 'DOC-UNRC-01'}
+                    placeholder={activeTab === 'alumno' ? 'UNRC-2026-001 o tu.nombre@rcellanos.cdmx.gob.mx' : 'DOC-UNRC-01 o tu.nombre@rcellanos.cdmx.gob.mx'}
                     className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-sm transition-all"
                   />
+                  <p className="text-[11px] text-emerald-400/80 mt-1 flex items-center space-x-1">
+                    <span>⚡ Acceso Inmediato:</span>
+                    <span>Puedes escribir tu correo @rcellanos.cdmx.gob.mx o matrícula</span>
+                  </p>
                 </div>
 
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full py-3 px-4 rounded-xl bg-emerald-600/90 hover:bg-emerald-500 text-white font-semibold text-sm transition-all shadow-lg shadow-emerald-600/20"
+                  className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm transition-all shadow-lg shadow-emerald-600/20"
                 >
-                  {isSubmitting ? 'Verificando...' : `Iniciar Sesión como ${activeTab === 'alumno' ? 'Alumno' : 'Docente'}`}
+                  {isSubmitting ? 'Verificando...' : `Ingresar Inmediatamente como ${activeTab === 'alumno' ? 'Alumno' : 'Docente'}`}
                 </button>
               </form>
             </div>
@@ -353,6 +418,52 @@ export const AuthModal: React.FC = () => {
                 </>
               )}
             </div>
+
+            {/* Custom Institutional Email Writing Form */}
+            <div className="border-t border-white/10 pt-4">
+              {!showCustomEmailInput ? (
+                <button
+                  type="button"
+                  onClick={() => setShowCustomEmailInput(true)}
+                  className="w-full py-2.5 px-3 rounded-xl bg-white/5 hover:bg-white/10 text-amber-300 font-semibold text-xs transition-all border border-amber-400/30 flex items-center justify-center space-x-2"
+                >
+                  <span>✍️</span>
+                  <span>Escribir otra cuenta institucional...</span>
+                </button>
+              ) : (
+                <form onSubmit={handleCustomEmailSubmit} className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-300 mb-1">
+                      Ingresa tu correo institucional UNRC:
+                    </label>
+                    <input
+                      type="text"
+                      value={customInstitutionalEmail}
+                      onChange={(e) => setCustomInstitutionalEmail(e.target.value)}
+                      placeholder="nombre.apellido@rcellanos.cdmx.gob.mx"
+                      autoFocus
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-amber-400/50 text-white placeholder-gray-500 text-xs focus:outline-none focus:ring-1 focus:ring-amber-400"
+                    />
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      type="submit"
+                      className="flex-1 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-all shadow-md"
+                    >
+                      Acceder Inmediatamente
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowCustomEmailInput(false)}
+                      className="py-2 px-3 rounded-xl bg-white/10 text-gray-300 hover:bg-white/20 text-xs"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+
           </div>
         </div>
       )}

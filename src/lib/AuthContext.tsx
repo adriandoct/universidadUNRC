@@ -8,9 +8,11 @@ interface AuthContextType {
   role: UserRole | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  lastDetectedAccount: UserProfile | null;
   loginWithGoogle: (role: 'alumno' | 'docente', accountOverride?: Partial<UserProfile>) => Promise<void>;
   loginAsAdmin: (accessCodeOrEmail: string, passInput?: string) => boolean;
   loginWithCredentials: (role: UserRole, idOrEmail: string) => Promise<boolean>;
+  loginWithLastAccount: () => void;
   logout: () => void;
   setRole: (role: UserRole) => void;
   openAuthModal: (defaultRole?: UserRole) => void;
@@ -53,6 +55,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [role, setRoleState] = useState<UserRole | null>(null);
+  const [lastDetectedAccount, setLastDetectedAccount] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [activeModalTab, setActiveModalTab] = useState<UserRole>('alumno');
@@ -62,14 +65,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const savedUser = localStorage.getItem('unrc_auth_user');
       const savedRole = localStorage.getItem('unrc_auth_role') as UserRole | null;
+      const lastAcc = localStorage.getItem('unrc_last_account');
+
+      if (lastAcc) {
+        try {
+          setLastDetectedAccount(JSON.parse(lastAcc));
+        } catch (e) {
+          console.warn('Could not parse last account');
+        }
+      }
 
       if (savedUser && savedRole) {
-        setUser(JSON.parse(savedUser));
+        const parsed = JSON.parse(savedUser);
+        setUser(parsed);
         setRoleState(savedRole);
+        setLastDetectedAccount(parsed);
       } else {
         // Default to Alumno demo user for immediate rich UX
         setUser(DEFAULT_USERS.alumno);
         setRoleState('alumno');
+        setLastDetectedAccount(DEFAULT_USERS.alumno);
       }
     } catch (err) {
       console.error('Error restoring auth session:', err);
@@ -84,24 +99,66 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (newUser && newRole) {
       localStorage.setItem('unrc_auth_user', JSON.stringify(newUser));
       localStorage.setItem('unrc_auth_role', newRole);
+      localStorage.setItem('unrc_last_account', JSON.stringify(newUser));
+      setLastDetectedAccount(newUser);
     } else {
       localStorage.removeItem('unrc_auth_user');
       localStorage.removeItem('unrc_auth_role');
     }
   };
 
+  const loginWithLastAccount = () => {
+    if (lastDetectedAccount) {
+      saveSession(lastDetectedAccount, lastDetectedAccount.role);
+      setIsAuthModalOpen(false);
+    }
+  };
+
+  const helperBuildProfileFromEmail = (email: string, targetRole: 'alumno' | 'docente'): UserProfile => {
+    const cleanEmail = email.trim().toLowerCase();
+    const usernamePart = cleanEmail.split('@')[0] || 'usuario';
+    const formattedName = usernamePart
+      .split('.')
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
+
+    const randomNum = Math.floor(100 + Math.random() * 900);
+
+    return {
+      id: `user-custom-${Date.now()}`,
+      email: cleanEmail.includes('@') ? cleanEmail : `${cleanEmail}@rcellanos.cdmx.gob.mx`,
+      nombre: formattedName || (targetRole === 'alumno' ? 'Estudiante UNRC' : 'Docente UNRC'),
+      role: targetRole,
+      avatar_url: targetRole === 'alumno' 
+        ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200&h=200' 
+        : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200&h=200',
+      matricula: targetRole === 'alumno' ? `UNRC-2026-${randomNum}` : undefined,
+      num_empleado: targetRole === 'docente' ? `DOC-UNRC-${randomNum}` : undefined,
+      carrera_o_depto: targetRole === 'alumno' ? 'Universidad Rosario Castellanos' : 'Cuerpo Académico UNRC'
+    };
+  };
+
   const loginWithGoogle = async (targetRole: 'alumno' | 'docente', accountOverride?: Partial<UserProfile>) => {
     setIsLoading(true);
 
-    // If explicit account selected from modal picker
+    // If explicit account selected or custom email typed from modal picker
     if (accountOverride) {
       const baseUser = DEFAULT_USERS[targetRole];
-      const loggedUser: UserProfile = {
-        ...baseUser,
-        ...accountOverride,
-        role: targetRole,
-        email: accountOverride?.email || baseUser.email
-      };
+      const email = accountOverride.email || baseUser.email;
+      const isCustomEmail = email && !email.includes('carlos.martinez') && !email.includes('sofia.herrera') && !email.includes('alejandro.valdez') && !email.includes('beatriz.sanchez');
+
+      let loggedUser: UserProfile;
+      if (isCustomEmail) {
+        const derived = helperBuildProfileFromEmail(email, targetRole);
+        loggedUser = { ...derived, ...accountOverride };
+      } else {
+        loggedUser = {
+          ...baseUser,
+          ...accountOverride,
+          role: targetRole,
+          email: email
+        };
+      }
 
       saveSession(loggedUser, targetRole);
       setIsLoading(false);
@@ -134,10 +191,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loginWithCredentials = async (targetRole: UserRole, idOrEmail: string): Promise<boolean> => {
     setIsLoading(true);
+    const cleanInput = idOrEmail.trim().toLowerCase();
+
     try {
       if (targetRole === 'alumno') {
         const alumnos = await db.getAlumnos();
-        const found = alumnos.find(a => a.matricula.toLowerCase() === idOrEmail.trim().toLowerCase());
+        const found = alumnos.find(
+          a => a.matricula.toLowerCase() === cleanInput || 
+               a.qr_code.toLowerCase() === cleanInput ||
+               `${a.matricula.toLowerCase()}@rcellanos.cdmx.gob.mx` === cleanInput ||
+               (a.nombre + a.apellido_paterno).toLowerCase().includes(cleanInput.replace(/\s+/g, ''))
+        );
+
         if (found) {
           const profile: UserProfile = {
             id: found.id,
@@ -153,11 +218,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setIsLoading(false);
           return true;
         }
+
+        // If user typed an institutional email or username, allow INSTANT ACCESS
+        if (cleanInput.includes('@') || cleanInput.includes('.')) {
+          const profile = helperBuildProfileFromEmail(cleanInput, 'alumno');
+          saveSession(profile, 'alumno');
+          setIsAuthModalOpen(false);
+          setIsLoading(false);
+          return true;
+        }
       } else if (targetRole === 'docente') {
         const docentes = await db.getDocentes();
         const found = docentes.find(
-          d => d.num_empleado.toLowerCase() === idOrEmail.trim().toLowerCase() || d.email.toLowerCase() === idOrEmail.trim().toLowerCase()
+          d => d.num_empleado.toLowerCase() === cleanInput || d.email.toLowerCase() === cleanInput
         );
+
         if (found) {
           const profile: UserProfile = {
             id: found.id,
@@ -168,6 +243,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             num_empleado: found.num_empleado,
             carrera_o_depto: found.departamento
           };
+          saveSession(profile, 'docente');
+          setIsAuthModalOpen(false);
+          setIsLoading(false);
+          return true;
+        }
+
+        // If docente typed an email, allow INSTANT ACCESS
+        if (cleanInput.includes('@') || cleanInput.includes('.')) {
+          const profile = helperBuildProfileFromEmail(cleanInput, 'docente');
           saveSession(profile, 'docente');
           setIsAuthModalOpen(false);
           setIsLoading(false);
@@ -207,9 +291,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role,
         isAuthenticated: Boolean(user && role),
         isLoading,
+        lastDetectedAccount,
         loginWithGoogle,
         loginAsAdmin,
         loginWithCredentials,
+        loginWithLastAccount,
         logout,
         setRole,
         openAuthModal,
