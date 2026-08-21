@@ -31,7 +31,7 @@ export const AuthModal: React.FC = () => {
     if (activeTab === 'administrador') {
       const success = loginAsAdmin(adminKeyInput);
       if (!success) {
-        setErrorMessage('Clave de acceso administrativo incorrecta. Intenta con "admin" o "supabase".');
+        setErrorMessage('Clave de acceso administrativo incorrecta. Intenta con "admin".');
       }
     } else {
       if (!credentialInput.trim()) {
@@ -64,11 +64,11 @@ export const AuthModal: React.FC = () => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
       <div 
-        className="relative w-full max-w-lg overflow-hidden rounded-3xl bg-[#090D16] border border-emerald-500/20 shadow-[0_0_50px_rgba(16,185,129,0.15)] text-white"
+        className="relative w-full max-w-lg overflow-hidden rounded-3xl bg-[#090D16] border border-[#5B142F]/40 shadow-[0_0_50px_rgba(91,20,47,0.3)] text-white"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Top Accent Line */}
-        <div className="h-1.5 w-full bg-gradient-to-r from-emerald-600 via-emerald-400 to-amber-400"></div>
+        <div className="h-1.5 w-full bg-gradient-to-r from-[#5B142F] via-emerald-400 to-amber-400"></div>
 
         {/* Close Button */}
         <button
@@ -109,7 +109,7 @@ export const AuthModal: React.FC = () => {
             onClick={() => { setActiveTab('docente'); setErrorMessage(''); }}
             className={`py-2.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all ${
               activeTab === 'docente'
-                ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30'
+                ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
                 : 'text-gray-400 hover:text-white hover:bg-white/5'
             }`}
           >
@@ -126,7 +126,7 @@ export const AuthModal: React.FC = () => {
             }`}
           >
             <span>⚙️</span>
-            <span>Admin DB</span>
+            <span>Admin BD</span>
           </button>
         </div>
 
@@ -156,7 +156,6 @@ export const AuthModal: React.FC = () => {
                   onClick={handleGoogleClick}
                   className="w-full py-3.5 px-4 rounded-2xl bg-white hover:bg-gray-100 text-gray-900 font-semibold text-sm transition-all duration-200 flex items-center justify-center space-x-3 shadow-lg shadow-white/5 active:scale-[0.99] border border-gray-200"
                 >
-                  {/* Official Google G Logo SVG */}
                   <svg className="w-5 h-5" viewBox="0 0 24 24">
                     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
                     <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
@@ -213,28 +212,28 @@ export const AuthModal: React.FC = () => {
                   <span>Rol Restringido: Administrador de Base de Datos</span>
                 </div>
                 <p className="text-gray-300 leading-relaxed">
-                  Este panel está dedicado exclusivamente a la **gestión, carga de archivos Excel/CSV y migración de tablas en Supabase PostgreSQL**.
+                  Este panel está dedicado exclusivamente a la **gestión, carga de archivos Excel/CSV y migración de tablas en la Base de Datos PostgreSQL**.
                 </p>
               </div>
 
               <form onSubmit={handleCredentialSubmit} className="space-y-3">
                 <div>
-                  <label className="block text-xs text-gray-400 mb-1 font-medium">Clave de Acceso Supabase / Admin Token</label>
+                  <label className="block text-xs text-gray-400 mb-1 font-medium">Clave de Acceso Token Administrador</label>
                   <input
                     type="password"
                     value={adminKeyInput}
                     onChange={(e) => setAdminKeyInput(e.target.value)}
-                    placeholder="Ingresa la clave (ej: admin o supabase)"
+                    placeholder="Ingresa la clave (ej: admin)"
                     className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 text-sm transition-all"
                   />
-                  <p className="text-[11px] text-gray-500 mt-1">Clave de demostración: <code className="text-amber-400">admin</code> o <code className="text-amber-400">supabase</code></p>
+                  <p className="text-[11px] text-gray-500 mt-1">Clave de demostración: <code className="text-amber-400">admin</code></p>
                 </div>
 
                 <button
                   type="submit"
                   className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-bold text-sm transition-all shadow-lg shadow-amber-600/20"
                 >
-                  Acceder a Consola de Base de Datos Supabase
+                  Acceder a Consola de Base de Datos
                 </button>
               </form>
             </div>
@@ -244,11 +243,11 @@ export const AuthModal: React.FC = () => {
 
         {/* Footer */}
         <div className="p-4 border-t border-white/5 bg-black/40 text-center text-[11px] text-gray-500">
-          🔒 Sistema de Control Escolar UNRC — Encriptación SSL & Supabase RLS Enabled
+          🔒 Sistema de Control Escolar UNRC — Encriptación SSL & RLS Enabled
         </div>
       </div>
 
-      {/* GMAIL ACCOUNT PICKER POPUP (For Instant Interactive Testing) */}
+      {/* GMAIL ACCOUNT PICKER POPUP */}
       {showGmailAccountPicker && (
         <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fadeIn">
           <div className="w-full max-w-md bg-[#111827] border border-white/10 rounded-3xl p-6 space-y-6 shadow-2xl">

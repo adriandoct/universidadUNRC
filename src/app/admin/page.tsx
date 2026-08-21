@@ -2,15 +2,15 @@
 
 import React, { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
-import { db, isSupabaseConfigured, supabase, Alumno, Docente } from '../../lib/db';
+import { db, isSupabaseConfigured, Alumno, Docente } from '../../lib/db';
 import { useAuth } from '../../lib/AuthContext';
 
 export default function AdminPage() {
   const { role, openAuthModal } = useAuth();
   
-  // Custom Supabase connection override inputs
-  const [supabaseUrlInput, setSupabaseUrlInput] = useState('');
-  const [supabaseKeyInput, setSupabaseKeyInput] = useState('');
+  // Custom Database connection override inputs
+  const [dbUrlInput, setDbUrlInput] = useState('');
+  const [dbKeyInput, setDbKeyInput] = useState('');
   const [customConnected, setCustomConnected] = useState(false);
 
   // File Upload & Data States
@@ -54,7 +54,7 @@ export default function AdminPage() {
       .then(res => res.text())
       .then(text => setSqlSchemaCode(text))
       .catch(() => {
-        setSqlSchemaCode(`-- Supabase Schema for UNRC\nCREATE TABLE alumnos (...);\nCREATE TABLE docentes (...);`);
+        setSqlSchemaCode(`-- Database Schema for UNRC\nCREATE TABLE alumnos (...);\nCREATE TABLE docentes (...);`);
       });
   }, []);
 
@@ -99,8 +99,8 @@ export default function AdminPage() {
     reader.readAsBinaryString(file);
   };
 
-  // Perform Push / Sync to Supabase
-  const handleSyncToSupabase = async () => {
+  // Perform Push / Sync to Database
+  const handleSyncToDatabase = async () => {
     if (parsedRows.length === 0) {
       alert('Primero debes seleccionar y cargar un archivo de base de datos.');
       return;
@@ -127,12 +127,12 @@ export default function AdminPage() {
         }));
 
         setSyncProgress(50);
-        setSyncLogs(prev => [...prev, `📦 ${formattedAlumnos.length} alumnos preparados para subir a Supabase.`]);
+        setSyncLogs(prev => [...prev, `📦 ${formattedAlumnos.length} alumnos preparados para subir a la Base de Datos.`]);
 
         const res = await db.syncToSupabase(
           { alumnos: formattedAlumnos as any },
-          customConnected ? supabaseUrlInput : undefined,
-          customConnected ? supabaseKeyInput : undefined
+          customConnected ? dbUrlInput : undefined,
+          customConnected ? dbKeyInput : undefined
         );
 
         setSyncLogs(prev => [...prev, ...res.logs]);
@@ -151,12 +151,12 @@ export default function AdminPage() {
         }));
 
         setSyncProgress(50);
-        setSyncLogs(prev => [...prev, `📦 ${formattedDocentes.length} docentes preparados para subir a Supabase.`]);
+        setSyncLogs(prev => [...prev, `📦 ${formattedDocentes.length} docentes preparados para subir a la Base de Datos.`]);
 
         const res = await db.syncToSupabase(
           { docentes: formattedDocentes as any },
-          customConnected ? supabaseUrlInput : undefined,
-          customConnected ? supabaseKeyInput : undefined
+          customConnected ? dbUrlInput : undefined,
+          customConnected ? dbKeyInput : undefined
         );
 
         setSyncLogs(prev => [...prev, ...res.logs]);
@@ -203,7 +203,7 @@ export default function AdminPage() {
     const ws = XLSX.utils.json_to_sheet(sampleData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Alumnos_UNRC');
-    XLSX.writeFile(wb, 'Plantilla_Alumnos_UNRC_Supabase.xlsx');
+    XLSX.writeFile(wb, 'Plantilla_Alumnos_UNRC_BaseDeDatos.xlsx');
   };
 
   if (role !== 'administrador') {
@@ -214,7 +214,7 @@ export default function AdminPage() {
         </div>
         <h1 className="text-3xl font-bold text-white">Acceso Reservado para Administrador de Base de Datos</h1>
         <p className="text-gray-400 max-w-md mx-auto">
-          Esta consola está diseñada exclusivamente para que el Administrador cargue archivos de base de datos Excel/CSV y ejecute la sincronización en Supabase PostgreSQL.
+          Esta consola está diseñada exclusivamente para que el Administrador cargue archivos de base de datos Excel/CSV y ejecute la sincronización de datos.
         </p>
         <button
           onClick={() => openAuthModal('administrador')}
@@ -236,13 +236,13 @@ export default function AdminPage() {
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
           <div className="space-y-2">
             <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-semibold">
-              <span>⚡ Consola Senior de Administración PostgreSQL / Supabase</span>
+              <span>⚡ Consola Senior de Administración PostgreSQL</span>
             </div>
             <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
               Gestión y Carga de Base de Datos <span className="text-amber-400">UNRC</span>
             </h1>
             <p className="text-gray-400 text-sm max-w-2xl">
-              Modulo exclusivo para importar archivos Excel (`.xlsx`), CSV y JSON y realizar la migración y sincronización de tablas directamente en Supabase.
+              Modulo exclusivo para importar archivos Excel (`.xlsx`), CSV y JSON y realizar la migración y sincronización de tablas directamente en la Base de Datos.
             </p>
           </div>
 
@@ -251,11 +251,11 @@ export default function AdminPage() {
             <div className="flex items-center space-x-2">
               <span className={`w-3 h-3 rounded-full ${isSupabaseConfigured || customConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`}></span>
               <span className="text-xs font-bold text-white">
-                {isSupabaseConfigured || customConnected ? 'Conectado a Supabase' : 'Modo Sandbox Activo'}
+                {isSupabaseConfigured || customConnected ? 'Conectado a Base de Datos' : 'Modo Sandbox Activo'}
               </span>
             </div>
             <div className="text-[11px] text-gray-400 truncate">
-              {process.env.NEXT_PUBLIC_SUPABASE_URL || (customConnected ? supabaseUrlInput : 'https://xyz.supabase.co')}
+              {process.env.NEXT_PUBLIC_SUPABASE_URL || (customConnected ? dbUrlInput : 'PostgreSQL Server')}
             </div>
             <div className="text-[10px] text-amber-400 font-semibold pt-1">
               {stats.alumnosCount} alumnos • {stats.docentesCount} docentes en BD
@@ -308,7 +308,7 @@ export default function AdminPage() {
               : 'bg-white/5 text-gray-300 hover:bg-white/10'
           }`}
         >
-          <span>📜 Script SQL Editor Supabase</span>
+          <span>📜 Script SQL Editor</span>
         </button>
       </div>
 
@@ -322,7 +322,7 @@ export default function AdminPage() {
               
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-bold text-white flex items-center space-x-2">
-                  <span>📁 Seleccionar Tabla de Destino en Supabase</span>
+                  <span>📁 Seleccionar Tabla de Destino en la Base de Datos</span>
                 </h3>
                 <div className="flex space-x-2">
                   <button
@@ -369,7 +369,7 @@ export default function AdminPage() {
 
               {/* Sample Excel Helper */}
               <div className="flex items-center justify-between pt-2 text-xs text-gray-400">
-                <span>¿No tienes una plantilla? Descarga un archivo de prueba configurado para Supabase:</span>
+                <span>¿No tienes una plantilla? Descarga un archivo de prueba configurado para la Base de Datos:</span>
                 <button
                   onClick={downloadSampleExcel}
                   className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-amber-400 font-semibold border border-amber-500/20 transition-colors"
@@ -381,51 +381,51 @@ export default function AdminPage() {
             </div>
           </div>
 
-          {/* Right Panel: Supabase Live Custom Config */}
+          {/* Right Panel: Database Custom Config */}
           <div className="space-y-6">
             <div className="glass-panel p-6 rounded-3xl border border-white/10 space-y-4">
               <h3 className="text-sm font-bold text-white flex items-center space-x-2">
-                <span>⚙️ Configuración Directa de Supabase</span>
+                <span>⚙️ Configuración Directa de Servidor de Datos</span>
               </h3>
               <p className="text-xs text-gray-400 leading-relaxed">
-                Si deseas sincronizar con tu propio proyecto remoto en Supabase, ingresa la URL y la Anon Key de tu proyecto:
+                Si deseas sincronizar con tu propio servidor remoto de base de datos, ingresa la URL y la Key de acceso:
               </p>
 
               <div className="space-y-3 pt-2">
                 <div>
-                  <label className="block text-[11px] font-semibold text-gray-400 mb-1">SUPABASE_URL</label>
+                  <label className="block text-[11px] font-semibold text-gray-400 mb-1">DATABASE_URL</label>
                   <input
                     type="text"
-                    value={supabaseUrlInput}
-                    onChange={(e) => setSupabaseUrlInput(e.target.value)}
-                    placeholder="https://tu-proyecto.supabase.co"
+                    value={dbUrlInput}
+                    onChange={(e) => setDbUrlInput(e.target.value)}
+                    placeholder="https://tu-servidor-db.co"
                     className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-600 text-xs focus:outline-none focus:border-amber-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-gray-400 mb-1">SUPABASE_ANON_KEY</label>
+                  <label className="block text-[11px] font-semibold text-gray-400 mb-1">DATABASE_ANON_KEY</label>
                   <input
                     type="password"
-                    value={supabaseKeyInput}
-                    onChange={(e) => setSupabaseKeyInput(e.target.value)}
-                    placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    value={dbKeyInput}
+                    onChange={(e) => setDbKeyInput(e.target.value)}
+                    placeholder="Key de acceso..."
                     className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-600 text-xs focus:outline-none focus:border-amber-500"
                   />
                 </div>
 
                 <button
                   onClick={() => {
-                    if (supabaseUrlInput && supabaseKeyInput) {
+                    if (dbUrlInput && dbKeyInput) {
                       setCustomConnected(true);
-                      alert('✅ Credenciales de Supabase aplicadas.');
+                      alert('✅ Credenciales de Base de Datos aplicadas.');
                     } else {
-                      alert('Ingresa la URL y la Key de Supabase.');
+                      alert('Ingresa la URL y la Key del Servidor.');
                     }
                   }}
                   className="w-full py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs transition-all border border-white/10"
                 >
-                  Conectar a Proyecto Remoto
+                  Conectar a Servidor Remoto
                 </button>
               </div>
             </div>
@@ -434,7 +434,7 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* TAB 2: PREVIEW & SYNC TO SUPABASE */}
+      {/* TAB 2: PREVIEW & SYNC */}
       {activeTab === 'preview' && (
         <div className="space-y-6">
           <div className="glass-panel p-6 rounded-3xl border border-white/10 space-y-6">
@@ -448,11 +448,11 @@ export default function AdminPage() {
               </div>
 
               <button
-                onClick={handleSyncToSupabase}
+                onClick={handleSyncToDatabase}
                 disabled={isSyncing}
                 className="px-6 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-amber-500 hover:from-emerald-400 hover:to-amber-400 text-black font-extrabold text-sm shadow-xl shadow-emerald-500/20 transition-all flex items-center space-x-2 disabled:opacity-50"
               >
-                <span>{isSyncing ? '⏳ Sincronizando...' : '🚀 Sincronizar Registros a Supabase'}</span>
+                <span>{isSyncing ? '⏳ Sincronizando...' : '🚀 Sincronizar Registros a Base de Datos'}</span>
               </button>
             </div>
 
@@ -521,7 +521,7 @@ export default function AdminPage() {
           <div className="glass-panel p-6 rounded-3xl border border-emerald-500/20 space-y-3">
             <div className="text-3xl font-extrabold text-emerald-400">{stats.alumnosCount}</div>
             <div className="text-sm font-bold text-white">Alumnos Registrados en BD</div>
-            <p className="text-xs text-gray-400">Registros sincronizados en la tabla PostgreSQL 'alumnos' de Supabase.</p>
+            <p className="text-xs text-gray-400">Registros sincronizados en la tabla PostgreSQL 'alumnos' de la Base de Datos.</p>
           </div>
 
           <div className="glass-panel p-6 rounded-3xl border border-blue-500/20 space-y-3">
@@ -542,7 +542,7 @@ export default function AdminPage() {
       {activeTab === 'schema' && (
         <div className="glass-panel p-6 rounded-3xl border border-white/10 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-base font-bold text-white">Esquema SQL de Supabase (SQL Editor Script)</h3>
+            <h3 className="text-base font-bold text-white">Esquema SQL de la Base de Datos (SQL Script)</h3>
             <button
               onClick={() => {
                 navigator.clipboard.writeText(sqlSchemaCode);

@@ -40,11 +40,11 @@ const DEFAULT_USERS: Record<UserRole, UserProfile> = {
   },
   administrador: {
     id: 'user-admin-demo',
-    email: 'admin.supabase@rcellanos.cdmx.gob.mx',
+    email: 'admin.bd@rcellanos.cdmx.gob.mx',
     nombre: 'Administrador de Base de Datos UNRC',
     role: 'administrador',
     avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200&h=200',
-    carrera_o_depto: 'Coordinación de Tecnologías y Supabase DB'
+    carrera_o_depto: 'Coordinación de Tecnologías y Base de Datos'
   }
 };
 

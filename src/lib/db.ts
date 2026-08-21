@@ -511,7 +511,7 @@ export const db = {
       : supabase;
 
     if (!activeClient) {
-      logs.push('⚠️ No se ha proporcionado cliente de Supabase. Los datos se sincronizaron en almacenamiento local.');
+      logs.push('⚠️ No se ha proporcionado cliente de servidor. Los datos se sincronizaron en almacenamiento local.');
       // Local sync fallback
       if (data.alumnos && data.alumnos.length > 0) {
         await db.addAlumnosBulk(data.alumnos);
@@ -527,7 +527,7 @@ export const db = {
     }
 
     try {
-      logs.push('🔗 Conectando con proyecto Supabase PostgreSQL...');
+      logs.push('🔗 Conectando con servidor PostgreSQL...');
 
       if (data.alumnos && data.alumnos.length > 0) {
         logs.push(`📤 Insertando/actualizando ${data.alumnos.length} registros en tabla 'alumnos'...`);
@@ -555,7 +555,7 @@ export const db = {
           logs.push(`❌ Error en tabla 'alumnos': ${error.message}`);
         } else {
           alumnosCount = inserted?.length || data.alumnos.length;
-          logs.push(`✅ ${alumnosCount} alumnos sincronizados con éxito en Supabase.`);
+          logs.push(`✅ ${alumnosCount} alumnos sincronizados con éxito en la Base de Datos.`);
         }
       }
 
@@ -583,7 +583,7 @@ export const db = {
           logs.push(`❌ Error en tabla 'docentes': ${docError.message}`);
         } else {
           docentesCount = insertedDoc?.length || data.docentes.length;
-          logs.push(`✅ ${docentesCount} docentes sincronizados con éxito en Supabase.`);
+          logs.push(`✅ ${docentesCount} docentes sincronizados con éxito en la Base de Datos.`);
         }
       }
 
@@ -591,10 +591,10 @@ export const db = {
       if (data.alumnos) await db.addAlumnosBulk(data.alumnos);
       if (data.docentes) await db.addDocentesBulk(data.docentes);
 
-      logs.push('🎉 Proceso de sincronización con Supabase finalizado.');
+      logs.push('🎉 Proceso de sincronización finalizado.');
       return { success: true, alumnosSynced: alumnosCount, docentesSynced: docentesCount, logs };
     } catch (err: any) {
-      logs.push(`❌ Excepción al conectar con Supabase: ${err.message || err}`);
+      logs.push(`❌ Excepción al conectar con el servidor: ${err.message || err}`);
       return { success: false, alumnosSynced: 0, docentesSynced: 0, logs };
     }
   },

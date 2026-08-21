@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Universidad Nacional Rosario Castellanos — Control Escolar Inteligente & Supabase",
-  description: "Plataforma oficial de control de accesos, credenciales digitales con QR, gestión docente y consola de administración de base de datos Supabase para la Universidad Nacional Rosario Castellanos.",
+  title: "Universidad Nacional Rosario Castellanos — Control Escolar Inteligente",
+  description: "Plataforma oficial de control de accesos, credenciales digitales con QR, gestión docente y consola de administración de base de datos para la Universidad Nacional Rosario Castellanos.",
   manifest: "/manifest.json",
 };
 
@@ -56,7 +56,7 @@ export default function RootLayout({
                 UNIVERSIDAD NACIONAL ROSARIO CASTELLANOS — GOBIERNO DE LA CIUDAD DE MÉXICO
               </p>
               <p className="text-gray-600">
-                © {new Date().getFullYear()} UNRC. Sistema Multirrol con Autenticación Gmail & Consola PostgreSQL Supabase.
+                © {new Date().getFullYear()} UNRC. Sistema Multirrol con Autenticación Gmail & Consola PostgreSQL.
               </p>
             </div>
           </footer>

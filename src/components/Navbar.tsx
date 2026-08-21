@@ -13,7 +13,7 @@ export const Navbar: React.FC = () => {
   const roleBadges = {
     alumno: { label: 'Alumno', icon: '🎓', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' },
     docente: { label: 'Docente', icon: '👨‍🏫', color: 'bg-blue-500/10 text-blue-400 border-blue-500/30' },
-    administrador: { label: 'Admin Supabase DB', icon: '⚡', color: 'bg-amber-500/10 text-amber-400 border-amber-500/30' }
+    administrador: { label: 'Admin Base de Datos', icon: '⚡', color: 'bg-amber-500/10 text-amber-400 border-amber-500/30' }
   };
 
   return (
@@ -79,7 +79,7 @@ export const Navbar: React.FC = () => {
               href="/admin" 
               className={`py-2 px-4 rounded-xl transition-colors ${pathname === '/admin' ? 'text-amber-400 bg-amber-500/10 font-bold border border-amber-500/30' : 'hover:text-amber-400 hover:bg-white/5'}`}
             >
-              ⚡ Consola Supabase DB
+              ⚡ Consola Base de Datos
             </Link>
           )}
         </nav>
@@ -145,7 +145,7 @@ export const Navbar: React.FC = () => {
                       onClick={() => setRole('administrador')}
                       className={`w-full p-2.5 rounded-xl text-left flex items-center space-x-2 transition-colors ${role === 'administrador' ? 'bg-amber-500/20 text-amber-300 font-semibold' : 'text-gray-300 hover:bg-white/5'}`}
                     >
-                      <span>⚡ Rol Admin Supabase</span>
+                      <span>⚡ Rol Admin BD</span>
                     </button>
                   </div>
 
