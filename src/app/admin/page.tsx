@@ -10,7 +10,7 @@ export default function AdminPage() {
   
   // Custom Database connection override inputs
   const [dbUrlInput, setDbUrlInput] = useState('https://uyqkxqlovxkgurnuxnfd.supabase.co');
-  const [dbKeyInput, setDbKeyInput] = useState('');
+  const [dbKeyInput, setDbKeyInput] = useState('sb_publishable_F-KMTWS6SQt_hOvo9UGK4A_gbDsM0SQ');
   const [customConnected, setCustomConnected] = useState(false);
 
   // File Upload & Data States
