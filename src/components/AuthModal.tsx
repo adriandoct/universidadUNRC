@@ -212,7 +212,7 @@ export const AuthModal: React.FC = () => {
                   <span>Rol Restringido: Administrador de Base de Datos</span>
                 </div>
                 <p className="text-gray-300 leading-relaxed">
-                  Este panel está dedicado exclusivamente a la **gestión, carga de archivos Excel/CSV y migración de tablas en la Base de Datos PostgreSQL**.
+                  Este panel está dedicado exclusivamente a la **gestión, carga de archivos Excel/CSV y migración de tablas en la Base de Datos**.
                 </p>
               </div>
 

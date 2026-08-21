@@ -236,7 +236,7 @@ export default function AdminPage() {
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
           <div className="space-y-2">
             <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-semibold">
-              <span>⚡ Consola Senior de Administración PostgreSQL</span>
+              <span>⚡ Consola Senior de Administración de Datos</span>
             </div>
             <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
               Gestión y Carga de Base de Datos <span className="text-amber-400">UNRC</span>
@@ -255,7 +255,7 @@ export default function AdminPage() {
               </span>
             </div>
             <div className="text-[11px] text-gray-400 truncate">
-              {process.env.NEXT_PUBLIC_SUPABASE_URL || (customConnected ? dbUrlInput : 'PostgreSQL Server')}
+              {process.env.NEXT_PUBLIC_SUPABASE_URL || (customConnected ? dbUrlInput : 'Servidor de Datos')}
             </div>
             <div className="text-[10px] text-amber-400 font-semibold pt-1">
               {stats.alumnosCount} alumnos • {stats.docentesCount} docentes en BD
@@ -521,7 +521,7 @@ export default function AdminPage() {
           <div className="glass-panel p-6 rounded-3xl border border-emerald-500/20 space-y-3">
             <div className="text-3xl font-extrabold text-emerald-400">{stats.alumnosCount}</div>
             <div className="text-sm font-bold text-white">Alumnos Registrados en BD</div>
-            <p className="text-xs text-gray-400">Registros sincronizados en la tabla PostgreSQL 'alumnos' de la Base de Datos.</p>
+            <p className="text-xs text-gray-400">Registros sincronizados en la tabla de alumnos de la Base de Datos.</p>
           </div>
 
           <div className="glass-panel p-6 rounded-3xl border border-blue-500/20 space-y-3">

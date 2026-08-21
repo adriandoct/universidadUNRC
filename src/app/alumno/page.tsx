@@ -234,7 +234,7 @@ export default function AlumnoPage() {
 
           <div className="glass-panel p-6 rounded-3xl border border-white/10 space-y-3">
             <div className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Materia 2</div>
-            <h4 className="text-lg font-bold text-white">Bases de Datos Avanzadas & PostgreSQL</h4>
+            <h4 className="text-lg font-bold text-white">Bases de Datos Avanzadas & Gestión</h4>
             <p className="text-xs text-gray-400">Docente: Dra. Beatriz Sánchez Pineda</p>
             <div className="text-[11px] text-gray-500">Horario: Martes y Jueves 10:00 - 12:00 PM • Laboratorio de IA</div>
           </div>

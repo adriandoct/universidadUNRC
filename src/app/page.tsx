@@ -38,7 +38,7 @@ export default function Home() {
         <div className="space-y-4">
           <h1 className="text-4xl sm:text-6xl font-black tracking-tight leading-none text-white">
             Sistema de Control Escolar <br className="hidden sm:inline" />
-            y Base de Datos <span className="bg-gradient-to-r from-amber-300 via-emerald-400 to-amber-200 bg-clip-text text-transparent">PostgreSQL UNRC</span>
+            y Base de Datos <span className="bg-gradient-to-r from-amber-300 via-emerald-400 to-amber-200 bg-clip-text text-transparent">Institucional UNRC</span>
           </h1>
           
           <p className="text-gray-300 text-base sm:text-lg max-w-2xl mx-auto leading-relaxed">
@@ -126,7 +126,7 @@ export default function Home() {
             </div>
             <h3 className="text-xl font-bold text-white">Rol Administrador</h3>
             <p className="text-gray-400 text-xs leading-relaxed">
-              Consola especializada de **gestión y carga de Base de Datos PostgreSQL**. Sube archivos de Excel (`.xlsx`), CSV y JSON para realizar migraciones y sincronizaciones de tablas en tiempo real.
+              Consola especializada de **gestión y carga de Base de Datos**. Sube archivos de Excel (`.xlsx`), CSV y JSON para realizar migraciones y sincronizaciones de tablas en tiempo real.
             </p>
           </div>
 

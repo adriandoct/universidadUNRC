@@ -527,7 +527,7 @@ export const db = {
     }
 
     try {
-      logs.push('🔗 Conectando con servidor PostgreSQL...');
+      logs.push('🔗 Conectando con servidor de datos...');
 
       if (data.alumnos && data.alumnos.length > 0) {
         logs.push(`📤 Insertando/actualizando ${data.alumnos.length} registros en tabla 'alumnos'...`);

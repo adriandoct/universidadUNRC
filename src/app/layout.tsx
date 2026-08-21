@@ -56,7 +56,7 @@ export default function RootLayout({
                 UNIVERSIDAD NACIONAL ROSARIO CASTELLANOS — GOBIERNO DE LA CIUDAD DE MÉXICO
               </p>
               <p className="text-gray-600">
-                © {new Date().getFullYear()} UNRC. Sistema Multirrol con Autenticación Gmail & Consola PostgreSQL.
+                © {new Date().getFullYear()} UNRC. Sistema Multirrol con Autenticación Gmail & Consola de Datos.
               </p>
             </div>
           </footer>
