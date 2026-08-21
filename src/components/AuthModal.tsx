@@ -85,7 +85,7 @@ export const AuthModal: React.FC = () => {
 
     let fullEmail = customInstitutionalEmail.trim();
     if (!fullEmail.includes('@')) {
-      fullEmail = `${fullEmail}@rcellanos.cdmx.gob.mx`;
+      fullEmail = `${fullEmail}@rcastellanos.cdmx.gob.mx`;
     }
 
     setShowGmailAccountPicker(false);
@@ -235,7 +235,7 @@ export const AuthModal: React.FC = () => {
                   </svg>
                   <span>Seleccionar o Escribir Cuenta Gmail</span>
                   <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold">
-                    @rcellanos.cdmx.gob.mx
+                    @rcastellanos.cdmx.gob.mx
                   </span>
                 </button>
               </div>
@@ -260,12 +260,12 @@ export const AuthModal: React.FC = () => {
                     type="text"
                     value={credentialInput}
                     onChange={(e) => setCredentialInput(e.target.value)}
-                    placeholder={activeTab === 'alumno' ? 'UNRC-2026-001 o tu.nombre@rcellanos.cdmx.gob.mx' : 'DOC-UNRC-01 o tu.nombre@rcellanos.cdmx.gob.mx'}
+                    placeholder={activeTab === 'alumno' ? 'UNRC-2026-001 o tu.nombre@rcastellanos.cdmx.gob.mx' : 'DOC-UNRC-01 o tu.nombre@rcastellanos.cdmx.gob.mx'}
                     className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-sm transition-all"
                   />
                   <p className="text-[11px] text-emerald-400/80 mt-1 flex items-center space-x-1">
                     <span>⚡ Acceso Inmediato:</span>
-                    <span>Puedes escribir tu correo @rcellanos.cdmx.gob.mx o matrícula</span>
+                    <span>Puedes escribir tu correo @rcastellanos.cdmx.gob.mx o matrícula</span>
                   </p>
                 </div>
 
@@ -363,27 +363,27 @@ export const AuthModal: React.FC = () => {
               {activeTab === 'alumno' ? (
                 <>
                   <button
-                    onClick={() => handleSelectGmailAccount('Carlos Martínez López', 'carlos.martinez@rcellanos.cdmx.gob.mx', 'UNRC-2026-001')}
+                    onClick={() => handleSelectGmailAccount('Carlos Martínez López', 'carlos.martinez@rcastellanos.cdmx.gob.mx', 'UNRC-2026-001')}
                     className="w-full p-3 rounded-2xl bg-white/5 hover:bg-emerald-500/10 border border-white/10 hover:border-emerald-500/30 text-left flex items-center space-x-3 transition-all"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src="https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&q=80&w=200&h=200" alt="Avatar" className="w-10 h-10 rounded-full object-cover border border-emerald-400" />
                     <div>
                       <div className="text-sm font-bold text-white">Carlos Martínez López</div>
-                      <div className="text-xs text-emerald-400">carlos.martinez@rcellanos.cdmx.gob.mx</div>
+                      <div className="text-xs text-emerald-400">carlos.martinez@rcastellanos.cdmx.gob.mx</div>
                       <div className="text-[10px] text-gray-400">Matrícula: UNRC-2026-001 • Lic. Ciencias de la Computación</div>
                     </div>
                   </button>
 
                   <button
-                    onClick={() => handleSelectGmailAccount('Sofía Herrera Díaz', 'sofia.herrera@rcellanos.cdmx.gob.mx', 'UNRC-2026-002')}
+                    onClick={() => handleSelectGmailAccount('Sofía Herrera Díaz', 'sofia.herrera@rcastellanos.cdmx.gob.mx', 'UNRC-2026-002')}
                     className="w-full p-3 rounded-2xl bg-white/5 hover:bg-emerald-500/10 border border-white/10 hover:border-emerald-500/30 text-left flex items-center space-x-3 transition-all"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src="https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=200&h=200" alt="Avatar" className="w-10 h-10 rounded-full object-cover border border-emerald-400" />
                     <div>
                       <div className="text-sm font-bold text-white">Sofía Herrera Díaz</div>
-                      <div className="text-xs text-emerald-400">sofia.herrera@rcellanos.cdmx.gob.mx</div>
+                      <div className="text-xs text-emerald-400">sofia.herrera@rcastellanos.cdmx.gob.mx</div>
                       <div className="text-[10px] text-gray-400">Matrícula: UNRC-2026-002 • Lic. Inteligencia Artificial</div>
                     </div>
                   </button>
@@ -391,27 +391,27 @@ export const AuthModal: React.FC = () => {
               ) : (
                 <>
                   <button
-                    onClick={() => handleSelectGmailAccount('Dr. Alejandro Valdez Mendoza', 'alejandro.valdez@rcellanos.cdmx.gob.mx', 'DOC-UNRC-01')}
+                    onClick={() => handleSelectGmailAccount('Dr. Alejandro Valdez Mendoza', 'alejandro.valdez@rcastellanos.cdmx.gob.mx', 'DOC-UNRC-01')}
                     className="w-full p-3 rounded-2xl bg-white/5 hover:bg-emerald-500/10 border border-white/10 hover:border-emerald-500/30 text-left flex items-center space-x-3 transition-all"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src="https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=200&h=200" alt="Avatar" className="w-10 h-10 rounded-full object-cover border border-emerald-400" />
                     <div>
                       <div className="text-sm font-bold text-white">Dr. Alejandro Valdez Mendoza</div>
-                      <div className="text-xs text-emerald-400">alejandro.valdez@rcellanos.cdmx.gob.mx</div>
+                      <div className="text-xs text-emerald-400">alejandro.valdez@rcastellanos.cdmx.gob.mx</div>
                       <div className="text-[10px] text-gray-400">N° Empleado: DOC-UNRC-01 • Profesor Titular</div>
                     </div>
                   </button>
 
                   <button
-                    onClick={() => handleSelectGmailAccount('Dra. Beatriz Sánchez Pineda', 'beatriz.sanchez@rcellanos.cdmx.gob.mx', 'DOC-UNRC-02')}
+                    onClick={() => handleSelectGmailAccount('Dra. Beatriz Sánchez Pineda', 'beatriz.sanchez@rcastellanos.cdmx.gob.mx', 'DOC-UNRC-02')}
                     className="w-full p-3 rounded-2xl bg-white/5 hover:bg-emerald-500/10 border border-white/10 hover:border-emerald-500/30 text-left flex items-center space-x-3 transition-all"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200&h=200" alt="Avatar" className="w-10 h-10 rounded-full object-cover border border-emerald-400" />
                     <div>
                       <div className="text-sm font-bold text-white">Dra. Beatriz Sánchez Pineda</div>
-                      <div className="text-xs text-emerald-400">beatriz.sanchez@rcellanos.cdmx.gob.mx</div>
+                      <div className="text-xs text-emerald-400">beatriz.sanchez@rcastellanos.cdmx.gob.mx</div>
                       <div className="text-[10px] text-gray-400">N° Empleado: DOC-UNRC-02 • Profesora Investigadora</div>
                     </div>
                   </button>
@@ -440,7 +440,7 @@ export const AuthModal: React.FC = () => {
                       type="text"
                       value={customInstitutionalEmail}
                       onChange={(e) => setCustomInstitutionalEmail(e.target.value)}
-                      placeholder="nombre.apellido@rcellanos.cdmx.gob.mx"
+                      placeholder="nombre.apellido@rcastellanos.cdmx.gob.mx"
                       autoFocus
                       className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-amber-400/50 text-white placeholder-gray-500 text-xs focus:outline-none focus:ring-1 focus:ring-amber-400"
                     />

@@ -99,6 +99,6 @@ ON CONFLICT (matricula) DO NOTHING;
 -- Insert mock docentes
 INSERT INTO docentes (id, num_empleado, nombre, apellido_paterno, apellido_materno, email, departamento, materias, foto_url)
 VALUES
-    ('a1111111-1111-1111-1111-111111111111', 'DOC-UNRC-01', 'Dr. Alejandro', 'Valdez', 'Mendoza', 'alejandro.valdez@rcellanos.cdmx.gob.mx', 'Ciencias de la Computación', ARRAY['Bases de Datos Avanzadas', 'Programación Web'], 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=200&h=200'),
-    ('b2222222-2222-2222-2222-222222222222', 'DOC-UNRC-02', 'Dra. Beatriz', 'Sánchez', 'Pineda', 'beatriz.sanchez@rcellanos.cdmx.gob.mx', 'Inteligencia Artificial', ARRAY['Redes Neuronales', 'Algoritmos Complejos'], 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200&h=200')
+    ('a1111111-1111-1111-1111-111111111111', 'DOC-UNRC-01', 'Dr. Alejandro', 'Valdez', 'Mendoza', 'alejandro.valdez@rcastellanos.cdmx.gob.mx', 'Ciencias de la Computación', ARRAY['Bases de Datos Avanzadas', 'Programación Web'], 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=200&h=200'),
+    ('b2222222-2222-2222-2222-222222222222', 'DOC-UNRC-02', 'Dra. Beatriz', 'Sánchez', 'Pineda', 'beatriz.sanchez@rcastellanos.cdmx.gob.mx', 'Inteligencia Artificial', ARRAY['Redes Neuronales', 'Algoritmos Complejos'], 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200&h=200')
 ON CONFLICT (num_empleado) DO NOTHING;

@@ -24,7 +24,7 @@ interface AuthContextType {
 const DEFAULT_USERS: Record<UserRole, UserProfile> = {
   alumno: {
     id: 'user-alumno-demo',
-    email: 'carlos.martinez@rcellanos.cdmx.gob.mx',
+    email: 'carlos.martinez@rcastellanos.cdmx.gob.mx',
     nombre: 'Carlos Martínez López',
     role: 'alumno',
     avatar_url: 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&q=80&w=200&h=200',
@@ -33,7 +33,7 @@ const DEFAULT_USERS: Record<UserRole, UserProfile> = {
   },
   docente: {
     id: 'user-docente-demo',
-    email: 'alejandro.valdez@rcellanos.cdmx.gob.mx',
+    email: 'alejandro.valdez@rcastellanos.cdmx.gob.mx',
     nombre: 'Dr. Alejandro Valdez Mendoza',
     role: 'docente',
     avatar_url: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=200&h=200',
@@ -126,7 +126,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return {
       id: `user-custom-${Date.now()}`,
-      email: cleanEmail.includes('@') ? cleanEmail : `${cleanEmail}@rcellanos.cdmx.gob.mx`,
+      email: cleanEmail.includes('@') ? cleanEmail : `${cleanEmail}@rcastellanos.cdmx.gob.mx`,
       nombre: formattedName || (targetRole === 'alumno' ? 'Estudiante UNRC' : 'Docente UNRC'),
       role: targetRole,
       avatar_url: targetRole === 'alumno' 
@@ -199,14 +199,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const found = alumnos.find(
           a => a.matricula.toLowerCase() === cleanInput || 
                a.qr_code.toLowerCase() === cleanInput ||
-               `${a.matricula.toLowerCase()}@rcellanos.cdmx.gob.mx` === cleanInput ||
+               `${a.matricula.toLowerCase()}@rcastellanos.cdmx.gob.mx` === cleanInput ||
                (a.nombre + a.apellido_paterno).toLowerCase().includes(cleanInput.replace(/\s+/g, ''))
         );
 
         if (found) {
           const profile: UserProfile = {
             id: found.id,
-            email: `${found.matricula.toLowerCase()}@rcellanos.cdmx.gob.mx`,
+            email: `${found.matricula.toLowerCase()}@rcastellanos.cdmx.gob.mx`,
             nombre: `${found.nombre} ${found.apellido_paterno} ${found.apellido_materno || ''}`.trim(),
             role: 'alumno',
             avatar_url: found.foto_url,

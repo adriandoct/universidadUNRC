@@ -143,7 +143,7 @@ export default function AdminPage() {
           nombre: row.nombre || row.Nombre || 'Docente Sin Nombre',
           apellido_paterno: row.apellido_paterno || row.ApellidoPaterno || 'Sin Apellido',
           apellido_materno: row.apellido_materno || row.ApellidoMaterno || '',
-          email: row.email || row.Email || `docente.${i}@rcellanos.cdmx.gob.mx`,
+          email: row.email || row.Email || `docente.${i}@rcastellanos.cdmx.gob.mx`,
           departamento: row.departamento || row.Departamento || 'Licenciaturas UNRC',
           materias: row.materias ? String(row.materias).split(',') : ['Ciencias de Datos'],
           telefono: String(row.telefono || '+525500000000'),

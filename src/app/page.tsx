@@ -42,7 +42,7 @@ export default function Home() {
           </h1>
           
           <p className="text-gray-300 text-base sm:text-lg max-w-2xl mx-auto leading-relaxed">
-            Plataforma institucional para **Alumnos, Docentes y Administrador**. Autenticación con **Gmail** (`@rcellanos.cdmx.gob.mx`) y consola para carga de datos en **Base de Datos Institucional**.
+            Plataforma institucional para **Alumnos, Docentes y Administrador**. Autenticación con **Gmail** (`@rcastellanos.cdmx.gob.mx`) y consola para carga de datos en **Base de Datos Institucional**.
           </p>
         </div>
 
@@ -86,7 +86,7 @@ export default function Home() {
             </div>
             <h3 className="text-xl font-bold text-white">Rol Alumno</h3>
             <p className="text-gray-400 text-xs leading-relaxed">
-              Credencial digital con código QR institucional dinámico, consulta de historial de asistencias y registro de materias. Autenticación fluida con Gmail <code className="text-emerald-400 font-bold">@rcellanos.cdmx.gob.mx</code>.
+              Credencial digital con código QR institucional dinámico, consulta de historial de asistencias y registro de materias. Autenticación fluida con Gmail <code className="text-emerald-400 font-bold">@rcastellanos.cdmx.gob.mx</code>.
             </p>
           </div>
 
