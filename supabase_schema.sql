@@ -207,25 +207,51 @@ ALTER TABLE entregas_proyectos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE autoevaluaciones ENABLE ROW LEVEL SECURITY;
 ALTER TABLE usuarios_roles ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Public read carreras" ON carreras;
 CREATE POLICY "Public read carreras" ON carreras FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS "Public insert carreras" ON carreras;
+CREATE POLICY "Public insert carreras" ON carreras FOR INSERT TO anon WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Public read materias" ON materias;
 CREATE POLICY "Public read materias" ON materias FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS "Public insert materias" ON materias;
+CREATE POLICY "Public insert materias" ON materias FOR INSERT TO anon WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Public read grupos" ON grupos;
 CREATE POLICY "Public read grupos" ON grupos FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS "Public insert grupos" ON grupos;
+CREATE POLICY "Public insert grupos" ON grupos FOR INSERT TO anon WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Public read alumnos" ON alumnos;
 CREATE POLICY "Public read alumnos" ON alumnos FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS "Public insert alumnos" ON alumnos;
 CREATE POLICY "Public insert alumnos" ON alumnos FOR INSERT TO anon WITH CHECK (true);
+DROP POLICY IF EXISTS "Public update alumnos" ON alumnos;
 CREATE POLICY "Public update alumnos" ON alumnos FOR UPDATE TO anon USING (true);
+DROP POLICY IF EXISTS "Public delete alumnos" ON alumnos;
 CREATE POLICY "Public delete alumnos" ON alumnos FOR DELETE TO anon USING (true);
 
+DROP POLICY IF EXISTS "Public read asistencias" ON asistencias;
 CREATE POLICY "Public read asistencias" ON asistencias FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS "Public insert asistencias" ON asistencias;
 CREATE POLICY "Public insert asistencias" ON asistencias FOR INSERT TO anon WITH CHECK (true);
+DROP POLICY IF EXISTS "Public update asistencias" ON asistencias;
 CREATE POLICY "Public update asistencias" ON asistencias FOR UPDATE TO anon USING (true);
 
+DROP POLICY IF EXISTS "Public read participaciones" ON participaciones;
 CREATE POLICY "Public read participaciones" ON participaciones FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS "Public insert participaciones" ON participaciones;
 CREATE POLICY "Public insert participaciones" ON participaciones FOR INSERT TO anon WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Public read tareas" ON tareas;
 CREATE POLICY "Public read tareas" ON tareas FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS "Public read entregas_tareas" ON entregas_tareas;
 CREATE POLICY "Public read entregas_tareas" ON entregas_tareas FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS "Public read proyectos" ON proyectos;
 CREATE POLICY "Public read proyectos" ON proyectos FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS "Public read entregas_proyectos" ON entregas_proyectos;
 CREATE POLICY "Public read entregas_proyectos" ON entregas_proyectos FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS "Public read autoevaluaciones" ON autoevaluaciones;
 CREATE POLICY "Public read autoevaluaciones" ON autoevaluaciones FOR SELECT TO anon USING (true);
 
 -- ==========================================
