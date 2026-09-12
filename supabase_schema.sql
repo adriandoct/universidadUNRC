@@ -236,7 +236,8 @@ CREATE POLICY "Public read autoevaluaciones" ON autoevaluaciones FOR SELECT TO a
 INSERT INTO carreras (id, clave, nombre, nivel) VALUES
     ('c1111111-1111-1111-1111-111111111111', 'LIC-CDIA', 'Licenciatura en Ciencias de Datos e Inteligencia Artificial', 'Licenciatura'),
     ('c2222222-2222-2222-2222-222222222222', 'LIC-TIC', 'Licenciatura en Tecnologías de la Información y Comunicación', 'Licenciatura'),
-    ('c3333333-3333-3333-3333-333333333333', 'LIC-CIB', 'Licenciatura en Ciberseguridad', 'Licenciatura')
+    ('c3333333-3333-3333-3333-333333333333', 'LIC-CIB', 'Licenciatura en Ciberseguridad', 'Licenciatura'),
+    ('c4444444-4444-4444-4444-444444444444', 'LIC-TUR', 'Licenciatura en Turismo', 'Licenciatura')
 ON CONFLICT (clave) DO NOTHING;
 
 -- 2. Insert Materias
@@ -245,7 +246,8 @@ INSERT INTO materias (id, carrera_id, clave, nombre, creditos, semestre) VALUES
     ('f2222222-2222-2222-2222-222222222222', 'c1111111-1111-1111-1111-111111111111', 'CDIA-102', 'Inteligencia Artificial y Aprendizaje Automático', 10, '1° Semestre'),
     ('f3333333-3333-3333-3333-333333333333', 'c2222222-2222-2222-2222-222222222222', 'TIC-201', 'Estructura de Datos y Algoritmos', 8, '3° Semestre'),
     ('f4444444-4444-4444-4444-444444444444', 'c2222222-2222-2222-2222-222222222222', 'TIC-301', 'Ingeniería de Software y Sistemas Web', 10, '3° Semestre'),
-    ('f5555555-5555-5555-5555-555555555555', 'c3333333-3333-3333-3333-333333333333', 'CIB-501', 'Ciberseguridad y Auditoría de Sistemas', 10, '5° Semestre')
+    ('f5555555-5555-5555-5555-555555555555', 'c3333333-3333-3333-3333-333333333333', 'CIB-501', 'Ciberseguridad y Auditoría de Sistemas', 10, '5° Semestre'),
+    ('f6666666-6666-6666-6666-666666666666', 'c4444444-4444-4444-4444-444444444444', 'TUR-201', 'Gestión Turística y Servicios', 8, '2° Semestre')
 ON CONFLICT (clave) DO NOTHING;
 
 -- 3. Insert Grupos
@@ -253,19 +255,20 @@ INSERT INTO grupos (id, clave_grupo, carrera_id, materia_id, turno, periodo) VAL
     ('e1010000-0000-0000-0000-000000000101', '101', 'c1111111-1111-1111-1111-111111111111', 'f1111111-1111-1111-1111-111111111111', 'Matutino', '2026-2'),
     ('e1020000-0000-0000-0000-000000000102', '102', 'c1111111-1111-1111-1111-111111111111', 'f2222222-2222-2222-2222-222222222222', 'Matutino', '2026-2'),
     ('e2010000-0000-0000-0000-000000000201', '201', 'c2222222-2222-2222-2222-222222222222', 'f3333333-3333-3333-3333-333333333333', 'Vespertino', '2026-2'),
+    ('e2020000-0000-0000-0000-000000000202', '201-TUR', 'c4444444-4444-4444-4444-444444444444', 'f6666666-6666-6666-6666-666666666666', 'Matutino', '2026-2'),
     ('e3010000-0000-0000-0000-000000000301', '301', 'c2222222-2222-2222-2222-222222222222', 'f4444444-4444-4444-4444-444444444444', 'Matutino', '2026-2'),
     ('e5010000-0000-0000-0000-000000000501', '501', 'c3333333-3333-3333-3333-333333333333', 'f5555555-5555-5555-5555-555555555555', 'Matutino', '2026-2')
 ON CONFLICT (clave_grupo) DO NOTHING;
 
 -- 4. Insert ALL 44 STUDENTS
 INSERT INTO alumnos (id, matricula, nombre, apellido_paterno, apellido_materno, carrera_id, grupo_id, grado, grupo, carrera, tutor, telefono, qr_code) VALUES
-    -- GRUPO 101 (6 Alumnos)
-    ('a0000001-0000-0000-0000-000000000001', 'UNRC-2026-005', 'Dayanna Gissel', 'Buitimea', 'Garma', 'c1111111-1111-1111-1111-111111111111', 'e1010000-0000-0000-0000-000000000101', '1° Semestre', '101', 'Licenciatura en Ciencias de Datos e IA', 'Tutor Académico UNRC', '+525500000000', 'UNRC-2026-005'),
-    ('a0000002-0000-0000-0000-000000000002', 'UNRC-2026-006', 'Astrid Cristina', 'Diaz', 'Moreno', 'c1111111-1111-1111-1111-111111111111', 'e1010000-0000-0000-0000-000000000101', '1° Semestre', '101', 'Licenciatura en Ciencias de Datos e IA', 'Tutor Académico UNRC', '+525500000000', 'UNRC-2026-006'),
-    ('a0000003-0000-0000-0000-000000000003', 'UNRC-2026-007', 'Julibeth', 'Hernandez', 'Herrera', 'c1111111-1111-1111-1111-111111111111', 'e1010000-0000-0000-0000-000000000101', '1° Semestre', '101', 'Licenciatura en Ciencias de Datos e IA', 'Tutor Académico UNRC', '+525500000000', 'UNRC-2026-007'),
-    ('a0000004-0000-0000-0000-000000000004', 'UNRC-2026-008', 'Blanca Estela', 'Lopez', 'Pablo', 'c1111111-1111-1111-1111-111111111111', 'e1010000-0000-0000-0000-000000000101', '1° Semestre', '101', 'Licenciatura en Ciencias de Datos e IA', 'Tutor Académico UNRC', '+525500000000', 'UNRC-2026-008'),
-    ('a0000005-0000-0000-0000-000000000005', 'UNRC-2026-009', 'Cecilia', 'Todd', 'Ambriz', 'c1111111-1111-1111-1111-111111111111', 'e1010000-0000-0000-0000-000000000101', '1° Semestre', '101', 'Licenciatura en Ciencias de Datos e IA', 'Tutor Académico UNRC', '+525500000000', 'UNRC-2026-009'),
-    ('a0000006-0000-0000-0000-000000000006', 'UNRC-2026-010', 'Alejandra', 'Garcia', 'Hernandez', 'c1111111-1111-1111-1111-111111111111', 'e1010000-0000-0000-0000-000000000101', '1° Semestre', '101', 'Licenciatura en Ciencias de Datos e IA', 'Tutor Académico UNRC', '+525500000000', 'UNRC-2026-010'),
+    -- GRUPO 201-TUR (Licenciatura en Turismo - 6 Alumnos)
+    ('a0000001-0000-0000-0000-000000000001', 'UNRC-2026-005', 'Dayanna Gissel', 'Buitimea', 'Garma', 'c4444444-4444-4444-4444-444444444444', 'e2020000-0000-0000-0000-000000000202', '2° Semestre', '201-TUR', 'Licenciatura en Turismo', 'Tutor Académico UNRC', '+525500000000', 'UNRC-2026-005'),
+    ('a0000002-0000-0000-0000-000000000002', 'UNRC-2026-006', 'Astrid Cristina', 'Diaz', 'Moreno', 'c4444444-4444-4444-4444-444444444444', 'e2020000-0000-0000-0000-000000000202', '2° Semestre', '201-TUR', 'Licenciatura en Turismo', 'Tutor Académico UNRC', '+525500000000', 'UNRC-2026-006'),
+    ('a0000003-0000-0000-0000-000000000003', 'UNRC-2026-007', 'Julibeth', 'Hernandez', 'Herrera', 'c4444444-4444-4444-4444-444444444444', 'e2020000-0000-0000-0000-000000000202', '2° Semestre', '201-TUR', 'Licenciatura en Turismo', 'Tutor Académico UNRC', '+525500000000', 'UNRC-2026-007'),
+    ('a0000004-0000-0000-0000-000000000004', 'UNRC-2026-008', 'Blanca Estela', 'Lopez', 'Pablo', 'c4444444-4444-4444-4444-444444444444', 'e2020000-0000-0000-0000-000000000202', '2° Semestre', '201-TUR', 'Licenciatura en Turismo', 'Tutor Académico UNRC', '+525500000000', 'UNRC-2026-008'),
+    ('a0000005-0000-0000-0000-000000000005', 'UNRC-2026-009', 'Cecilia', 'Todd', 'Ambriz', 'c4444444-4444-4444-4444-444444444444', 'e2020000-0000-0000-0000-000000000202', '2° Semestre', '201-TUR', 'Licenciatura en Turismo', 'Tutor Académico UNRC', '+525500000000', 'UNRC-2026-009'),
+    ('a0000006-0000-0000-0000-000000000006', 'UNRC-2026-010', 'Alejandra', 'Garcia', 'Hernandez', 'c4444444-4444-4444-4444-444444444444', 'e2020000-0000-0000-0000-000000000202', '2° Semestre', '201-TUR', 'Licenciatura en Turismo', 'Tutor Académico UNRC', '+525500000000', 'UNRC-2026-010'),
 
     -- GRUPO 102 (6 Alumnos)
     ('a0000007-0000-0000-0000-000000000007', 'UNRC-2026-011', 'Stephanie', 'Morales', 'Flores', 'c1111111-1111-1111-1111-111111111111', 'e1020000-0000-0000-0000-000000000102', '1° Semestre', '102', 'Licenciatura en Ciencias de Datos e IA', 'Tutor Académico UNRC', '+525500000000', 'UNRC-2026-011'),

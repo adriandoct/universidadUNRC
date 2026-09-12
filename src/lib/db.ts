@@ -180,7 +180,8 @@ export const supabase = isSupabaseConfigured
 const MOCK_CARRERAS: Carrera[] = [
   { id: 'c1', clave: 'LIC-CDIA', nombre: 'Lic. en Ciencias de Datos e Inteligencia Artificial', nivel: 'Licenciatura' },
   { id: 'c2', clave: 'LIC-TIC', nombre: 'Lic. en Tecnologías de la Información y Comunicación', nivel: 'Licenciatura' },
-  { id: 'c3', clave: 'LIC-CIB', nombre: 'Lic. en Ciberseguridad', nivel: 'Licenciatura' }
+  { id: 'c3', clave: 'LIC-CIB', nombre: 'Lic. en Ciberseguridad', nivel: 'Licenciatura' },
+  { id: 'c4', clave: 'LIC-TUR', nombre: 'Lic. en Turismo', nivel: 'Licenciatura' }
 ];
 
 const MOCK_MATERIAS: Materia[] = [
@@ -188,26 +189,28 @@ const MOCK_MATERIAS: Materia[] = [
   { id: 'm2', carrera_id: 'c1', clave: 'CDIA-102', nombre: 'Inteligencia Artificial y Aprendizaje Automático', creditos: 10, semestre: '1° Semestre' },
   { id: 'm3', carrera_id: 'c2', clave: 'TIC-201', nombre: 'Estructura de Datos y Algoritmos', creditos: 8, semestre: '3° Semestre' },
   { id: 'm4', carrera_id: 'c2', clave: 'TIC-301', nombre: 'Ingeniería de Software y Sistemas Web', creditos: 10, semestre: '3° Semestre' },
-  { id: 'm5', carrera_id: 'c3', clave: 'CIB-501', nombre: 'Ciberseguridad y Auditoría de Sistemas', creditos: 10, semestre: '5° Semestre' }
+  { id: 'm5', carrera_id: 'c3', clave: 'CIB-501', nombre: 'Ciberseguridad y Auditoría de Sistemas', creditos: 10, semestre: '5° Semestre' },
+  { id: 'm6', carrera_id: 'c4', clave: 'TUR-201', nombre: 'Gestión Turística y Servicios', creditos: 8, semestre: '2° Semestre' }
 ];
 
 const MOCK_GRUPOS: Grupo[] = [
   { id: 'g101', clave_grupo: '101', carrera_id: 'c1', materia_id: 'm1', turno: 'Matutino', periodo: '2026-2' },
   { id: 'g102', clave_grupo: '102', carrera_id: 'c1', materia_id: 'm2', turno: 'Matutino', periodo: '2026-2' },
   { id: 'g201', clave_grupo: '201', carrera_id: 'c2', materia_id: 'm3', turno: 'Vespertino', periodo: '2026-2' },
+  { id: 'g201-tur', clave_grupo: '201-TUR', carrera_id: 'c4', materia_id: 'm6', turno: 'Matutino', periodo: '2026-2' },
   { id: 'g301', clave_grupo: '301', carrera_id: 'c2', materia_id: 'm4', turno: 'Matutino', periodo: '2026-2' },
   { id: 'g501', clave_grupo: '501', carrera_id: 'c3', materia_id: 'm5', turno: 'Matutino', periodo: '2026-2' }
 ];
 
 // Initial mock data for UNRC Alumnos (All 44 Parsed Students)
 const MOCK_ALUMNOS: Alumno[] = [
-  // Group 101
-  { id: 'al-1', matricula: 'UNRC-2026-005', nombre: 'Dayanna Gissel', apellido_paterno: 'Buitimea', apellido_materno: 'Garma', grado: '1° Semestre', grupo: '101', carrera: 'Lic. en Ciencias de Datos e IA', carrera_id: 'c1', grupo_id: 'g101', tutor: 'Tutor UNRC', telefono: '+525510000001', qr_code: 'UNRC-2026-005' },
-  { id: 'al-2', matricula: 'UNRC-2026-006', nombre: 'Astrid Cristina', apellido_paterno: 'Diaz', apellido_materno: 'Moreno', grado: '1° Semestre', grupo: '101', carrera: 'Lic. en Ciencias de Datos e IA', carrera_id: 'c1', grupo_id: 'g101', tutor: 'Tutor UNRC', telefono: '+525510000002', qr_code: 'UNRC-2026-006' },
-  { id: 'al-3', matricula: 'UNRC-2026-007', nombre: 'Julibeth', apellido_paterno: 'Hernandez', apellido_materno: 'Herrera', grado: '1° Semestre', grupo: '101', carrera: 'Lic. en Ciencias de Datos e IA', carrera_id: 'c1', grupo_id: 'g101', tutor: 'Tutor UNRC', telefono: '+525510000003', qr_code: 'UNRC-2026-007' },
-  { id: 'al-4', matricula: 'UNRC-2026-008', nombre: 'Blanca Estela', apellido_paterno: 'Lopez', apellido_materno: 'Pablo', grado: '1° Semestre', grupo: '101', carrera: 'Lic. en Ciencias de Datos e IA', carrera_id: 'c1', grupo_id: 'g101', tutor: 'Tutor UNRC', telefono: '+525510000004', qr_code: 'UNRC-2026-008' },
-  { id: 'al-5', matricula: 'UNRC-2026-009', nombre: 'Cecilia', apellido_paterno: 'Todd', apellido_materno: 'Ambriz', grado: '1° Semestre', grupo: '101', carrera: 'Lic. en Ciencias de Datos e IA', carrera_id: 'c1', grupo_id: 'g101', tutor: 'Tutor UNRC', telefono: '+525510000005', qr_code: 'UNRC-2026-009' },
-  { id: 'al-6', matricula: 'UNRC-2026-010', nombre: 'Alejandra', apellido_paterno: 'Garcia', apellido_materno: 'Hernandez', grado: '1° Semestre', grupo: '101', carrera: 'Lic. en Ciencias de Datos e IA', carrera_id: 'c1', grupo_id: 'g101', tutor: 'Tutor UNRC', telefono: '+525510000006', qr_code: 'UNRC-2026-010' },
+  // Group 201-TUR (Turismo - 6 Alumnos)
+  { id: 'al-1', matricula: 'UNRC-2026-005', nombre: 'Dayanna Gissel', apellido_paterno: 'Buitimea', apellido_materno: 'Garma', grado: '2° Semestre', grupo: '201-TUR', carrera: 'Lic. en Turismo', carrera_id: 'c4', grupo_id: 'g201-tur', tutor: 'Tutor UNRC', telefono: '+525510000001', qr_code: 'UNRC-2026-005' },
+  { id: 'al-2', matricula: 'UNRC-2026-006', nombre: 'Astrid Cristina', apellido_paterno: 'Diaz', apellido_materno: 'Moreno', grado: '2° Semestre', grupo: '201-TUR', carrera: 'Lic. en Turismo', carrera_id: 'c4', grupo_id: 'g201-tur', tutor: 'Tutor UNRC', telefono: '+525510000002', qr_code: 'UNRC-2026-006' },
+  { id: 'al-3', matricula: 'UNRC-2026-007', nombre: 'Julibeth', apellido_paterno: 'Hernandez', apellido_materno: 'Herrera', grado: '2° Semestre', grupo: '201-TUR', carrera: 'Lic. en Turismo', carrera_id: 'c4', grupo_id: 'g201-tur', tutor: 'Tutor UNRC', telefono: '+525510000003', qr_code: 'UNRC-2026-007' },
+  { id: 'al-4', matricula: 'UNRC-2026-008', nombre: 'Blanca Estela', apellido_paterno: 'Lopez', apellido_materno: 'Pablo', grado: '2° Semestre', grupo: '201-TUR', carrera: 'Lic. en Turismo', carrera_id: 'c4', grupo_id: 'g201-tur', tutor: 'Tutor UNRC', telefono: '+525510000004', qr_code: 'UNRC-2026-008' },
+  { id: 'al-5', matricula: 'UNRC-2026-009', nombre: 'Cecilia', apellido_paterno: 'Todd', apellido_materno: 'Ambriz', grado: '2° Semestre', grupo: '201-TUR', carrera: 'Lic. en Turismo', carrera_id: 'c4', grupo_id: 'g201-tur', tutor: 'Tutor UNRC', telefono: '+525510000005', qr_code: 'UNRC-2026-009' },
+  { id: 'al-6', matricula: 'UNRC-2026-010', nombre: 'Alejandra', apellido_paterno: 'Garcia', apellido_materno: 'Hernandez', grado: '2° Semestre', grupo: '201-TUR', carrera: 'Lic. en Turismo', carrera_id: 'c4', grupo_id: 'g201-tur', tutor: 'Tutor UNRC', telefono: '+525510000006', qr_code: 'UNRC-2026-010' },
 
   // Group 102
   { id: 'al-7', matricula: 'UNRC-2026-011', nombre: 'Stephanie', apellido_paterno: 'Morales', apellido_materno: 'Flores', grado: '1° Semestre', grupo: '102', carrera: 'Lic. en Ciencias de Datos e IA', carrera_id: 'c1', grupo_id: 'g102', tutor: 'Tutor UNRC', telefono: '+525510000007', qr_code: 'UNRC-2026-011' },
