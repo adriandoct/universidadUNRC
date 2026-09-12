@@ -4,11 +4,53 @@ import { createClient } from '@supabase/supabase-js';
 export type UserRole = 'alumno' | 'docente' | 'administrador';
 
 // Domain Entities
+export interface Sede {
+  id: string;
+  clave: string;
+  nombre: string;
+  direccion: string;
+  director: string;
+  telefono?: string;
+  capacidad: number;
+  activa: boolean;
+}
+
+export interface CicloEscolar {
+  id: string;
+  nombre: string;
+  fecha_inicio: string;
+  fecha_fin: string;
+  is_active: boolean;
+}
+
+export interface Grado {
+  id: string;
+  nombre: string;
+  nivel: string;
+  orden: number;
+}
+
+export interface Seccion {
+  id: string;
+  nombre: string;
+  grado_id: string;
+  grado_nombre?: string;
+  carrera_id?: string;
+  carrera_nombre?: string;
+  sede_id?: string;
+  sede_nombre?: string;
+  turno: 'Matutino' | 'Vespertino' | 'Sabatino';
+  aula: string;
+  cupo_maximo: number;
+}
+
 export interface Carrera {
   id: string;
   clave: string;
   nombre: string;
   nivel: string;
+  sede_id?: string;
+  sede_nombre?: string;
 }
 
 export interface Materia {
@@ -18,6 +60,7 @@ export interface Materia {
   nombre: string;
   creditos: number;
   semestre: string;
+  horas_semana?: number;
 }
 
 export interface Grupo {
@@ -25,13 +68,28 @@ export interface Grupo {
   clave_grupo: string;
   carrera_id: string;
   materia_id: string;
+  sede_id?: string;
+  sede_nombre?: string;
   turno: string;
   periodo: string;
   horario?: string;
   dias_clase?: string[];
   docente_nombre?: string;
+  docente_id?: string;
+  aula?: string;
   carrera?: Carrera;
   materia?: Materia;
+}
+
+export interface HorarioDocenteItem {
+  id?: string;
+  dia: string;
+  hora_inicio: string;
+  hora_fin: string;
+  carrera: string;
+  materia: string;
+  grupo: string;
+  aula?: string;
 }
 
 export interface Alumno {
@@ -45,6 +103,10 @@ export interface Alumno {
   carrera?: string;
   carrera_id?: string;
   grupo_id?: string;
+  sede_id?: string;
+  sede_nombre?: string;
+  ciclo_id?: string;
+  estado_matricula?: 'activo' | 'baja_temporal' | 'egresado' | 'aspirante';
   tutor: string;
   telefono: string;
   foto_url?: string;
@@ -60,10 +122,35 @@ export interface Docente {
   apellido_materno?: string;
   email: string;
   departamento: string;
+  puesto?: 'docente' | 'coordinador' | 'secretaria' | 'rectoria';
   materias?: string[];
+  carreras_asignadas?: string[];
+  horario_resumen?: string;
+  horarios?: HorarioDocenteItem[];
+  sede_id?: string;
+  sede_nombre?: string;
   telefono?: string;
   foto_url?: string;
   created_at?: string;
+}
+
+export interface AuditoriaLog {
+  id: string;
+  accion: string;
+  modulo: string;
+  detalle: string;
+  usuario: string;
+  fecha: string;
+}
+
+export interface AnuncioInstitucional {
+  id: string;
+  titulo: string;
+  contenido: string;
+  audiencia: 'todos' | 'docentes' | 'alumnos';
+  prioridad: 'normal' | 'alta' | 'urgente';
+  fecha: string;
+  autor: string;
 }
 
 export interface UserProfile {
@@ -180,94 +267,128 @@ export const supabase = isSupabaseConfigured
   : null;
 
 // Initial Mock Seed Data for UNRC
+const MOCK_SEDES: Sede[] = [
+  { id: 'sede-mc', clave: 'UNRC-MC', nombre: 'Campus Magdalena Contreras', direccion: 'Av. Álvaro Obregón 151, Santa Teresa, La Magdalena Contreras, CDMX', director: 'Dra. María Elena Sandoval', telefono: '+525556830100', capacidad: 1200, activa: true },
+  { id: 'sede-js', clave: 'UNRC-JS', nombre: 'Sede Justo Sierra', direccion: 'Calle Justo Sierra 42, Centro Histórico, Cuauhtémoc, CDMX', director: 'Dr. Roberto Mendoza', telefono: '+525555220033', capacidad: 850, activa: true },
+  { id: 'sede-coy', clave: 'UNRC-COY', nombre: 'Sede Coyoacán', direccion: 'Calz. de Tlalpan 1890, Country Club, Coyoacán, CDMX', director: 'Mtra. Carmen Trejo', telefono: '+525556891122', capacidad: 950, activa: true },
+  { id: 'sede-azc', clave: 'UNRC-AZC', nombre: 'Sede Azcapotzalco', direccion: 'Av. Aquiles Serdán 2060, Santo Domingo, Azcapotzalco, CDMX', director: 'Ing. Fernando Castillo', telefono: '+525553524455', capacidad: 1100, activa: true }
+];
+
+const MOCK_CICLOS: CicloEscolar[] = [
+  { id: 'ciclo-2026-2', nombre: 'Ciclo Escolar 2026-2 (Otoño)', fecha_inicio: '2026-08-10', fecha_fin: '2026-12-22', is_active: true },
+  { id: 'ciclo-2026-1', nombre: 'Ciclo Escolar 2026-1 (Primavera)', fecha_inicio: '2026-01-12', fecha_fin: '2026-06-28', is_active: false },
+  { id: 'ciclo-2026-2027', nombre: 'Año Lectivo Completo 2026-2027', fecha_inicio: '2026-08-10', fecha_fin: '2027-07-02', is_active: false }
+];
+
+const MOCK_GRADOS: Grado[] = [
+  { id: 'g-sem-1', nombre: '1° Semestre', nivel: 'Licenciatura', orden: 1 },
+  { id: 'g-sem-2', nombre: '2° Semestre', nivel: 'Licenciatura', orden: 2 },
+  { id: 'g-sem-3', nombre: '3° Semestre', nivel: 'Licenciatura', orden: 3 },
+  { id: 'g-sem-4', nombre: '4° Semestre', nivel: 'Licenciatura', orden: 4 },
+  { id: 'g-sem-5', nombre: '5° Semestre', nivel: 'Licenciatura', orden: 5 },
+  { id: 'g-sem-6', nombre: '6° Semestre', nivel: 'Licenciatura', orden: 6 },
+  { id: 'g-sem-7', nombre: '7° Semestre', nivel: 'Licenciatura', orden: 7 },
+  { id: 'g-sem-8', nombre: '8° Semestre', nivel: 'Licenciatura', orden: 8 }
+];
+
+const MOCK_SECCIONES: Seccion[] = [
+  { id: 'sec-101', nombre: '101', grado_id: 'g-sem-1', grado_nombre: '1° Semestre', carrera_id: 'c1', carrera_nombre: 'Lic. en Ciencias de Datos e IA', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', turno: 'Matutino', aula: 'Edificio B - Aula 101', cupo_maximo: 35 },
+  { id: 'sec-102', nombre: '102', grado_id: 'g-sem-1', grado_nombre: '1° Semestre', carrera_id: 'c1', carrera_nombre: 'Lic. en Ciencias de Datos e IA', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', turno: 'Matutino', aula: 'Edificio B - Aula 102', cupo_maximo: 35 },
+  { id: 'sec-201-tur', nombre: '201-TUR', grado_id: 'g-sem-2', grado_nombre: '2° Semestre', carrera_id: 'c4', carrera_nombre: 'Lic. en Turismo', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', turno: 'Matutino', aula: 'Edificio A - Aula Magna 2', cupo_maximo: 30 },
+  { id: 'sec-203-adm', nombre: '203-ADM', grado_id: 'g-sem-2', grado_nombre: '2° Semestre', carrera_id: 'c5', carrera_nombre: 'Lic. en Administración', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', turno: 'Matutino', aula: 'Edificio C - Aula 203', cupo_maximo: 40 },
+  { id: 'sec-201', nombre: '201', grado_id: 'g-sem-3', grado_nombre: '3° Semestre', carrera_id: 'c2', carrera_nombre: 'Lic. en TIC', sede_id: 'sede-js', sede_nombre: 'Sede Justo Sierra', turno: 'Vespertino', aula: 'Laboratorio de Cómputo 1', cupo_maximo: 30 },
+  { id: 'sec-301', nombre: '301', grado_id: 'g-sem-3', grado_nombre: '3° Semestre', carrera_id: 'c2', carrera_nombre: 'Lic. en TIC', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', turno: 'Matutino', aula: 'Laboratorio Redes 2', cupo_maximo: 30 },
+  { id: 'sec-501', nombre: '501', grado_id: 'g-sem-5', grado_nombre: '5° Semestre', carrera_id: 'c3', carrera_nombre: 'Lic. en Ciberseguridad', sede_id: 'sede-coy', sede_nombre: 'Sede Coyoacán', turno: 'Matutino', aula: 'Laboratorio de Seguridad A', cupo_maximo: 25 }
+];
+
 const MOCK_CARRERAS: Carrera[] = [
-  { id: 'c1', clave: 'LIC-CDIA', nombre: 'Lic. en Ciencias de Datos e Inteligencia Artificial', nivel: 'Licenciatura' },
-  { id: 'c2', clave: 'LIC-TIC', nombre: 'Lic. en Tecnologías de la Información y Comunicación', nivel: 'Licenciatura' },
-  { id: 'c3', clave: 'LIC-CIB', nombre: 'Lic. en Ciberseguridad', nivel: 'Licenciatura' },
-  { id: 'c4', clave: 'LIC-TUR', nombre: 'Lic. en Turismo', nivel: 'Licenciatura' },
-  { id: 'c5', clave: 'LIC-ADM', nombre: 'Lic. en Administración', nivel: 'Licenciatura' }
+  { id: 'c1', clave: 'LIC-CDIA', nombre: 'Lic. en Ciencias de Datos e Inteligencia Artificial', nivel: 'Licenciatura', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras' },
+  { id: 'c2', clave: 'LIC-TIC', nombre: 'Lic. en Tecnologías de la Información y Comunicación', nivel: 'Licenciatura', sede_id: 'sede-js', sede_nombre: 'Sede Justo Sierra' },
+  { id: 'c3', clave: 'LIC-CIB', nombre: 'Lic. en Ciberseguridad', nivel: 'Licenciatura', sede_id: 'sede-coy', sede_nombre: 'Sede Coyoacán' },
+  { id: 'c4', clave: 'LIC-TUR', nombre: 'Lic. en Turismo', nivel: 'Licenciatura', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras' },
+  { id: 'c5', clave: 'LIC-ADM', nombre: 'Lic. en Administración', nivel: 'Licenciatura', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras' }
 ];
 
 const MOCK_MATERIAS: Materia[] = [
-  { id: 'm1', carrera_id: 'c1', clave: 'CDIA-101', nombre: 'Programación Web y Bases de Datos', creditos: 8, semestre: '1° Semestre' },
-  { id: 'm2', carrera_id: 'c1', clave: 'CDIA-102', nombre: 'Inteligencia Artificial y Aprendizaje Automático', creditos: 10, semestre: '1° Semestre' },
-  { id: 'm3', carrera_id: 'c2', clave: 'TIC-201', nombre: 'Estructura de Datos y Algoritmos', creditos: 8, semestre: '3° Semestre' },
-  { id: 'm4', carrera_id: 'c2', clave: 'TIC-301', nombre: 'Ingeniería de Software y Sistemas Web', creditos: 10, semestre: '3° Semestre' },
-  { id: 'm5', carrera_id: 'c3', clave: 'CIB-501', nombre: 'Ciberseguridad y Auditoría de Sistemas', creditos: 10, semestre: '5° Semestre' },
-  { id: 'm6', carrera_id: 'c4', clave: 'TUR-201', nombre: 'Administración de Empresas de Hospedaje', creditos: 8, semestre: '2° Semestre' },
-  { id: 'm7', carrera_id: 'c5', clave: 'ADM-203', nombre: 'Matemáticas para la Administración', creditos: 8, semestre: '2° Semestre' }
+  { id: 'm1', carrera_id: 'c1', clave: 'CDIA-101', nombre: 'Programación Web y Bases de Datos', creditos: 8, semestre: '1° Semestre', horas_semana: 6 },
+  { id: 'm2', carrera_id: 'c1', clave: 'CDIA-102', nombre: 'Inteligencia Artificial y Aprendizaje Automático', creditos: 10, semestre: '1° Semestre', horas_semana: 6 },
+  { id: 'm3', carrera_id: 'c2', clave: 'TIC-201', nombre: 'Estructura de Datos y Algoritmos', creditos: 8, semestre: '3° Semestre', horas_semana: 6 },
+  { id: 'm4', carrera_id: 'c2', clave: 'TIC-301', nombre: 'Ingeniería de Software y Sistemas Web', creditos: 10, semestre: '3° Semestre', horas_semana: 6 },
+  { id: 'm5', carrera_id: 'c3', clave: 'CIB-501', nombre: 'Ciberseguridad y Auditoría de Sistemas', creditos: 10, semestre: '5° Semestre', horas_semana: 6 },
+  { id: 'm6', carrera_id: 'c4', clave: 'TUR-201', nombre: 'Administración de Empresas de Hospedaje', creditos: 8, semestre: '2° Semestre', horas_semana: 4 },
+  { id: 'm7', carrera_id: 'c5', clave: 'ADM-203', nombre: 'Matemáticas para la Administración', creditos: 8, semestre: '2° Semestre', horas_semana: 6 }
 ];
 
 const MOCK_GRUPOS: Grupo[] = [
-  { id: 'g101', clave_grupo: '101', carrera_id: 'c1', materia_id: 'm1', turno: 'Matutino', periodo: '2026-2', horario: 'Lunes a Sábado (07:00 - 13:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Lic. Alejandro Valdez' },
-  { id: 'g102', clave_grupo: '102', carrera_id: 'c1', materia_id: 'm2', turno: 'Matutino', periodo: '2026-2', horario: 'Lunes a Sábado (07:00 - 13:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Lic. Alejandro Valdez' },
-  { id: 'g201', clave_grupo: '201', carrera_id: 'c2', materia_id: 'm3', turno: 'Vespertino', periodo: '2026-2', horario: 'Lunes a Sábado (14:00 - 20:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Lic. Beatriz Sánchez' },
-  { id: 'g201-tur', clave_grupo: '201-TUR', carrera_id: 'c4', materia_id: 'm6', turno: 'Matutino', periodo: '2026-2', horario: 'Miércoles 09:00 - 11:00 hrs | Sábado 07:00 - 09:00 hrs', dias_clase: ['Miércoles', 'Sábado'], docente_nombre: 'Dr. Adrian Silva' },
-  { id: 'g203-adm', clave_grupo: '203-ADM', carrera_id: 'c5', materia_id: 'm7', turno: 'Matutino', periodo: '2026-2', horario: 'Lunes a Sábado (07:00 - 13:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Dr. Adrian Silva' },
-  { id: 'g301', clave_grupo: '301', carrera_id: 'c2', materia_id: 'm4', turno: 'Matutino', periodo: '2026-2', horario: 'Lunes a Sábado (07:00 - 13:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Lic. Beatriz Sánchez' },
-  { id: 'g501', clave_grupo: '501', carrera_id: 'c3', materia_id: 'm5', turno: 'Matutino', periodo: '2026-2', horario: 'Lunes a Sábado (07:00 - 13:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Tutor UNRC' }
+  { id: 'g101', clave_grupo: '101', carrera_id: 'c1', materia_id: 'm1', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', turno: 'Matutino', periodo: '2026-2', horario: 'Lunes a Sábado (07:00 - 13:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Lic. Alejandro Valdez', aula: 'Edificio B - Aula 101' },
+  { id: 'g102', clave_grupo: '102', carrera_id: 'c1', materia_id: 'm2', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', turno: 'Matutino', periodo: '2026-2', horario: 'Lunes a Sábado (07:00 - 13:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Lic. Alejandro Valdez', aula: 'Edificio B - Aula 102' },
+  { id: 'g201', clave_grupo: '201', carrera_id: 'c2', materia_id: 'm3', sede_id: 'sede-js', sede_nombre: 'Sede Justo Sierra', turno: 'Vespertino', periodo: '2026-2', horario: 'Lunes a Sábado (14:00 - 20:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Lic. Beatriz Sánchez', aula: 'Laboratorio de Cómputo 1' },
+  { id: 'g201-tur', clave_grupo: '201-TUR', carrera_id: 'c4', materia_id: 'm6', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', turno: 'Matutino', periodo: '2026-2', horario: 'Miércoles 09:00 - 11:00 hrs | Sábado 07:00 - 09:00 hrs', dias_clase: ['Miércoles', 'Sábado'], docente_nombre: 'Dr. Adrian Silva', aula: 'Edificio A - Aula Magna 2' },
+  { id: 'g203-adm', clave_grupo: '203-ADM', carrera_id: 'c5', materia_id: 'm7', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', turno: 'Matutino', periodo: '2026-2', horario: 'Lunes a Sábado (07:00 - 13:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Dr. Adrian Silva', aula: 'Edificio C - Aula 203' },
+  { id: 'g301', clave_grupo: '301', carrera_id: 'c2', materia_id: 'm4', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', turno: 'Matutino', periodo: '2026-2', horario: 'Lunes a Sábado (07:00 - 13:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Lic. Beatriz Sánchez', aula: 'Laboratorio Redes 2' },
+  { id: 'g501', clave_grupo: '501', carrera_id: 'c3', materia_id: 'm5', sede_id: 'sede-coy', sede_nombre: 'Sede Coyoacán', turno: 'Matutino', periodo: '2026-2', horario: 'Lunes a Sábado (07:00 - 13:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Tutor UNRC', aula: 'Laboratorio de Seguridad A' }
 ];
 
 // Initial mock data for UNRC Alumnos (All 44 Parsed Students)
 const MOCK_ALUMNOS: Alumno[] = [
   // Group 201-TUR (Turismo - 6 Alumnos - Docente: Dr. Adrian Silva)
-  { id: 'al-1', matricula: 'UNRC-2026-005', nombre: 'Dayanna Gissel', apellido_paterno: 'Buitimea', apellido_materno: 'Garma', grado: '2° Semestre', grupo: '201-TUR', carrera: 'Lic. en Turismo', carrera_id: 'c4', grupo_id: 'g201-tur', tutor: 'Dr. Adrian Silva', telefono: '+525510000001', qr_code: 'UNRC-2026-005' },
-  { id: 'al-2', matricula: 'UNRC-2026-006', nombre: 'Astrid Cristina', apellido_paterno: 'Diaz', apellido_materno: 'Moreno', grado: '2° Semestre', grupo: '201-TUR', carrera: 'Lic. en Turismo', carrera_id: 'c4', grupo_id: 'g201-tur', tutor: 'Dr. Adrian Silva', telefono: '+525510000002', qr_code: 'UNRC-2026-006' },
-  { id: 'al-3', matricula: 'UNRC-2026-007', nombre: 'Julibeth', apellido_paterno: 'Hernandez', apellido_materno: 'Herrera', grado: '2° Semestre', grupo: '201-TUR', carrera: 'Lic. en Turismo', carrera_id: 'c4', grupo_id: 'g201-tur', tutor: 'Dr. Adrian Silva', telefono: '+525510000003', qr_code: 'UNRC-2026-007' },
-  { id: 'al-4', matricula: 'UNRC-2026-008', nombre: 'Blanca Estela', apellido_paterno: 'Lopez', apellido_materno: 'Pablo', grado: '2° Semestre', grupo: '201-TUR', carrera: 'Lic. en Turismo', carrera_id: 'c4', grupo_id: 'g201-tur', tutor: 'Dr. Adrian Silva', telefono: '+525510000004', qr_code: 'UNRC-2026-008' },
-  { id: 'al-5', matricula: 'UNRC-2026-009', nombre: 'Cecilia', apellido_paterno: 'Todd', apellido_materno: 'Ambriz', grado: '2° Semestre', grupo: '201-TUR', carrera: 'Lic. en Turismo', carrera_id: 'c4', grupo_id: 'g201-tur', tutor: 'Dr. Adrian Silva', telefono: '+525510000005', qr_code: 'UNRC-2026-009' },
-  { id: 'al-6', matricula: 'UNRC-2026-010', nombre: 'Alejandra', apellido_paterno: 'Garcia', apellido_materno: 'Hernandez', grado: '2° Semestre', grupo: '201-TUR', carrera: 'Lic. en Turismo', carrera_id: 'c4', grupo_id: 'g201-tur', tutor: 'Dr. Adrian Silva', telefono: '+525510000006', qr_code: 'UNRC-2026-010' },
+  { id: 'al-1', matricula: 'UNRC-2026-005', nombre: 'Dayanna Gissel', apellido_paterno: 'Buitimea', apellido_materno: 'Garma', grado: '2° Semestre', grupo: '201-TUR', carrera: 'Lic. en Turismo', carrera_id: 'c4', grupo_id: 'g201-tur', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Dr. Adrian Silva', telefono: '+525510000001', qr_code: 'UNRC-2026-005' },
+  { id: 'al-2', matricula: 'UNRC-2026-006', nombre: 'Astrid Cristina', apellido_paterno: 'Diaz', apellido_materno: 'Moreno', grado: '2° Semestre', grupo: '201-TUR', carrera: 'Lic. en Turismo', carrera_id: 'c4', grupo_id: 'g201-tur', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Dr. Adrian Silva', telefono: '+525510000002', qr_code: 'UNRC-2026-006' },
+  { id: 'al-3', matricula: 'UNRC-2026-007', nombre: 'Julibeth', apellido_paterno: 'Hernandez', apellido_materno: 'Herrera', grado: '2° Semestre', grupo: '201-TUR', carrera: 'Lic. en Turismo', carrera_id: 'c4', grupo_id: 'g201-tur', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Dr. Adrian Silva', telefono: '+525510000003', qr_code: 'UNRC-2026-007' },
+  { id: 'al-4', matricula: 'UNRC-2026-008', nombre: 'Blanca Estela', apellido_paterno: 'Lopez', apellido_materno: 'Pablo', grado: '2° Semestre', grupo: '201-TUR', carrera: 'Lic. en Turismo', carrera_id: 'c4', grupo_id: 'g201-tur', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Dr. Adrian Silva', telefono: '+525510000004', qr_code: 'UNRC-2026-008' },
+  { id: 'al-5', matricula: 'UNRC-2026-009', nombre: 'Cecilia', apellido_paterno: 'Todd', apellido_materno: 'Ambriz', grado: '2° Semestre', grupo: '201-TUR', carrera: 'Lic. en Turismo', carrera_id: 'c4', grupo_id: 'g201-tur', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Dr. Adrian Silva', telefono: '+525510000005', qr_code: 'UNRC-2026-009' },
+  { id: 'al-6', matricula: 'UNRC-2026-010', nombre: 'Alejandra', apellido_paterno: 'Garcia', apellido_materno: 'Hernandez', grado: '2° Semestre', grupo: '201-TUR', carrera: 'Lic. en Turismo', carrera_id: 'c4', grupo_id: 'g201-tur', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Dr. Adrian Silva', telefono: '+525510000006', qr_code: 'UNRC-2026-010' },
 
   // Group 102
-  { id: 'al-7', matricula: 'UNRC-2026-011', nombre: 'Stephanie', apellido_paterno: 'Morales', apellido_materno: 'Flores', grado: '1° Semestre', grupo: '102', carrera: 'Lic. en Ciencias de Datos e IA', carrera_id: 'c1', grupo_id: 'g102', tutor: 'Tutor UNRC', telefono: '+525510000007', qr_code: 'UNRC-2026-011' },
-  { id: 'al-8', matricula: 'UNRC-2026-012', nombre: 'Daniel', apellido_paterno: 'Cruz', apellido_materno: 'Mendoza', grado: '1° Semestre', grupo: '102', carrera: 'Lic. en Ciencias de Datos e IA', carrera_id: 'c1', grupo_id: 'g102', tutor: 'Tutor UNRC', telefono: '+525510000008', qr_code: 'UNRC-2026-012' },
-  { id: 'al-9', matricula: 'UNRC-2026-013', nombre: 'Giovanni', apellido_paterno: 'Espinoza', apellido_materno: 'Ríos', grado: '1° Semestre', grupo: '102', carrera: 'Lic. en Ciencias de Datos e IA', carrera_id: 'c1', grupo_id: 'g102', tutor: 'Tutor UNRC', telefono: '+525510000009', qr_code: 'UNRC-2026-013' },
-  { id: 'al-10', matricula: 'UNRC-2026-014', nombre: 'Edith', apellido_paterno: 'Reyes', apellido_materno: 'Torres', grado: '1° Semestre', grupo: '102', carrera: 'Lic. en Ciencias de Datos e IA', carrera_id: 'c1', grupo_id: 'g102', tutor: 'Tutor UNRC', telefono: '+525510000010', qr_code: 'UNRC-2026-014' },
-  { id: 'al-11', matricula: 'UNRC-2026-015', nombre: 'Jose Alberto', apellido_paterno: 'Robles', apellido_materno: 'Anguiano', grado: '1° Semestre', grupo: '102', carrera: 'Lic. en Ciencias de Datos e IA', carrera_id: 'c1', grupo_id: 'g102', tutor: 'Tutor UNRC', telefono: '+525510000011', qr_code: 'UNRC-2026-015' },
-  { id: 'al-12', matricula: 'UNRC-2026-016', nombre: 'Daniel', apellido_paterno: 'Ruffo', apellido_materno: 'Vázquez', grado: '1° Semestre', grupo: '102', carrera: 'Lic. en Ciencias de Datos e IA', carrera_id: 'c1', grupo_id: 'g102', tutor: 'Tutor UNRC', telefono: '+525510000012', qr_code: 'UNRC-2026-016' },
+  { id: 'al-7', matricula: 'UNRC-2026-011', nombre: 'Stephanie', apellido_paterno: 'Morales', apellido_materno: 'Flores', grado: '1° Semestre', grupo: '102', carrera: 'Lic. en Ciencias de Datos e IA', carrera_id: 'c1', grupo_id: 'g102', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000007', qr_code: 'UNRC-2026-011' },
+  { id: 'al-8', matricula: 'UNRC-2026-012', nombre: 'Daniel', apellido_paterno: 'Cruz', apellido_materno: 'Mendoza', grado: '1° Semestre', grupo: '102', carrera: 'Lic. en Ciencias de Datos e IA', carrera_id: 'c1', grupo_id: 'g102', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000008', qr_code: 'UNRC-2026-012' },
+  { id: 'al-9', matricula: 'UNRC-2026-013', nombre: 'Giovanni', apellido_paterno: 'Espinoza', apellido_materno: 'Ríos', grado: '1° Semestre', grupo: '102', carrera: 'Lic. en Ciencias de Datos e IA', carrera_id: 'c1', grupo_id: 'g102', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000009', qr_code: 'UNRC-2026-013' },
+  { id: 'al-10', matricula: 'UNRC-2026-014', nombre: 'Edith', apellido_paterno: 'Reyes', apellido_materno: 'Torres', grado: '1° Semestre', grupo: '102', carrera: 'Lic. en Ciencias de Datos e IA', carrera_id: 'c1', grupo_id: 'g102', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000010', qr_code: 'UNRC-2026-014' },
+  { id: 'al-11', matricula: 'UNRC-2026-015', nombre: 'Jose Alberto', apellido_paterno: 'Robles', apellido_materno: 'Anguiano', grado: '1° Semestre', grupo: '102', carrera: 'Lic. en Ciencias de Datos e IA', carrera_id: 'c1', grupo_id: 'g102', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000011', qr_code: 'UNRC-2026-015' },
+  { id: 'al-12', matricula: 'UNRC-2026-016', nombre: 'Daniel', apellido_paterno: 'Ruffo', apellido_materno: 'Vázquez', grado: '1° Semestre', grupo: '102', carrera: 'Lic. en Ciencias de Datos e IA', carrera_id: 'c1', grupo_id: 'g102', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000012', qr_code: 'UNRC-2026-016' },
 
   // Group 201
-  { id: 'al-13', matricula: 'UNRC-2026-017', nombre: 'Emili Janeht', apellido_paterno: 'Armenta', apellido_materno: 'Mancinas', grado: '3° Semestre', grupo: '201', carrera: 'Lic. en TIC', carrera_id: 'c2', grupo_id: 'g201', tutor: 'Tutor UNRC', telefono: '+525510000013', qr_code: 'UNRC-2026-017' },
-  { id: 'al-14', matricula: 'UNRC-2026-018', nombre: 'Quintero Jacobo', apellido_paterno: 'Chrissier', apellido_materno: 'Magdiel', grado: '3° Semestre', grupo: '201', carrera: 'Lic. en TIC', carrera_id: 'c2', grupo_id: 'g201', tutor: 'Tutor UNRC', telefono: '+525510000014', qr_code: 'UNRC-2026-018' },
-  { id: 'al-15', matricula: 'UNRC-2026-019', nombre: 'Ivan', apellido_paterno: 'Medina', apellido_materno: 'Silva', grado: '3° Semestre', grupo: '201', carrera: 'Lic. en TIC', carrera_id: 'c2', grupo_id: 'g201', tutor: 'Tutor UNRC', telefono: '+525510000015', qr_code: 'UNRC-2026-019' },
-  { id: 'al-16', matricula: 'UNRC-2026-020', nombre: 'Bardo', apellido_paterno: 'Rojo', apellido_materno: 'Castillo', grado: '3° Semestre', grupo: '201', carrera: 'Lic. en TIC', carrera_id: 'c2', grupo_id: 'g201', tutor: 'Tutor UNRC', telefono: '+525510000016', qr_code: 'UNRC-2026-020' },
-  { id: 'al-17', matricula: 'UNRC-2026-021', nombre: 'Roselvina Mayeth', apellido_paterno: 'Sanchez', apellido_materno: 'Dominguez', grado: '3° Semestre', grupo: '201', carrera: 'Lic. en TIC', carrera_id: 'c2', grupo_id: 'g201', tutor: 'Tutor UNRC', telefono: '+525510000017', qr_code: 'UNRC-2026-021' },
-  { id: 'al-18', matricula: 'UNRC-2026-022', nombre: 'Luis Armando', apellido_paterno: 'Triche', apellido_materno: 'Ramirez', grado: '3° Semestre', grupo: '201', carrera: 'Lic. en TIC', carrera_id: 'c2', grupo_id: 'g201', tutor: 'Tutor UNRC', telefono: '+525510000018', qr_code: 'UNRC-2026-022' },
+  { id: 'al-13', matricula: 'UNRC-2026-017', nombre: 'Emili Janeht', apellido_paterno: 'Armenta', apellido_materno: 'Mancinas', grado: '3° Semestre', grupo: '201', carrera: 'Lic. en TIC', carrera_id: 'c2', grupo_id: 'g201', sede_id: 'sede-js', sede_nombre: 'Sede Justo Sierra', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000013', qr_code: 'UNRC-2026-017' },
+  { id: 'al-14', matricula: 'UNRC-2026-018', nombre: 'Quintero Jacobo', apellido_paterno: 'Chrissier', apellido_materno: 'Magdiel', grado: '3° Semestre', grupo: '201', carrera: 'Lic. en TIC', carrera_id: 'c2', grupo_id: 'g201', sede_id: 'sede-js', sede_nombre: 'Sede Justo Sierra', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000014', qr_code: 'UNRC-2026-018' },
+  { id: 'al-15', matricula: 'UNRC-2026-019', nombre: 'Ivan', apellido_paterno: 'Medina', apellido_materno: 'Silva', grado: '3° Semestre', grupo: '201', carrera: 'Lic. en TIC', carrera_id: 'c2', grupo_id: 'g201', sede_id: 'sede-js', sede_nombre: 'Sede Justo Sierra', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000015', qr_code: 'UNRC-2026-019' },
+  { id: 'al-16', matricula: 'UNRC-2026-020', nombre: 'Bardo', apellido_paterno: 'Rojo', apellido_materno: 'Castillo', grado: '3° Semestre', grupo: '201', carrera: 'Lic. en TIC', carrera_id: 'c2', grupo_id: 'g201', sede_id: 'sede-js', sede_nombre: 'Sede Justo Sierra', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000016', qr_code: 'UNRC-2026-020' },
+  { id: 'al-17', matricula: 'UNRC-2026-021', nombre: 'Roselvina Mayeth', apellido_paterno: 'Sanchez', apellido_materno: 'Dominguez', grado: '3° Semestre', grupo: '201', carrera: 'Lic. en TIC', carrera_id: 'c2', grupo_id: 'g201', sede_id: 'sede-js', sede_nombre: 'Sede Justo Sierra', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000017', qr_code: 'UNRC-2026-021' },
+  { id: 'al-18', matricula: 'UNRC-2026-022', nombre: 'Luis Armando', apellido_paterno: 'Triche', apellido_materno: 'Ramirez', grado: '3° Semestre', grupo: '201', carrera: 'Lic. en TIC', carrera_id: 'c2', grupo_id: 'g201', sede_id: 'sede-js', sede_nombre: 'Sede Justo Sierra', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000018', qr_code: 'UNRC-2026-022' },
 
   // Group 203-ADM (Lic. en Administración - Dr. Adrian Silva - 22 Alumnos)
-  { id: 'al-19', matricula: 'UNRC-2026-023', nombre: 'Gabriela Erandi', apellido_paterno: 'Capilla', apellido_materno: 'Manuel', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000019', qr_code: 'UNRC-2026-023' },
-  { id: 'al-20', matricula: 'UNRC-2026-024', nombre: 'Angélica', apellido_paterno: 'Altamirano', apellido_materno: 'Solórzano', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000020', qr_code: 'UNRC-2026-024' },
-  { id: 'al-21', matricula: 'UNRC-2026-025', nombre: 'Magali', apellido_paterno: 'Arce', apellido_materno: 'Garcia', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000021', qr_code: 'UNRC-2026-025' },
-  { id: 'al-22', matricula: 'UNRC-2026-026', nombre: 'Michell Evelin', apellido_paterno: 'Cruz', apellido_materno: 'Alcantara', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000022', qr_code: 'UNRC-2026-026' },
-  { id: 'al-23', matricula: 'UNRC-2026-027', nombre: 'Michel Monserrat', apellido_paterno: 'De anda', apellido_materno: 'Montalvo', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000023', qr_code: 'UNRC-2026-027' },
-  { id: 'al-24', matricula: 'UNRC-2026-028', nombre: 'Samuel Anthony', apellido_paterno: 'De la cruz', apellido_materno: 'López', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000024', qr_code: 'UNRC-2026-028' },
-  { id: 'al-25', matricula: 'UNRC-2026-029', nombre: 'Estefanía', apellido_paterno: 'Espinosa', apellido_materno: 'Aguilar', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000025', qr_code: 'UNRC-2026-029' },
-  { id: 'al-26', matricula: 'UNRC-2026-030', nombre: 'Maria Dolores', apellido_paterno: 'Garcia', apellido_materno: 'Delgado', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000026', qr_code: 'UNRC-2026-030' },
-  { id: 'al-27', matricula: 'UNRC-2026-031', nombre: 'Ana Maria', apellido_paterno: 'Jimenez', apellido_materno: 'Ramirez', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000027', qr_code: 'UNRC-2026-031' },
-  { id: 'al-28', matricula: 'UNRC-2026-032', nombre: 'Jaciel Berenice', apellido_paterno: 'Mendoza', apellido_materno: 'Hacho', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000028', qr_code: 'UNRC-2026-032' },
-  { id: 'al-29', matricula: 'UNRC-2026-033', nombre: 'Sherlyn de Jesus', apellido_paterno: 'Vergara', apellido_materno: 'Puga', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000029', qr_code: 'UNRC-2026-033' },
-  { id: 'al-30', matricula: 'UNRC-2026-034', nombre: 'Francisco Raul', apellido_paterno: 'Riego', apellido_materno: 'Manzano', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000030', qr_code: 'UNRC-2026-034' },
-  { id: 'al-31', matricula: 'UNRC-2026-035', nombre: 'Juan Carlos', apellido_paterno: 'Román', apellido_materno: 'Perez', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000031', qr_code: 'UNRC-2026-035' },
-  { id: 'al-32', matricula: 'UNRC-2026-036', nombre: 'Diana', apellido_paterno: 'Cruz', apellido_materno: 'Soriano', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000032', qr_code: 'UNRC-2026-036' },
-  { id: 'al-33', matricula: 'UNRC-2026-037', nombre: 'Cristian Jeova', apellido_paterno: 'Trejo', apellido_materno: 'Flores', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000033', qr_code: 'UNRC-2026-037' },
-  { id: 'al-34', matricula: 'UNRC-2026-038', nombre: 'Jackelyn', apellido_paterno: 'Uribe', apellido_materno: 'Zuñiga', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000034', qr_code: 'UNRC-2026-038' },
-  { id: 'al-35', matricula: 'UNRC-2026-039', nombre: 'Angel Alfredo', apellido_paterno: 'Zarate', apellido_materno: 'Cobilt', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000035', qr_code: 'UNRC-2026-039' },
-  { id: 'al-36', matricula: 'UNRC-2026-040', nombre: 'Hector', apellido_paterno: 'Rivera', apellido_materno: 'Murillo', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000036', qr_code: 'UNRC-2026-040' },
-  { id: 'al-37', matricula: 'UNRC-2026-041', nombre: 'Miguel Ángel', apellido_paterno: 'Romo', apellido_materno: 'Sandoval', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000037', qr_code: 'UNRC-2026-041' },
-  { id: 'al-38', matricula: 'UNRC-2026-042', nombre: 'Jessica Lizeth', apellido_paterno: 'Mata', apellido_materno: 'Bautista', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000038', qr_code: 'UNRC-2026-042' },
-  { id: 'al-39', matricula: 'UNRC-2026-043', nombre: 'Berenice Malena', apellido_paterno: 'Torres', apellido_materno: 'Reyes', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000039', qr_code: 'UNRC-2026-043' },
-  { id: 'al-40', matricula: 'UNRC-2026-044', nombre: 'Lizbeth', apellido_paterno: 'Magallon', apellido_materno: 'Vázquez', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000040', qr_code: 'UNRC-2026-044' },
+  { id: 'al-19', matricula: 'UNRC-2026-023', nombre: 'Gabriela Erandi', apellido_paterno: 'Capilla', apellido_materno: 'Manuel', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Dr. Adrian Silva', telefono: '+525510000019', qr_code: 'UNRC-2026-023' },
+  { id: 'al-20', matricula: 'UNRC-2026-024', nombre: 'Angélica', apellido_paterno: 'Altamirano', apellido_materno: 'Solórzano', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Dr. Adrian Silva', telefono: '+525510000020', qr_code: 'UNRC-2026-024' },
+  { id: 'al-21', matricula: 'UNRC-2026-025', nombre: 'Magali', apellido_paterno: 'Arce', apellido_materno: 'Garcia', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Dr. Adrian Silva', telefono: '+525510000021', qr_code: 'UNRC-2026-025' },
+  { id: 'al-22', matricula: 'UNRC-2026-026', nombre: 'Michell Evelin', apellido_paterno: 'Cruz', apellido_materno: 'Alcantara', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Dr. Adrian Silva', telefono: '+525510000022', qr_code: 'UNRC-2026-026' },
+  { id: 'al-23', matricula: 'UNRC-2026-027', nombre: 'Michel Monserrat', apellido_paterno: 'De anda', apellido_materno: 'Montalvo', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Dr. Adrian Silva', telefono: '+525510000023', qr_code: 'UNRC-2026-027' },
+  { id: 'al-24', matricula: 'UNRC-2026-028', nombre: 'Samuel Anthony', apellido_paterno: 'De la cruz', apellido_materno: 'López', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Dr. Adrian Silva', telefono: '+525510000024', qr_code: 'UNRC-2026-028' },
+  { id: 'al-25', matricula: 'UNRC-2026-029', nombre: 'Estefanía', apellido_paterno: 'Espinosa', apellido_materno: 'Aguilar', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Dr. Adrian Silva', telefono: '+525510000025', qr_code: 'UNRC-2026-029' },
+  { id: 'al-26', matricula: 'UNRC-2026-030', nombre: 'Maria Dolores', apellido_paterno: 'Garcia', apellido_materno: 'Delgado', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Dr. Adrian Silva', telefono: '+525510000026', qr_code: 'UNRC-2026-030' },
+  { id: 'al-27', matricula: 'UNRC-2026-031', nombre: 'Ana Maria', apellido_paterno: 'Jimenez', apellido_materno: 'Ramirez', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Dr. Adrian Silva', telefono: '+525510000027', qr_code: 'UNRC-2026-031' },
+  { id: 'al-28', matricula: 'UNRC-2026-032', nombre: 'Jaciel Berenice', apellido_paterno: 'Mendoza', apellido_materno: 'Hacho', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Dr. Adrian Silva', telefono: '+525510000028', qr_code: 'UNRC-2026-032' },
+  { id: 'al-29', matricula: 'UNRC-2026-033', nombre: 'Sherlyn de Jesus', apellido_paterno: 'Vergara', apellido_materno: 'Puga', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Dr. Adrian Silva', telefono: '+525510000029', qr_code: 'UNRC-2026-033' },
+  { id: 'al-30', matricula: 'UNRC-2026-034', nombre: 'Francisco Raul', apellido_paterno: 'Riego', apellido_materno: 'Manzano', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Dr. Adrian Silva', telefono: '+525510000030', qr_code: 'UNRC-2026-034' },
+  { id: 'al-31', matricula: 'UNRC-2026-035', nombre: 'Juan Carlos', apellido_paterno: 'Román', apellido_materno: 'Perez', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Dr. Adrian Silva', telefono: '+525510000031', qr_code: 'UNRC-2026-035' },
+  { id: 'al-32', matricula: 'UNRC-2026-036', nombre: 'Diana', apellido_paterno: 'Cruz', apellido_materno: 'Soriano', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Dr. Adrian Silva', telefono: '+525510000032', qr_code: 'UNRC-2026-036' },
+  { id: 'al-33', matricula: 'UNRC-2026-037', nombre: 'Cristian Jeova', apellido_paterno: 'Trejo', apellido_materno: 'Flores', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Dr. Adrian Silva', telefono: '+525510000033', qr_code: 'UNRC-2026-037' },
+  { id: 'al-34', matricula: 'UNRC-2026-038', nombre: 'Jackelyn', apellido_paterno: 'Uribe', apellido_materno: 'Zuñiga', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Dr. Adrian Silva', telefono: '+525510000034', qr_code: 'UNRC-2026-038' },
+  { id: 'al-35', matricula: 'UNRC-2026-039', nombre: 'Angel Alfredo', apellido_paterno: 'Zarate', apellido_materno: 'Cobilt', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Dr. Adrian Silva', telefono: '+525510000035', qr_code: 'UNRC-2026-039' },
+  { id: 'al-36', matricula: 'UNRC-2026-040', nombre: 'Hector', apellido_paterno: 'Rivera', apellido_materno: 'Murillo', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Dr. Adrian Silva', telefono: '+525510000036', qr_code: 'UNRC-2026-040' },
+  { id: 'al-37', matricula: 'UNRC-2026-041', nombre: 'Miguel Ángel', apellido_paterno: 'Romo', apellido_materno: 'Sandoval', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Dr. Adrian Silva', telefono: '+525510000041', qr_code: 'UNRC-2026-041' },
+  { id: 'al-38', matricula: 'UNRC-2026-042', nombre: 'Jessica Lizeth', apellido_paterno: 'Mata', apellido_materno: 'Bautista', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Dr. Adrian Silva', telefono: '+525510000042', qr_code: 'UNRC-2026-042' },
+  { id: 'al-39', matricula: 'UNRC-2026-043', nombre: 'Berenice Malena', apellido_paterno: 'Torres', apellido_materno: 'Reyes', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Dr. Adrian Silva', telefono: '+525510000043', qr_code: 'UNRC-2026-043' },
+  { id: 'al-40', matricula: 'UNRC-2026-044', nombre: 'Lizbeth', apellido_paterno: 'Magallon', apellido_materno: 'Vázquez', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Dr. Adrian Silva', telefono: '+525510000044', qr_code: 'UNRC-2026-044' },
 
   // Group 501
-  { id: 'al-41', matricula: 'UNRC-2026-045', nombre: 'Carlos', apellido_paterno: 'Alcantar', apellido_materno: 'Sanchez', grado: '5° Semestre', grupo: '501', carrera: 'Lic. en Ciberseguridad', carrera_id: 'c3', grupo_id: 'g501', tutor: 'Tutor UNRC', telefono: '+525510000041', qr_code: 'UNRC-2026-045' },
-  { id: 'al-42', matricula: 'UNRC-2026-046', nombre: 'Oscar', apellido_paterno: 'Cendejas', apellido_materno: 'Flores', grado: '5° Semestre', grupo: '501', carrera: 'Lic. en Ciberseguridad', carrera_id: 'c3', grupo_id: 'g501', tutor: 'Tutor UNRC', telefono: '+525510000042', qr_code: 'UNRC-2026-046' },
-  { id: 'al-43', matricula: 'UNRC-2026-047', nombre: 'José Daniel', apellido_paterno: 'Pérez', apellido_materno: 'Gómez', grado: '5° Semestre', grupo: '501', carrera: 'Lic. en Ciberseguridad', carrera_id: 'c3', grupo_id: 'g501', tutor: 'Tutor UNRC', telefono: '+525510000043', qr_code: 'UNRC-2026-047' },
-  { id: 'al-44', matricula: 'UNRC-2026-048', nombre: 'Jazmin', apellido_paterno: 'Guzman', apellido_materno: 'López', grado: '5° Semestre', grupo: '501', carrera: 'Lic. en Ciberseguridad', carrera_id: 'c3', grupo_id: 'g501', tutor: 'Tutor UNRC', telefono: '+525510000044', qr_code: 'UNRC-2026-048' },
-  { id: 'al-45', matricula: 'UNRC-2026-049', nombre: 'Dani', apellido_paterno: 'Herrera', apellido_materno: 'Martínez', grado: '5° Semestre', grupo: '501', carrera: 'Lic. en Ciberseguridad', carrera_id: 'c3', grupo_id: 'g501', tutor: 'Tutor UNRC', telefono: '+525510000045', qr_code: 'UNRC-2026-049' },
-  { id: 'al-46', matricula: 'UNRC-2026-050', nombre: 'Adad', apellido_paterno: 'Sanchez', apellido_materno: 'Ortiz', grado: '5° Semestre', grupo: '501', carrera: 'Lic. en Ciberseguridad', carrera_id: 'c3', grupo_id: 'g501', tutor: 'Tutor UNRC', telefono: '+525510000046', qr_code: 'UNRC-2026-050' }
+  { id: 'al-41', matricula: 'UNRC-2026-045', nombre: 'Carlos', apellido_paterno: 'Alcantar', apellido_materno: 'Sanchez', grado: '5° Semestre', grupo: '501', carrera: 'Lic. en Ciberseguridad', carrera_id: 'c3', grupo_id: 'g501', sede_id: 'sede-coy', sede_nombre: 'Sede Coyoacán', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000045', qr_code: 'UNRC-2026-045' },
+  { id: 'al-42', matricula: 'UNRC-2026-046', nombre: 'Oscar', apellido_paterno: 'Cendejas', apellido_materno: 'Flores', grado: '5° Semestre', grupo: '501', carrera: 'Lic. en Ciberseguridad', carrera_id: 'c3', grupo_id: 'g501', sede_id: 'sede-coy', sede_nombre: 'Sede Coyoacán', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000046', qr_code: 'UNRC-2026-046' },
+  { id: 'al-43', matricula: 'UNRC-2026-047', nombre: 'José Daniel', apellido_paterno: 'Pérez', apellido_materno: 'Gómez', grado: '5° Semestre', grupo: '501', carrera: 'Lic. en Ciberseguridad', carrera_id: 'c3', grupo_id: 'g501', sede_id: 'sede-coy', sede_nombre: 'Sede Coyoacán', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000047', qr_code: 'UNRC-2026-047' },
+  { id: 'al-44', matricula: 'UNRC-2026-048', nombre: 'Jazmin', apellido_paterno: 'Guzman', apellido_materno: 'López', grado: '5° Semestre', grupo: '501', carrera: 'Lic. en Ciberseguridad', carrera_id: 'c3', grupo_id: 'g501', sede_id: 'sede-coy', sede_nombre: 'Sede Coyoacán', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000048', qr_code: 'UNRC-2026-048' },
+  { id: 'al-45', matricula: 'UNRC-2026-049', nombre: 'Dani', apellido_paterno: 'Herrera', apellido_materno: 'Martínez', grado: '5° Semestre', grupo: '501', carrera: 'Lic. en Ciberseguridad', carrera_id: 'c3', grupo_id: 'g501', sede_id: 'sede-coy', sede_nombre: 'Sede Coyoacán', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000049', qr_code: 'UNRC-2026-049' },
+  { id: 'al-46', matricula: 'UNRC-2026-050', nombre: 'Adad', apellido_paterno: 'Sanchez', apellido_materno: 'Ortiz', grado: '5° Semestre', grupo: '501', carrera: 'Lic. en Ciberseguridad', carrera_id: 'c3', grupo_id: 'g501', sede_id: 'sede-coy', sede_nombre: 'Sede Coyoacán', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000050', qr_code: 'UNRC-2026-050' }
 ];
 
-// Initial Mock Seed for Docentes
+// Initial Mock Seed for Docentes y Personal Institucional
 const MOCK_DOCENTES: Docente[] = [
   {
     id: 'docente-1',
@@ -277,7 +398,15 @@ const MOCK_DOCENTES: Docente[] = [
     apellido_materno: 'Mendoza',
     email: 'alejandro.valdez@rcastellanos.cdmx.gob.mx',
     departamento: 'Lic. en Ciencias de Datos e IA',
-    materias: ['Programación Web y Bases de Datos', 'Inteligencia Artificial'],
+    puesto: 'docente',
+    carreras_asignadas: ['Lic. en Ciencias de Datos e Inteligencia Artificial'],
+    materias: ['Programación Web y Bases de Datos', 'Inteligencia Artificial y Aprendizaje Automático'],
+    horario_resumen: 'Lunes a Sábado (07:00 - 13:00 hrs)',
+    horarios: [
+      { dia: 'Lunes', hora_inicio: '07:00', hora_fin: '10:00', carrera: 'Lic. en Ciencias de Datos e Inteligencia Artificial', materia: 'Programación Web y Bases de Datos', grupo: '101', aula: 'Edificio B - Aula 101' },
+      { dia: 'Miércoles', hora_inicio: '07:00', hora_fin: '10:00', carrera: 'Lic. en Ciencias de Datos e Inteligencia Artificial', materia: 'Inteligencia Artificial y Aprendizaje Automático', grupo: '102', aula: 'Edificio B - Aula 102' }
+    ],
+    sede_nombre: 'Campus Magdalena Contreras',
     telefono: '+525599887766',
     foto_url: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=200&h=200',
     created_at: new Date().toISOString()
@@ -290,7 +419,15 @@ const MOCK_DOCENTES: Docente[] = [
     apellido_materno: 'Pineda',
     email: 'beatriz.sanchez@rcastellanos.cdmx.gob.mx',
     departamento: 'Lic. en TIC',
+    puesto: 'docente',
+    carreras_asignadas: ['Lic. en Tecnologías de la Información y Comunicación'],
     materias: ['Estructura de Datos y Algoritmos', 'Ingeniería de Software y Sistemas Web'],
+    horario_resumen: 'Lunes a Sábado (14:00 - 20:00 hrs)',
+    horarios: [
+      { dia: 'Martes', hora_inicio: '14:00', hora_fin: '17:00', carrera: 'Lic. en Tecnologías de la Información y Comunicación', materia: 'Estructura de Datos y Algoritmos', grupo: '201', aula: 'Laboratorio de Cómputo 1' },
+      { dia: 'Jueves', hora_inicio: '14:00', hora_fin: '17:00', carrera: 'Lic. en Tecnologías de la Información y Comunicación', materia: 'Ingeniería de Software y Sistemas Web', grupo: '301', aula: 'Laboratorio Redes 2' }
+    ],
+    sede_nombre: 'Sede Justo Sierra',
     telefono: '+525588776655',
     foto_url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200&h=200',
     created_at: new Date().toISOString()
@@ -303,9 +440,54 @@ const MOCK_DOCENTES: Docente[] = [
     apellido_materno: '',
     email: 'adrian.silva@rcastellanos.cdmx.gob.mx',
     departamento: 'Lic. en Administración / Lic. en Turismo',
-    materias: ['Matemáticas para la Administración', 'Administración de Empresas de Hospedaje'],
+    puesto: 'docente',
+    carreras_asignadas: ['Lic. en Turismo', 'Lic. en Administración'],
+    materias: ['Administración de Empresas de Hospedaje', 'Matemáticas para la Administración'],
+    horario_resumen: 'Miércoles (09:00 - 11:00 hrs) y Sábados (07:00 - 09:00 hrs)',
+    horarios: [
+      { dia: 'Miércoles', hora_inicio: '09:00', hora_fin: '11:00', carrera: 'Lic. en Turismo', materia: 'Administración de Empresas de Hospedaje', grupo: '201-TUR', aula: 'Edificio A - Aula Magna 2' },
+      { dia: 'Sábado', hora_inicio: '07:00', hora_fin: '09:00', carrera: 'Lic. en Turismo', materia: 'Administración de Empresas de Hospedaje', grupo: '201-TUR', aula: 'Edificio A - Aula Magna 2' },
+      { dia: 'Lunes', hora_inicio: '07:00', hora_fin: '09:00', carrera: 'Lic. en Administración', materia: 'Matemáticas para la Administración', grupo: '203-ADM', aula: 'Edificio C - Aula 203' }
+    ],
+    sede_nombre: 'Campus Magdalena Contreras',
     telefono: '+525511223344',
     foto_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200&h=200',
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'personal-rec-1',
+    num_empleado: 'DIR-UNRC-01',
+    nombre: 'Alma Rosa',
+    apellido_paterno: 'Sánchez',
+    apellido_materno: 'García',
+    email: 'rectoria@rcastellanos.cdmx.gob.mx',
+    departamento: 'Rectoría General UNRC',
+    puesto: 'rectoria',
+    carreras_asignadas: ['Dirección Institucional'],
+    materias: [],
+    horario_resumen: 'Lunes a Viernes (08:00 - 17:00 hrs)',
+    horarios: [],
+    sede_nombre: 'Campus Magdalena Contreras',
+    telefono: '+525556830101',
+    foto_url: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&q=80&w=200&h=200',
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'personal-sec-1',
+    num_empleado: 'SEC-UNRC-02',
+    nombre: 'Guillermo',
+    apellido_paterno: 'Navarrete',
+    apellido_materno: 'Ortiz',
+    email: 'secretaria.academica@rcastellanos.cdmx.gob.mx',
+    departamento: 'Secretaría Académica y Escolar',
+    puesto: 'secretaria',
+    carreras_asignadas: ['Coordinación Curricular'],
+    materias: [],
+    horario_resumen: 'Lunes a Viernes (08:00 - 18:00 hrs)',
+    horarios: [],
+    sede_nombre: 'Campus Magdalena Contreras',
+    telefono: '+525556830102',
+    foto_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200&h=200',
     created_at: new Date().toISOString()
   }
 ];
@@ -314,15 +496,33 @@ const MOCK_DOCENTES: Docente[] = [
 const initLocalStorage = () => {
   if (typeof window === 'undefined') return;
 
+  // Sync core institutional catalogs
+  if (!localStorage.getItem('unrc_sedes')) {
+    localStorage.setItem('unrc_sedes', JSON.stringify(MOCK_SEDES));
+  }
+  if (!localStorage.getItem('unrc_ciclos')) {
+    localStorage.setItem('unrc_ciclos', JSON.stringify(MOCK_CICLOS));
+  }
+  if (!localStorage.getItem('unrc_grados')) {
+    localStorage.setItem('unrc_grados', JSON.stringify(MOCK_GRADOS));
+  }
+  if (!localStorage.getItem('unrc_secciones')) {
+    localStorage.setItem('unrc_secciones', JSON.stringify(MOCK_SECCIONES));
+  }
+
   // Always keep seed data synced
   localStorage.setItem('unrc_carreras', JSON.stringify(MOCK_CARRERAS));
   localStorage.setItem('unrc_materias', JSON.stringify(MOCK_MATERIAS));
   localStorage.setItem('unrc_grupos', JSON.stringify(MOCK_GRUPOS));
-  localStorage.setItem('unrc_docentes', JSON.stringify(MOCK_DOCENTES));
+  
+  if (!localStorage.getItem('unrc_docentes_v2')) {
+    localStorage.setItem('unrc_docentes', JSON.stringify(MOCK_DOCENTES));
+    localStorage.setItem('unrc_docentes_v2', 'true');
+  }
 
-  if (!localStorage.getItem('unrc_alumnos_v3')) {
+  if (!localStorage.getItem('unrc_alumnos_v4')) {
     localStorage.setItem('unrc_alumnos', JSON.stringify(MOCK_ALUMNOS));
-    localStorage.setItem('unrc_alumnos_v3', 'true');
+    localStorage.setItem('unrc_alumnos_v4', 'true');
   }
 
   // Seed Participaciones if empty
@@ -387,12 +587,253 @@ const initLocalStorage = () => {
     localStorage.setItem('unrc_asistencias', JSON.stringify(mockAsistencias));
     localStorage.setItem('unrc_asistencias_v2', 'true');
   }
+
+  // Seed Auditorias
+  if (!localStorage.getItem('unrc_auditorias')) {
+    const mockAuditorias: AuditoriaLog[] = [
+      { id: 'aud-1', accion: 'SISTEMA_INICIADO', modulo: 'Núcleo ERP', detalle: 'Inicialización de ciclo escolar 2026-2027 y módulos de seguridad RLS', usuario: 'Super Admin / Rectoría', fecha: new Date(Date.now() - 86400000 * 2).toISOString().replace('T', ' ').substring(0, 19) },
+      { id: 'aud-2', accion: 'ASIGNACION_DOCENTE', modulo: 'Plan Académico', detalle: 'Asignación del Dr. Adrian Silva a Grupos 201-TUR (Hospedaje) y 203-ADM (Matemáticas)', usuario: 'Secretaría Académica', fecha: new Date(Date.now() - 86400000).toISOString().replace('T', ' ').substring(0, 19) },
+      { id: 'aud-3', accion: 'MATRICULA_EXPEDIENTES', modulo: 'Servicios Escolares', detalle: 'Carga y validación biométrica de 44 expedientes estudiantiles UNRC', usuario: 'Control Escolar', fecha: new Date(Date.now() - 3600000 * 4).toISOString().replace('T', ' ').substring(0, 19) },
+      { id: 'aud-4', accion: 'SINCRONIZACION_ASISTENCIA', modulo: 'Control de Asistencia', detalle: 'Cierre de bitácora diaria de asistencia de Turismo (Miércoles 09-11 y Sábado 07-09)', usuario: 'Dr. Adrian Silva', fecha: new Date().toISOString().replace('T', ' ').substring(0, 19) }
+    ];
+    localStorage.setItem('unrc_auditorias', JSON.stringify(mockAuditorias));
+  }
+
+  // Seed Anuncios
+  if (!localStorage.getItem('unrc_anuncios')) {
+    const mockAnuncios: AnuncioInstitucional[] = [
+      { id: 'anu-1', titulo: 'Inicio Oficial de Clases e Inducción Ciclo 2026-2', contenido: 'Se convoca a todos los estudiantes de nuevo ingreso y reingreso a revisar sus horarios en el portal institucional.', audiencia: 'todos', prioridad: 'alta', fecha: '2026-09-01', autor: 'Rectoría UNRC' },
+      { id: 'anu-2', titulo: 'Horarios Oficiales - Lic. en Turismo (Grupo 201-TUR)', contenido: 'Se reitera el horario de la materia Administración de Empresas de Hospedaje con el Dr. Adrian Silva: Miércoles de 09:00 a 11:00 hrs y Sábados de 07:00 a 09:00 hrs.', audiencia: 'alumnos', prioridad: 'urgente', fecha: '2026-09-05', autor: 'Coordinación de Turismo' },
+      { id: 'anu-3', titulo: 'Entrega de Evaluaciones y Reportes de Asistencia Parcial', contenido: 'Recordatorio a todo el personal docente de consolidar participaciones y asistencias en la plataforma antes del cierre de actas.', audiencia: 'docentes', prioridad: 'normal', fecha: '2026-09-10', autor: 'Secretaría Académica' }
+    ];
+    localStorage.setItem('unrc_anuncios', JSON.stringify(mockAnuncios));
+  }
 };
 
 // Database API Implementation
 export const db = {
   isSandboxMode: () => {
     return !isSupabaseConfigured;
+  },
+
+  // Sedes operations
+  getSedes: async (): Promise<Sede[]> => {
+    initLocalStorage();
+    const raw = localStorage.getItem('unrc_sedes');
+    return raw ? JSON.parse(raw) : MOCK_SEDES;
+  },
+
+  addSede: async (sede: Omit<Sede, 'id'>): Promise<Sede> => {
+    initLocalStorage();
+    const list = await db.getSedes();
+    const newSede: Sede = {
+      ...sede,
+      id: `sede-${Date.now()}`
+    };
+    list.push(newSede);
+    localStorage.setItem('unrc_sedes', JSON.stringify(list));
+    await db.addAuditoria('ALTA_SEDE', 'Infraestructura / Sedes', `Se registró la sede ${newSede.nombre} (${newSede.clave})`, 'Rectoría / Super Admin');
+    return newSede;
+  },
+
+  updateSede: async (id: string, updates: Partial<Sede>): Promise<Sede | null> => {
+    initLocalStorage();
+    const list = await db.getSedes();
+    const index = list.findIndex(s => s.id === id || s.clave === id);
+    if (index === -1) return null;
+    list[index] = { ...list[index], ...updates };
+    localStorage.setItem('unrc_sedes', JSON.stringify(list));
+    await db.addAuditoria('MODIFICACION_SEDE', 'Infraestructura / Sedes', `Actualización de sede ${list[index].nombre}`, 'Rectoría / Super Admin');
+    return list[index];
+  },
+
+  deleteSede: async (id: string): Promise<boolean> => {
+    initLocalStorage();
+    let list = await db.getSedes();
+    const target = list.find(s => s.id === id || s.clave === id);
+    list = list.filter(s => s.id !== id && s.clave !== id);
+    localStorage.setItem('unrc_sedes', JSON.stringify(list));
+    if (target) {
+      await db.addAuditoria('BAJA_SEDE', 'Infraestructura / Sedes', `Se eliminó sede ${target.nombre}`, 'Rectoría / Super Admin');
+    }
+    return true;
+  },
+
+  // Ciclos Escolares operations
+  getCiclosEscolares: async (): Promise<CicloEscolar[]> => {
+    initLocalStorage();
+    const raw = localStorage.getItem('unrc_ciclos');
+    return raw ? JSON.parse(raw) : MOCK_CICLOS;
+  },
+
+  addCicloEscolar: async (ciclo: Omit<CicloEscolar, 'id'>): Promise<CicloEscolar> => {
+    initLocalStorage();
+    const list = await db.getCiclosEscolares();
+    const newCiclo: CicloEscolar = {
+      ...ciclo,
+      id: `ciclo-${Date.now()}`
+    };
+    if (newCiclo.is_active) {
+      list.forEach(c => c.is_active = false);
+    }
+    list.push(newCiclo);
+    localStorage.setItem('unrc_ciclos', JSON.stringify(list));
+    await db.addAuditoria('ALTA_CICLO', 'Calendario y Periodos', `Se creó el ciclo escolar ${newCiclo.nombre}`, 'Secretaría Académica');
+    return newCiclo;
+  },
+
+  activarCicloEscolar: async (id: string): Promise<CicloEscolar | null> => {
+    initLocalStorage();
+    const list = await db.getCiclosEscolares();
+    let activated: CicloEscolar | null = null;
+    list.forEach(c => {
+      if (c.id === id) {
+        c.is_active = true;
+        activated = c;
+      } else {
+        c.is_active = false;
+      }
+    });
+    localStorage.setItem('unrc_ciclos', JSON.stringify(list));
+    if (activated) {
+      const act = activated as CicloEscolar;
+      await db.addAuditoria('ACTIVACION_CICLO', 'Calendario y Periodos', `Se activó oficialmente el periodo ${act.nombre}`, 'Rectoría');
+    }
+    return activated;
+  },
+
+  deleteCicloEscolar: async (id: string): Promise<boolean> => {
+    initLocalStorage();
+    let list = await db.getCiclosEscolares();
+    const target = list.find(c => c.id === id);
+    list = list.filter(c => c.id !== id);
+    localStorage.setItem('unrc_ciclos', JSON.stringify(list));
+    if (target) {
+      await db.addAuditoria('BAJA_CICLO', 'Calendario y Periodos', `Se eliminó periodo ${target.nombre}`, 'Secretaría Académica');
+    }
+    return true;
+  },
+
+  // Grados operations
+  getGrados: async (): Promise<Grado[]> => {
+    initLocalStorage();
+    const raw = localStorage.getItem('unrc_grados');
+    return raw ? JSON.parse(raw) : MOCK_GRADOS;
+  },
+
+  addGrado: async (grado: Omit<Grado, 'id'>): Promise<Grado> => {
+    initLocalStorage();
+    const list = await db.getGrados();
+    const newGrado: Grado = {
+      ...grado,
+      id: `grado-${Date.now()}`
+    };
+    list.push(newGrado);
+    list.sort((a, b) => a.orden - b.orden);
+    localStorage.setItem('unrc_grados', JSON.stringify(list));
+    await db.addAuditoria('ALTA_GRADO', 'Estructura Curricular', `Se configuró nivel/semestre ${newGrado.nombre}`, 'Secretaría Académica');
+    return newGrado;
+  },
+
+  deleteGrado: async (id: string): Promise<boolean> => {
+    initLocalStorage();
+    let list = await db.getGrados();
+    list = list.filter(g => g.id !== id);
+    localStorage.setItem('unrc_grados', JSON.stringify(list));
+    return true;
+  },
+
+  // Secciones / Grupos operations
+  getSecciones: async (): Promise<Seccion[]> => {
+    initLocalStorage();
+    const raw = localStorage.getItem('unrc_secciones');
+    return raw ? JSON.parse(raw) : MOCK_SECCIONES;
+  },
+
+  addSeccion: async (sec: Omit<Seccion, 'id'>): Promise<Seccion> => {
+    initLocalStorage();
+    const list = await db.getSecciones();
+    const newSec: Seccion = {
+      ...sec,
+      id: `sec-${Date.now()}`
+    };
+    list.push(newSec);
+    localStorage.setItem('unrc_secciones', JSON.stringify(list));
+    await db.addAuditoria('ALTA_SECCION', 'Espacios y Aulas', `Se habilitó sección ${newSec.nombre} (${newSec.turno}) en ${newSec.aula}`, 'Control Escolar');
+    return newSec;
+  },
+
+  updateSeccion: async (id: string, updates: Partial<Seccion>): Promise<Seccion | null> => {
+    initLocalStorage();
+    const list = await db.getSecciones();
+    const index = list.findIndex(s => s.id === id);
+    if (index === -1) return null;
+    list[index] = { ...list[index], ...updates };
+    localStorage.setItem('unrc_secciones', JSON.stringify(list));
+    await db.addAuditoria('MODIFICACION_SECCION', 'Espacios y Aulas', `Se actualizó sección ${list[index].nombre}`, 'Control Escolar');
+    return list[index];
+  },
+
+  deleteSeccion: async (id: string): Promise<boolean> => {
+    initLocalStorage();
+    let list = await db.getSecciones();
+    const target = list.find(s => s.id === id);
+    list = list.filter(s => s.id !== id);
+    localStorage.setItem('unrc_secciones', JSON.stringify(list));
+    if (target) {
+      await db.addAuditoria('BAJA_SECCION', 'Espacios y Aulas', `Se eliminó sección ${target.nombre}`, 'Control Escolar');
+    }
+    return true;
+  },
+
+  // Asignar docente carreras y horarios
+  asignarDocenteHorarioCarreras: async (
+    docenteId: string,
+    params: {
+      carreras_asignadas: string[];
+      materias: string[];
+      horario_resumen: string;
+      horarios: HorarioDocenteItem[];
+      sede_nombre?: string;
+    }
+  ): Promise<Docente | null> => {
+    initLocalStorage();
+    const docentes = await db.getDocentes();
+    const index = docentes.findIndex(d => d.id === docenteId || d.num_empleado === docenteId);
+    if (index === -1) return null;
+
+    docentes[index] = {
+      ...docentes[index],
+      carreras_asignadas: params.carreras_asignadas,
+      materias: params.materias,
+      horario_resumen: params.horario_resumen,
+      horarios: params.horarios,
+      sede_nombre: params.sede_nombre || docentes[index].sede_nombre
+    };
+
+    localStorage.setItem('unrc_docentes', JSON.stringify(docentes));
+
+    // Also link to grupos so teachers reflect across groups
+    const grupos = await db.getGrupos();
+    params.horarios.forEach(h => {
+      const gIdx = grupos.findIndex(g => g.clave_grupo === h.grupo);
+      if (gIdx !== -1) {
+        grupos[gIdx].docente_nombre = `${docentes[index].nombre} ${docentes[index].apellido_paterno}`;
+        grupos[gIdx].docente_id = docentes[index].id;
+        grupos[gIdx].horario = `${h.dia} (${h.hora_inicio} - ${h.hora_fin} hrs)`;
+        if (h.aula) grupos[gIdx].aula = h.aula;
+      }
+    });
+    localStorage.setItem('unrc_grupos', JSON.stringify(grupos));
+
+    await db.addAuditoria(
+      'ASIGNACION_DOCENTE_HORARIO',
+      'Programación Docente',
+      `Asignación de carreras [${params.carreras_asignadas.join(', ')}] y horarios para ${docentes[index].nombre} ${docentes[index].apellido_paterno}: ${params.horario_resumen}`,
+      'Secretaría Académica'
+    );
+
+    return docentes[index];
   },
 
   // Carreras operations
@@ -438,6 +879,110 @@ export const db = {
     }
     const raw = localStorage.getItem('unrc_grupos');
     return raw ? JSON.parse(raw) : MOCK_GRUPOS;
+  },
+
+  addCarrera: async (carrera: Omit<Carrera, 'id'>): Promise<Carrera> => {
+    initLocalStorage();
+    const list = await db.getCarreras();
+    const newCarrera: Carrera = {
+      ...carrera,
+      id: `c-${Date.now()}`
+    };
+    list.push(newCarrera);
+    localStorage.setItem('unrc_carreras', JSON.stringify(list));
+    if (supabase) {
+      try {
+        await supabase.from('carreras').insert([newCarrera]);
+      } catch (e) {
+        console.warn('Supabase carrera insert:', e);
+      }
+    }
+    await db.addAuditoria('ALTA_CARRERA', 'Oferta Académica', `Se registró la carrera ${newCarrera.nombre} (${newCarrera.clave})`, 'Administrador');
+    return newCarrera;
+  },
+
+  deleteCarrera: async (id: string): Promise<boolean> => {
+    initLocalStorage();
+    let list = await db.getCarreras();
+    const target = list.find(c => c.id === id);
+    list = list.filter(c => c.id !== id);
+    localStorage.setItem('unrc_carreras', JSON.stringify(list));
+    if (target) {
+      await db.addAuditoria('BAJA_CARRERA', 'Oferta Académica', `Se eliminó la carrera ${target.nombre} (${target.clave})`, 'Administrador');
+    }
+    return true;
+  },
+
+  addMateria: async (materia: Omit<Materia, 'id'>): Promise<Materia> => {
+    initLocalStorage();
+    const list = await db.getMaterias();
+    const newMateria: Materia = {
+      ...materia,
+      id: `m-${Date.now()}`
+    };
+    list.push(newMateria);
+    localStorage.setItem('unrc_materias', JSON.stringify(list));
+    if (supabase) {
+      try {
+        await supabase.from('materias').insert([newMateria]);
+      } catch (e) {
+        console.warn('Supabase materia insert:', e);
+      }
+    }
+    await db.addAuditoria('ALTA_MATERIA', 'Plan Curricular', `Se agregó asignatura ${newMateria.nombre} (${newMateria.clave})`, 'Administrador');
+    return newMateria;
+  },
+
+  deleteMateria: async (id: string): Promise<boolean> => {
+    initLocalStorage();
+    let list = await db.getMaterias();
+    const target = list.find(m => m.id === id);
+    list = list.filter(m => m.id !== id);
+    localStorage.setItem('unrc_materias', JSON.stringify(list));
+    if (target) {
+      await db.addAuditoria('BAJA_MATERIA', 'Plan Curricular', `Se eliminó asignatura ${target.nombre}`, 'Administrador');
+    }
+    return true;
+  },
+
+  addGrupo: async (grupo: Omit<Grupo, 'id'>): Promise<Grupo> => {
+    initLocalStorage();
+    const list = await db.getGrupos();
+    const newGrupo: Grupo = {
+      ...grupo,
+      id: `g-${Date.now()}`
+    };
+    list.push(newGrupo);
+    localStorage.setItem('unrc_grupos', JSON.stringify(list));
+    if (supabase) {
+      try {
+        await supabase.from('grupos').insert([newGrupo]);
+      } catch (e) {
+        console.warn('Supabase grupo insert:', e);
+      }
+    }
+    await db.addAuditoria('ASIGNACION_HORARIO', 'Programación Docente', `Grupo ${newGrupo.clave_grupo} asignado a ${newGrupo.docente_nombre || 'Docente'} con horario: ${newGrupo.horario}`, 'Administrador');
+    return newGrupo;
+  },
+
+  updateGrupo: async (id: string, updates: Partial<Grupo>): Promise<Grupo | null> => {
+    initLocalStorage();
+    const list = await db.getGrupos();
+    const index = list.findIndex(g => g.id === id || g.clave_grupo === id);
+    if (index === -1) return null;
+    list[index] = { ...list[index], ...updates };
+    localStorage.setItem('unrc_grupos', JSON.stringify(list));
+    await db.addAuditoria('MODIFICACION_GRUPO', 'Programación Docente', `Horario o docente de Grupo ${list[index].clave_grupo} actualizado`, 'Administrador');
+    return list[index];
+  },
+
+  deleteGrupo: async (id: string): Promise<boolean> => {
+    initLocalStorage();
+    let list = await db.getGrupos();
+    list = list.filter(g => g.id !== id && g.clave_grupo !== id);
+    localStorage.setItem('unrc_grupos', JSON.stringify(list));
+    await db.addAuditoria('ELIMINACION_GRUPO', 'Programación Docente', `Se eliminó asignación de grupo ${id}`, 'Administrador');
+    return true;
   },
 
   // Alumnos operations
@@ -553,6 +1098,19 @@ export const db = {
     }
 
     return list[index];
+  },
+
+  updateAlumnoMatricula: async (id: string, updates: Partial<Alumno>): Promise<Alumno | null> => {
+    const updated = await db.updateAlumno(id, updates);
+    if (updated) {
+      await db.addAuditoria(
+        'ACTUALIZACION_MATRICULA',
+        'Servicios Escolares / Matrículas',
+        `Expediente de matrícula ${updated.matricula} (${updated.nombre} ${updated.apellido_paterno}) actualizado: Estado ${updated.estado_matricula || 'activo'}, Grupo ${updated.grupo}`,
+        'Control Escolar'
+      );
+    }
+    return updated;
   },
 
   // Asistencia operations
@@ -813,6 +1371,120 @@ export const db = {
     }
 
     return newItems;
+  },
+
+  addDocente: async (docente: Omit<Docente, 'id' | 'created_at'>): Promise<Docente> => {
+    initLocalStorage();
+    const list = await db.getDocentes();
+    const newDoc: Docente = {
+      ...docente,
+      id: `docente-${Date.now()}`,
+      created_at: new Date().toISOString()
+    };
+    list.push(newDoc);
+    localStorage.setItem('unrc_docentes', JSON.stringify(list));
+    if (supabase) {
+      try {
+        await supabase.from('docentes').insert([newDoc]);
+      } catch (e) {
+        console.warn('Supabase docente insert:', e);
+      }
+    }
+    await db.addAuditoria('ALTA_DOCENTE', 'Recursos Humanos / Personal', `Se registró al docente ${newDoc.nombre} ${newDoc.apellido_paterno} (${newDoc.num_empleado})`, 'Administrador');
+    return newDoc;
+  },
+
+  updateDocente: async (id: string, updates: Partial<Docente>): Promise<Docente | null> => {
+    initLocalStorage();
+    const list = await db.getDocentes();
+    const index = list.findIndex(d => d.id === id || d.num_empleado === id);
+    if (index === -1) return null;
+    list[index] = { ...list[index], ...updates };
+    localStorage.setItem('unrc_docentes', JSON.stringify(list));
+    if (supabase) {
+      try {
+        await supabase.from('docentes').update(updates).eq('id', id);
+      } catch (e) {
+        console.warn('Supabase docente update:', e);
+      }
+    }
+    await db.addAuditoria('MODIFICACION_DOCENTE', 'Recursos Humanos / Personal', `Actualización de datos del docente ${list[index].nombre} ${list[index].apellido_paterno}`, 'Administrador');
+    return list[index];
+  },
+
+  deleteDocente: async (id: string): Promise<boolean> => {
+    initLocalStorage();
+    let list = await db.getDocentes();
+    const target = list.find(d => d.id === id || d.num_empleado === id);
+    list = list.filter(d => d.id !== id && d.num_empleado !== id);
+    localStorage.setItem('unrc_docentes', JSON.stringify(list));
+    if (supabase) {
+      try {
+        await supabase.from('docentes').delete().eq('id', id);
+      } catch (e) {
+        console.warn('Supabase docente delete:', e);
+      }
+    }
+    if (target) {
+      await db.addAuditoria('BAJA_DOCENTE', 'Recursos Humanos / Personal', `Se eliminó el expediente docente de ${target.nombre} ${target.apellido_paterno}`, 'Administrador');
+    }
+    return true;
+  },
+
+  // Auditoria operations
+  getAuditorias: async (): Promise<AuditoriaLog[]> => {
+    initLocalStorage();
+    const raw = localStorage.getItem('unrc_auditorias');
+    const list: AuditoriaLog[] = raw ? JSON.parse(raw) : [];
+    return list.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+  },
+
+  addAuditoria: async (accion: string, modulo: string, detalle: string, usuario = 'Super Admin'): Promise<AuditoriaLog> => {
+    initLocalStorage();
+    const raw = localStorage.getItem('unrc_auditorias');
+    const list: AuditoriaLog[] = raw ? JSON.parse(raw) : [];
+    const newLog: AuditoriaLog = {
+      id: `aud-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      accion,
+      modulo,
+      detalle,
+      usuario,
+      fecha: new Date().toISOString().replace('T', ' ').substring(0, 19)
+    };
+    list.unshift(newLog);
+    localStorage.setItem('unrc_auditorias', JSON.stringify(list.slice(0, 100)));
+    return newLog;
+  },
+
+  // Anuncios operations
+  getAnuncios: async (): Promise<AnuncioInstitucional[]> => {
+    initLocalStorage();
+    const raw = localStorage.getItem('unrc_anuncios');
+    const list: AnuncioInstitucional[] = raw ? JSON.parse(raw) : [];
+    return list.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+  },
+
+  addAnuncio: async (anuncio: Omit<AnuncioInstitucional, 'id' | 'fecha'>): Promise<AnuncioInstitucional> => {
+    initLocalStorage();
+    const raw = localStorage.getItem('unrc_anuncios');
+    const list: AnuncioInstitucional[] = raw ? JSON.parse(raw) : [];
+    const newAnuncio: AnuncioInstitucional = {
+      ...anuncio,
+      id: `anu-${Date.now()}`,
+      fecha: new Date().toISOString().split('T')[0]
+    };
+    list.unshift(newAnuncio);
+    localStorage.setItem('unrc_anuncios', JSON.stringify(list));
+    await db.addAuditoria('PUBLICACION_ANUNCIO', 'Comunicados Globales', `Nuevo comunicado publicado: "${newAnuncio.titulo}" (${newAnuncio.audiencia})`, anuncio.autor || 'Rectoría');
+    return newAnuncio;
+  },
+
+  deleteAnuncio: async (id: string): Promise<boolean> => {
+    initLocalStorage();
+    let list = await db.getAnuncios();
+    list = list.filter(a => a.id !== id);
+    localStorage.setItem('unrc_anuncios', JSON.stringify(list));
+    return true;
   },
 
   syncToSupabase: async (
