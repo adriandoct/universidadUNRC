@@ -479,6 +479,6 @@ SELECT
 FROM alumnos al
 LEFT JOIN grupos g ON al.grupo_id = g.id
 LEFT JOIN materias m ON g.materia_id = m.id
-LEFT JOIN carreras c ON al.carrera_id = c.id
+LEFT JOIN carreras c ON COALESCE(al.carrera_id, g.carrera_id) = c.id
 LEFT JOIN stats_asistencia sa ON al.id = sa.alumno_id
 LEFT JOIN stats_participacion sp ON al.id = sp.alumno_id;
