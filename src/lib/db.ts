@@ -181,7 +181,8 @@ const MOCK_CARRERAS: Carrera[] = [
   { id: 'c1', clave: 'LIC-CDIA', nombre: 'Lic. en Ciencias de Datos e Inteligencia Artificial', nivel: 'Licenciatura' },
   { id: 'c2', clave: 'LIC-TIC', nombre: 'Lic. en Tecnologías de la Información y Comunicación', nivel: 'Licenciatura' },
   { id: 'c3', clave: 'LIC-CIB', nombre: 'Lic. en Ciberseguridad', nivel: 'Licenciatura' },
-  { id: 'c4', clave: 'LIC-TUR', nombre: 'Lic. en Turismo', nivel: 'Licenciatura' }
+  { id: 'c4', clave: 'LIC-TUR', nombre: 'Lic. en Turismo', nivel: 'Licenciatura' },
+  { id: 'c5', clave: 'LIC-ADM', nombre: 'Lic. en Administración', nivel: 'Licenciatura' }
 ];
 
 const MOCK_MATERIAS: Materia[] = [
@@ -190,7 +191,8 @@ const MOCK_MATERIAS: Materia[] = [
   { id: 'm3', carrera_id: 'c2', clave: 'TIC-201', nombre: 'Estructura de Datos y Algoritmos', creditos: 8, semestre: '3° Semestre' },
   { id: 'm4', carrera_id: 'c2', clave: 'TIC-301', nombre: 'Ingeniería de Software y Sistemas Web', creditos: 10, semestre: '3° Semestre' },
   { id: 'm5', carrera_id: 'c3', clave: 'CIB-501', nombre: 'Ciberseguridad y Auditoría de Sistemas', creditos: 10, semestre: '5° Semestre' },
-  { id: 'm6', carrera_id: 'c4', clave: 'TUR-201', nombre: 'Gestión Turística y Servicios', creditos: 8, semestre: '2° Semestre' }
+  { id: 'm6', carrera_id: 'c4', clave: 'TUR-201', nombre: 'Gestión Turística y Servicios', creditos: 8, semestre: '2° Semestre' },
+  { id: 'm7', carrera_id: 'c5', clave: 'ADM-203', nombre: 'Matemáticas para la Administración', creditos: 8, semestre: '2° Semestre' }
 ];
 
 const MOCK_GRUPOS: Grupo[] = [
@@ -198,6 +200,7 @@ const MOCK_GRUPOS: Grupo[] = [
   { id: 'g102', clave_grupo: '102', carrera_id: 'c1', materia_id: 'm2', turno: 'Matutino', periodo: '2026-2' },
   { id: 'g201', clave_grupo: '201', carrera_id: 'c2', materia_id: 'm3', turno: 'Vespertino', periodo: '2026-2' },
   { id: 'g201-tur', clave_grupo: '201-TUR', carrera_id: 'c4', materia_id: 'm6', turno: 'Matutino', periodo: '2026-2' },
+  { id: 'g203-adm', clave_grupo: '203-ADM', carrera_id: 'c5', materia_id: 'm7', turno: 'Matutino', periodo: '2026-2' },
   { id: 'g301', clave_grupo: '301', carrera_id: 'c2', materia_id: 'm4', turno: 'Matutino', periodo: '2026-2' },
   { id: 'g501', clave_grupo: '501', carrera_id: 'c3', materia_id: 'm5', turno: 'Matutino', periodo: '2026-2' }
 ];
@@ -228,29 +231,29 @@ const MOCK_ALUMNOS: Alumno[] = [
   { id: 'al-17', matricula: 'UNRC-2026-021', nombre: 'Roselvina Mayeth', apellido_paterno: 'Sanchez', apellido_materno: 'Dominguez', grado: '3° Semestre', grupo: '201', carrera: 'Lic. en TIC', carrera_id: 'c2', grupo_id: 'g201', tutor: 'Tutor UNRC', telefono: '+525510000017', qr_code: 'UNRC-2026-021' },
   { id: 'al-18', matricula: 'UNRC-2026-022', nombre: 'Luis Armando', apellido_paterno: 'Triche', apellido_materno: 'Ramirez', grado: '3° Semestre', grupo: '201', carrera: 'Lic. en TIC', carrera_id: 'c2', grupo_id: 'g201', tutor: 'Tutor UNRC', telefono: '+525510000018', qr_code: 'UNRC-2026-022' },
 
-  // Group 301 (22 Alumnos)
-  { id: 'al-19', matricula: 'UNRC-2026-023', nombre: 'Gabriela Erandi', apellido_paterno: 'Capilla', apellido_materno: 'Manuel', grado: '3° Semestre', grupo: '301', carrera: 'Lic. en TIC', carrera_id: 'c2', grupo_id: 'g301', tutor: 'Tutor UNRC', telefono: '+525510000019', qr_code: 'UNRC-2026-023' },
-  { id: 'al-20', matricula: 'UNRC-2026-024', nombre: 'Angélica', apellido_paterno: 'Altamirano', apellido_materno: 'Solórzano', grado: '3° Semestre', grupo: '301', carrera: 'Lic. en TIC', carrera_id: 'c2', grupo_id: 'g301', tutor: 'Tutor UNRC', telefono: '+525510000020', qr_code: 'UNRC-2026-024' },
-  { id: 'al-21', matricula: 'UNRC-2026-025', nombre: 'Magali', apellido_paterno: 'Arce', apellido_materno: 'Garcia', grado: '3° Semestre', grupo: '301', carrera: 'Lic. en TIC', carrera_id: 'c2', grupo_id: 'g301', tutor: 'Tutor UNRC', telefono: '+525510000021', qr_code: 'UNRC-2026-025' },
-  { id: 'al-22', matricula: 'UNRC-2026-026', nombre: 'Michell Evelin', apellido_paterno: 'Cruz', apellido_materno: 'Alcantara', grado: '3° Semestre', grupo: '301', carrera: 'Lic. en TIC', carrera_id: 'c2', grupo_id: 'g301', tutor: 'Tutor UNRC', telefono: '+525510000022', qr_code: 'UNRC-2026-026' },
-  { id: 'al-23', matricula: 'UNRC-2026-027', nombre: 'Michel Monserrat', apellido_paterno: 'De anda', apellido_materno: 'Montalvo', grado: '3° Semestre', grupo: '301', carrera: 'Lic. en TIC', carrera_id: 'c2', grupo_id: 'g301', tutor: 'Tutor UNRC', telefono: '+525510000023', qr_code: 'UNRC-2026-027' },
-  { id: 'al-24', matricula: 'UNRC-2026-028', nombre: 'Samuel Anthony', apellido_paterno: 'De la cruz', apellido_materno: 'López', grado: '3° Semestre', grupo: '301', carrera: 'Lic. en TIC', carrera_id: 'c2', grupo_id: 'g301', tutor: 'Tutor UNRC', telefono: '+525510000024', qr_code: 'UNRC-2026-028' },
-  { id: 'al-25', matricula: 'UNRC-2026-029', nombre: 'Estefanía', apellido_paterno: 'Espinosa', apellido_materno: 'Aguilar', grado: '3° Semestre', grupo: '301', carrera: 'Lic. en TIC', carrera_id: 'c2', grupo_id: 'g301', tutor: 'Tutor UNRC', telefono: '+525510000025', qr_code: 'UNRC-2026-029' },
-  { id: 'al-26', matricula: 'UNRC-2026-030', nombre: 'Maria Dolores', apellido_paterno: 'Garcia', apellido_materno: 'Delgado', grado: '3° Semestre', grupo: '301', carrera: 'Lic. en TIC', carrera_id: 'c2', grupo_id: 'g301', tutor: 'Tutor UNRC', telefono: '+525510000026', qr_code: 'UNRC-2026-030' },
-  { id: 'al-27', matricula: 'UNRC-2026-031', nombre: 'Ana Maria', apellido_paterno: 'Jimenez', apellido_materno: 'Ramirez', grado: '3° Semestre', grupo: '301', carrera: 'Lic. en TIC', carrera_id: 'c2', grupo_id: 'g301', tutor: 'Tutor UNRC', telefono: '+525510000027', qr_code: 'UNRC-2026-031' },
-  { id: 'al-28', matricula: 'UNRC-2026-032', nombre: 'Jaciel Berenice', apellido_paterno: 'Mendoza', apellido_materno: 'Hacho', grado: '3° Semestre', grupo: '301', carrera: 'Lic. en TIC', carrera_id: 'c2', grupo_id: 'g301', tutor: 'Tutor UNRC', telefono: '+525510000028', qr_code: 'UNRC-2026-032' },
-  { id: 'al-29', matricula: 'UNRC-2026-033', nombre: 'Sherlyn de Jesus', apellido_paterno: 'Vergara', apellido_materno: 'Puga', grado: '3° Semestre', grupo: '301', carrera: 'Lic. en TIC', carrera_id: 'c2', grupo_id: 'g301', tutor: 'Tutor UNRC', telefono: '+525510000029', qr_code: 'UNRC-2026-033' },
-  { id: 'al-30', matricula: 'UNRC-2026-034', nombre: 'Francisco Raul', apellido_paterno: 'Riego', apellido_materno: 'Manzano', grado: '3° Semestre', grupo: '301', carrera: 'Lic. en TIC', carrera_id: 'c2', grupo_id: 'g301', tutor: 'Tutor UNRC', telefono: '+525510000030', qr_code: 'UNRC-2026-034' },
-  { id: 'al-31', matricula: 'UNRC-2026-035', nombre: 'Juan Carlos', apellido_paterno: 'Román', apellido_materno: 'Perez', grado: '3° Semestre', grupo: '301', carrera: 'Lic. en TIC', carrera_id: 'c2', grupo_id: 'g301', tutor: 'Tutor UNRC', telefono: '+525510000031', qr_code: 'UNRC-2026-035' },
-  { id: 'al-32', matricula: 'UNRC-2026-036', nombre: 'Diana', apellido_paterno: 'Cruz', apellido_materno: 'Soriano', grado: '3° Semestre', grupo: '301', carrera: 'Lic. en TIC', carrera_id: 'c2', grupo_id: 'g301', tutor: 'Tutor UNRC', telefono: '+525510000032', qr_code: 'UNRC-2026-036' },
-  { id: 'al-33', matricula: 'UNRC-2026-037', nombre: 'Cristian Jeova', apellido_paterno: 'Trejo', apellido_materno: 'Flores', grado: '3° Semestre', grupo: '301', carrera: 'Lic. en TIC', carrera_id: 'c2', grupo_id: 'g301', tutor: 'Tutor UNRC', telefono: '+525510000033', qr_code: 'UNRC-2026-037' },
-  { id: 'al-34', matricula: 'UNRC-2026-038', nombre: 'Jackelyn', apellido_paterno: 'Uribe', apellido_materno: 'Zuñiga', grado: '3° Semestre', grupo: '301', carrera: 'Lic. en TIC', carrera_id: 'c2', grupo_id: 'g301', tutor: 'Tutor UNRC', telefono: '+525510000034', qr_code: 'UNRC-2026-038' },
-  { id: 'al-35', matricula: 'UNRC-2026-039', nombre: 'Angel Alfredo', apellido_paterno: 'Zarate', apellido_materno: 'Cobilt', grado: '3° Semestre', grupo: '301', carrera: 'Lic. en TIC', carrera_id: 'c2', grupo_id: 'g301', tutor: 'Tutor UNRC', telefono: '+525510000035', qr_code: 'UNRC-2026-039' },
-  { id: 'al-36', matricula: 'UNRC-2026-040', nombre: 'Hector', apellido_paterno: 'Rivera', apellido_materno: 'Murillo', grado: '3° Semestre', grupo: '301', carrera: 'Lic. en TIC', carrera_id: 'c2', grupo_id: 'g301', tutor: 'Tutor UNRC', telefono: '+525510000036', qr_code: 'UNRC-2026-040' },
-  { id: 'al-37', matricula: 'UNRC-2026-041', nombre: 'Miguel Ángel', apellido_paterno: 'Romo', apellido_materno: 'Sandoval', grado: '3° Semestre', grupo: '301', carrera: 'Lic. en TIC', carrera_id: 'c2', grupo_id: 'g301', tutor: 'Tutor UNRC', telefono: '+525510000037', qr_code: 'UNRC-2026-041' },
-  { id: 'al-38', matricula: 'UNRC-2026-042', nombre: 'Jessica Lizeth', apellido_paterno: 'Mata', apellido_materno: 'Bautista', grado: '3° Semestre', grupo: '301', carrera: 'Lic. en TIC', carrera_id: 'c2', grupo_id: 'g301', tutor: 'Tutor UNRC', telefono: '+525510000038', qr_code: 'UNRC-2026-042' },
-  { id: 'al-39', matricula: 'UNRC-2026-043', nombre: 'Berenice Malena', apellido_paterno: 'Torres', apellido_materno: 'Reyes', grado: '3° Semestre', grupo: '301', carrera: 'Lic. en TIC', carrera_id: 'c2', grupo_id: 'g301', tutor: 'Tutor UNRC', telefono: '+525510000039', qr_code: 'UNRC-2026-043' },
-  { id: 'al-40', matricula: 'UNRC-2026-044', nombre: 'Lizbeth', apellido_paterno: 'Magallon', apellido_materno: 'Vázquez', grado: '3° Semestre', grupo: '301', carrera: 'Lic. en TIC', carrera_id: 'c2', grupo_id: 'g301', tutor: 'Tutor UNRC', telefono: '+525510000040', qr_code: 'UNRC-2026-044' },
+  // Group 203-ADM (Lic. en Administración - Dr. Adrian Silva - 22 Alumnos)
+  { id: 'al-19', matricula: 'UNRC-2026-023', nombre: 'Gabriela Erandi', apellido_paterno: 'Capilla', apellido_materno: 'Manuel', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000019', qr_code: 'UNRC-2026-023' },
+  { id: 'al-20', matricula: 'UNRC-2026-024', nombre: 'Angélica', apellido_paterno: 'Altamirano', apellido_materno: 'Solórzano', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000020', qr_code: 'UNRC-2026-024' },
+  { id: 'al-21', matricula: 'UNRC-2026-025', nombre: 'Magali', apellido_paterno: 'Arce', apellido_materno: 'Garcia', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000021', qr_code: 'UNRC-2026-025' },
+  { id: 'al-22', matricula: 'UNRC-2026-026', nombre: 'Michell Evelin', apellido_paterno: 'Cruz', apellido_materno: 'Alcantara', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000022', qr_code: 'UNRC-2026-026' },
+  { id: 'al-23', matricula: 'UNRC-2026-027', nombre: 'Michel Monserrat', apellido_paterno: 'De anda', apellido_materno: 'Montalvo', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000023', qr_code: 'UNRC-2026-027' },
+  { id: 'al-24', matricula: 'UNRC-2026-028', nombre: 'Samuel Anthony', apellido_paterno: 'De la cruz', apellido_materno: 'López', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000024', qr_code: 'UNRC-2026-028' },
+  { id: 'al-25', matricula: 'UNRC-2026-029', nombre: 'Estefanía', apellido_paterno: 'Espinosa', apellido_materno: 'Aguilar', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000025', qr_code: 'UNRC-2026-029' },
+  { id: 'al-26', matricula: 'UNRC-2026-030', nombre: 'Maria Dolores', apellido_paterno: 'Garcia', apellido_materno: 'Delgado', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000026', qr_code: 'UNRC-2026-030' },
+  { id: 'al-27', matricula: 'UNRC-2026-031', nombre: 'Ana Maria', apellido_paterno: 'Jimenez', apellido_materno: 'Ramirez', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000027', qr_code: 'UNRC-2026-031' },
+  { id: 'al-28', matricula: 'UNRC-2026-032', nombre: 'Jaciel Berenice', apellido_paterno: 'Mendoza', apellido_materno: 'Hacho', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000028', qr_code: 'UNRC-2026-032' },
+  { id: 'al-29', matricula: 'UNRC-2026-033', nombre: 'Sherlyn de Jesus', apellido_paterno: 'Vergara', apellido_materno: 'Puga', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000029', qr_code: 'UNRC-2026-033' },
+  { id: 'al-30', matricula: 'UNRC-2026-034', nombre: 'Francisco Raul', apellido_paterno: 'Riego', apellido_materno: 'Manzano', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000030', qr_code: 'UNRC-2026-034' },
+  { id: 'al-31', matricula: 'UNRC-2026-035', nombre: 'Juan Carlos', apellido_paterno: 'Román', apellido_materno: 'Perez', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000031', qr_code: 'UNRC-2026-035' },
+  { id: 'al-32', matricula: 'UNRC-2026-036', nombre: 'Diana', apellido_paterno: 'Cruz', apellido_materno: 'Soriano', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000032', qr_code: 'UNRC-2026-036' },
+  { id: 'al-33', matricula: 'UNRC-2026-037', nombre: 'Cristian Jeova', apellido_paterno: 'Trejo', apellido_materno: 'Flores', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000033', qr_code: 'UNRC-2026-037' },
+  { id: 'al-34', matricula: 'UNRC-2026-038', nombre: 'Jackelyn', apellido_paterno: 'Uribe', apellido_materno: 'Zuñiga', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000034', qr_code: 'UNRC-2026-038' },
+  { id: 'al-35', matricula: 'UNRC-2026-039', nombre: 'Angel Alfredo', apellido_paterno: 'Zarate', apellido_materno: 'Cobilt', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000035', qr_code: 'UNRC-2026-039' },
+  { id: 'al-36', matricula: 'UNRC-2026-040', nombre: 'Hector', apellido_paterno: 'Rivera', apellido_materno: 'Murillo', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000036', qr_code: 'UNRC-2026-040' },
+  { id: 'al-37', matricula: 'UNRC-2026-041', nombre: 'Miguel Ángel', apellido_paterno: 'Romo', apellido_materno: 'Sandoval', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000037', qr_code: 'UNRC-2026-041' },
+  { id: 'al-38', matricula: 'UNRC-2026-042', nombre: 'Jessica Lizeth', apellido_paterno: 'Mata', apellido_materno: 'Bautista', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000038', qr_code: 'UNRC-2026-042' },
+  { id: 'al-39', matricula: 'UNRC-2026-043', nombre: 'Berenice Malena', apellido_paterno: 'Torres', apellido_materno: 'Reyes', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000039', qr_code: 'UNRC-2026-043' },
+  { id: 'al-40', matricula: 'UNRC-2026-044', nombre: 'Lizbeth', apellido_paterno: 'Magallon', apellido_materno: 'Vázquez', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Lic. en Administración', carrera_id: 'c5', grupo_id: 'g203-adm', tutor: 'Dr. Adrian Silva', telefono: '+525510000040', qr_code: 'UNRC-2026-044' },
 
   // Group 501
   { id: 'al-41', matricula: 'UNRC-2026-045', nombre: 'Carlos', apellido_paterno: 'Alcantar', apellido_materno: 'Sanchez', grado: '5° Semestre', grupo: '501', carrera: 'Lic. en Ciberseguridad', carrera_id: 'c3', grupo_id: 'g501', tutor: 'Tutor UNRC', telefono: '+525510000041', qr_code: 'UNRC-2026-045' },
@@ -287,6 +290,19 @@ const MOCK_DOCENTES: Docente[] = [
     materias: ['Estructura de Datos y Algoritmos', 'Ingeniería de Software y Sistemas Web'],
     telefono: '+525588776655',
     foto_url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200&h=200',
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'docente-3',
+    num_empleado: 'DOC-UNRC-03',
+    nombre: 'Adrian',
+    apellido_paterno: 'Silva',
+    apellido_materno: '',
+    email: 'adrian.silva@rcastellanos.cdmx.gob.mx',
+    departamento: 'Lic. en Administración',
+    materias: ['Matemáticas para la Administración'],
+    telefono: '+525511223344',
+    foto_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200&h=200',
     created_at: new Date().toISOString()
   }
 ];

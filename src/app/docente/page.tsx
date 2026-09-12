@@ -314,6 +314,7 @@ export default function DocentePage() {
               <option value="102">Grupo 102 (Lic. Ciencias de Datos)</option>
               <option value="201">Grupo 201 (Lic. TIC)</option>
               <option value="201-TUR">Grupo 201 (Lic. Turismo)</option>
+              <option value="203-ADM">Grupo 203 (Lic. Administración)</option>
               <option value="301">Grupo 301 (Lic. TIC)</option>
               <option value="501">Grupo 501 (Lic. Ciberseguridad)</option>
             </select>

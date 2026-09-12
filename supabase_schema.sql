@@ -258,12 +258,18 @@ CREATE POLICY "Public read autoevaluaciones" ON autoevaluaciones FOR SELECT TO a
 -- SEED DATA (EXPLICIT TIPO, ESTADO, TUTOR, TELEFONO)
 -- ==========================================
 
+-- 0. Insert Docentes
+INSERT INTO docentes (id, num_empleado, nombre, apellido_paterno, apellido_materno, email, departamento, materias, telefono) VALUES
+    ('d0000003-0000-0000-0000-000000000003', 'DOC-UNRC-03', 'Adrian', 'Silva', '', 'adrian.silva@rcastellanos.cdmx.gob.mx', 'Licenciatura en Administración', ARRAY['Matemáticas para la Administración'], '+525511223344')
+ON CONFLICT (num_empleado) DO NOTHING;
+
 -- 1. Insert Carreras
 INSERT INTO carreras (id, clave, nombre, nivel) VALUES
     ('c1111111-1111-1111-1111-111111111111', 'LIC-CDIA', 'Licenciatura en Ciencias de Datos e Inteligencia Artificial', 'Licenciatura'),
     ('c2222222-2222-2222-2222-222222222222', 'LIC-TIC', 'Licenciatura en Tecnologías de la Información y Comunicación', 'Licenciatura'),
     ('c3333333-3333-3333-3333-333333333333', 'LIC-CIB', 'Licenciatura en Ciberseguridad', 'Licenciatura'),
-    ('c4444444-4444-4444-4444-444444444444', 'LIC-TUR', 'Licenciatura en Turismo', 'Licenciatura')
+    ('c4444444-4444-4444-4444-444444444444', 'LIC-TUR', 'Licenciatura en Turismo', 'Licenciatura'),
+    ('c5555555-5555-5555-5555-555555555555', 'LIC-ADM', 'Licenciatura en Administración', 'Licenciatura')
 ON CONFLICT (clave) DO NOTHING;
 
 -- 2. Insert Materias
@@ -273,7 +279,8 @@ INSERT INTO materias (id, carrera_id, clave, nombre, creditos, semestre) VALUES
     ('f3333333-3333-3333-3333-333333333333', 'c2222222-2222-2222-2222-222222222222', 'TIC-201', 'Estructura de Datos y Algoritmos', 8, '3° Semestre'),
     ('f4444444-4444-4444-4444-444444444444', 'c2222222-2222-2222-2222-222222222222', 'TIC-301', 'Ingeniería de Software y Sistemas Web', 10, '3° Semestre'),
     ('f5555555-5555-5555-5555-555555555555', 'c3333333-3333-3333-3333-333333333333', 'CIB-501', 'Ciberseguridad y Auditoría de Sistemas', 10, '5° Semestre'),
-    ('f6666666-6666-6666-6666-666666666666', 'c4444444-4444-4444-4444-444444444444', 'TUR-201', 'Gestión Turística y Servicios', 8, '2° Semestre')
+    ('f6666666-6666-6666-6666-666666666666', 'c4444444-4444-4444-4444-444444444444', 'TUR-201', 'Gestión Turística y Servicios', 8, '2° Semestre'),
+    ('f7777777-7777-7777-7777-777777777777', 'c5555555-5555-5555-5555-555555555555', 'ADM-203', 'Matemáticas para la Administración', 8, '2° Semestre')
 ON CONFLICT (clave) DO NOTHING;
 
 -- 3. Insert Grupos
@@ -282,6 +289,7 @@ INSERT INTO grupos (id, clave_grupo, carrera_id, materia_id, turno, periodo) VAL
     ('e1020000-0000-0000-0000-000000000102', '102', 'c1111111-1111-1111-1111-111111111111', 'f2222222-2222-2222-2222-222222222222', 'Matutino', '2026-2'),
     ('e2010000-0000-0000-0000-000000000201', '201', 'c2222222-2222-2222-2222-222222222222', 'f3333333-3333-3333-3333-333333333333', 'Vespertino', '2026-2'),
     ('e2020000-0000-0000-0000-000000000202', '201-TUR', 'c4444444-4444-4444-4444-444444444444', 'f6666666-6666-6666-6666-666666666666', 'Matutino', '2026-2'),
+    ('e2030000-0000-0000-0000-000000000203', '203-ADM', 'c5555555-5555-5555-5555-555555555555', 'f7777777-7777-7777-7777-777777777777', 'Matutino', '2026-2'),
     ('e3010000-0000-0000-0000-000000000301', '301', 'c2222222-2222-2222-2222-222222222222', 'f4444444-4444-4444-4444-444444444444', 'Matutino', '2026-2'),
     ('e5010000-0000-0000-0000-000000000501', '501', 'c3333333-3333-3333-3333-333333333333', 'f5555555-5555-5555-5555-555555555555', 'Matutino', '2026-2')
 ON CONFLICT (clave_grupo) DO NOTHING;
