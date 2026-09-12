@@ -435,42 +435,52 @@ ON CONFLICT DO NOTHING;
 
 -- 7. OPTIMIZED ACADEMIC RESUMEN VIEW
 CREATE OR REPLACE VIEW vw_resumen_academico AS
-WITH stats_asistencia AS (
-    SELECT 
-        alumno_id,
-        COUNT(id) AS total_sesiones,
-        SUM(CASE WHEN estado IN ('A', 'J') THEN 1.0 WHEN estado = 'R' THEN 0.75 ELSE 0.0 END) AS score_sum
-    FROM asistencias
-    GROUP BY alumno_id
-),
-stats_participacion AS (
-    SELECT 
-        alumno_id,
-        ROUND(AVG(puntos), 2) AS avg_puntos
-    FROM participaciones
-    GROUP BY alumno_id
-)
 SELECT 
     al.id AS alumno_id,
     al.matricula,
     CONCAT(al.nombre, ' ', al.apellido_paterno, ' ', al.apellido_materno) AS nombre_completo,
-    COALESCE(c.nombre, al.carrera) AS carrera,
+    COALESCE(c.nombre, al.carrera, 'Licenciatura UNRC') AS carrera,
     COALESCE(m.nombre, 'Materia General') AS materia,
     al.grupo,
-    -- Attendance Percentage (Weight 20%)
-    COALESCE(ROUND((sa.score_sum / NULLIF(sa.total_sesiones, 0)) * 100, 2), 100.00) AS porcentaje_asistencia,
+    -- Percentage of Attendance (Weight 20%)
+    COALESCE(
+      (
+        SELECT ROUND(
+          (SUM(CASE WHEN estado IN ('A', 'J') THEN 1.0 WHEN estado = 'R' THEN 0.75 ELSE 0.0 END) / NULLIF(COUNT(id), 0)) * 100,
+          2
+        )
+        FROM asistencias WHERE alumno_id = al.id
+      ),
+      100.00
+    ) AS porcentaje_asistencia,
     -- Participation Score (Weight 20%)
-    COALESCE(sp.avg_puntos, 10.00) AS promedio_participacion,
+    COALESCE(
+      (
+        SELECT ROUND(AVG(puntos), 2)
+        FROM participaciones WHERE alumno_id = al.id
+      ),
+      10.00
+    ) AS promedio_participacion,
     -- Tasks Score (Weight 20%)
     10.00 AS promedio_tareas,
-    -- Project Score (Weight 25%)
+    -- Projects Score (Weight 25%)
     10.00 AS promedio_proyectos,
-    -- Self Evaluation Score (Weight 15%)
+    -- Self-Evaluation Score (Weight 15%)
     10.00 AS autoevaluacion,
-    -- Final Calculated Grade (0 - 10)
+    -- Final Grade Calculation (0 - 10)
     ROUND(
-        (COALESCE((sa.score_sum / NULLIF(sa.total_sesiones, 0)), 1.0) * 2.0) +
-        (COALESCE(sp.avg_puntos, 10.0) / 10.0 * 2.0) +
+        (
+          COALESCE(
+            (SELECT SUM(CASE WHEN estado IN ('A', 'J') THEN 1.0 WHEN estado = 'R' THEN 0.75 ELSE 0.0 END) / NULLIF(COUNT(id), 0) FROM asistencias WHERE alumno_id = al.id),
+            1.0
+          ) * 2.0
+        ) +
+        (
+          COALESCE(
+            (SELECT AVG(puntos) FROM participaciones WHERE alumno_id = al.id),
+            10.0
+          ) / 10.0 * 2.0
+        ) +
         (10.0 / 10.0 * 2.0) +
         (10.0 / 10.0 * 2.5) +
         (10.0 / 10.0 * 1.5), 
@@ -479,6 +489,4 @@ SELECT
 FROM alumnos al
 LEFT JOIN grupos g ON al.grupo_id = g.id
 LEFT JOIN materias m ON g.materia_id = m.id
-LEFT JOIN carreras c ON COALESCE(al.carrera_id, g.carrera_id) = c.id
-LEFT JOIN stats_asistencia sa ON al.id = sa.alumno_id
-LEFT JOIN stats_participacion sp ON al.id = sp.alumno_id;
+LEFT JOIN carreras c ON COALESCE(al.carrera_id, g.carrera_id) = c.id;
