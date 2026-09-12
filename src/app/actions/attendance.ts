@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from 'zod';
-import { createClient } from '../../utils/supabase/server';
+import { createClient } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
 
 // Zod validation schemas
