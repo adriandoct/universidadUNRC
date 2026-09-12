@@ -27,6 +27,9 @@ export interface Grupo {
   materia_id: string;
   turno: string;
   periodo: string;
+  horario?: string;
+  dias_clase?: string[];
+  docente_nombre?: string;
   carrera?: Carrera;
   materia?: Materia;
 }
@@ -191,29 +194,29 @@ const MOCK_MATERIAS: Materia[] = [
   { id: 'm3', carrera_id: 'c2', clave: 'TIC-201', nombre: 'Estructura de Datos y Algoritmos', creditos: 8, semestre: '3° Semestre' },
   { id: 'm4', carrera_id: 'c2', clave: 'TIC-301', nombre: 'Ingeniería de Software y Sistemas Web', creditos: 10, semestre: '3° Semestre' },
   { id: 'm5', carrera_id: 'c3', clave: 'CIB-501', nombre: 'Ciberseguridad y Auditoría de Sistemas', creditos: 10, semestre: '5° Semestre' },
-  { id: 'm6', carrera_id: 'c4', clave: 'TUR-201', nombre: 'Gestión Turística y Servicios', creditos: 8, semestre: '2° Semestre' },
+  { id: 'm6', carrera_id: 'c4', clave: 'TUR-201', nombre: 'Administración de Empresas de Hospedaje', creditos: 8, semestre: '2° Semestre' },
   { id: 'm7', carrera_id: 'c5', clave: 'ADM-203', nombre: 'Matemáticas para la Administración', creditos: 8, semestre: '2° Semestre' }
 ];
 
 const MOCK_GRUPOS: Grupo[] = [
-  { id: 'g101', clave_grupo: '101', carrera_id: 'c1', materia_id: 'm1', turno: 'Matutino', periodo: '2026-2' },
-  { id: 'g102', clave_grupo: '102', carrera_id: 'c1', materia_id: 'm2', turno: 'Matutino', periodo: '2026-2' },
-  { id: 'g201', clave_grupo: '201', carrera_id: 'c2', materia_id: 'm3', turno: 'Vespertino', periodo: '2026-2' },
-  { id: 'g201-tur', clave_grupo: '201-TUR', carrera_id: 'c4', materia_id: 'm6', turno: 'Matutino', periodo: '2026-2' },
-  { id: 'g203-adm', clave_grupo: '203-ADM', carrera_id: 'c5', materia_id: 'm7', turno: 'Matutino', periodo: '2026-2' },
-  { id: 'g301', clave_grupo: '301', carrera_id: 'c2', materia_id: 'm4', turno: 'Matutino', periodo: '2026-2' },
-  { id: 'g501', clave_grupo: '501', carrera_id: 'c3', materia_id: 'm5', turno: 'Matutino', periodo: '2026-2' }
+  { id: 'g101', clave_grupo: '101', carrera_id: 'c1', materia_id: 'm1', turno: 'Matutino', periodo: '2026-2', horario: 'Lunes a Sábado (07:00 - 13:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Lic. Alejandro Valdez' },
+  { id: 'g102', clave_grupo: '102', carrera_id: 'c1', materia_id: 'm2', turno: 'Matutino', periodo: '2026-2', horario: 'Lunes a Sábado (07:00 - 13:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Lic. Alejandro Valdez' },
+  { id: 'g201', clave_grupo: '201', carrera_id: 'c2', materia_id: 'm3', turno: 'Vespertino', periodo: '2026-2', horario: 'Lunes a Sábado (14:00 - 20:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Lic. Beatriz Sánchez' },
+  { id: 'g201-tur', clave_grupo: '201-TUR', carrera_id: 'c4', materia_id: 'm6', turno: 'Matutino', periodo: '2026-2', horario: 'Miércoles 09:00 - 11:00 hrs | Sábado 07:00 - 09:00 hrs', dias_clase: ['Miércoles', 'Sábado'], docente_nombre: 'Dr. Adrian Silva' },
+  { id: 'g203-adm', clave_grupo: '203-ADM', carrera_id: 'c5', materia_id: 'm7', turno: 'Matutino', periodo: '2026-2', horario: 'Lunes a Sábado (07:00 - 13:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Dr. Adrian Silva' },
+  { id: 'g301', clave_grupo: '301', carrera_id: 'c2', materia_id: 'm4', turno: 'Matutino', periodo: '2026-2', horario: 'Lunes a Sábado (07:00 - 13:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Lic. Beatriz Sánchez' },
+  { id: 'g501', clave_grupo: '501', carrera_id: 'c3', materia_id: 'm5', turno: 'Matutino', periodo: '2026-2', horario: 'Lunes a Sábado (07:00 - 13:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Tutor UNRC' }
 ];
 
 // Initial mock data for UNRC Alumnos (All 44 Parsed Students)
 const MOCK_ALUMNOS: Alumno[] = [
-  // Group 201-TUR (Turismo - 6 Alumnos)
-  { id: 'al-1', matricula: 'UNRC-2026-005', nombre: 'Dayanna Gissel', apellido_paterno: 'Buitimea', apellido_materno: 'Garma', grado: '2° Semestre', grupo: '201-TUR', carrera: 'Lic. en Turismo', carrera_id: 'c4', grupo_id: 'g201-tur', tutor: 'Tutor UNRC', telefono: '+525510000001', qr_code: 'UNRC-2026-005' },
-  { id: 'al-2', matricula: 'UNRC-2026-006', nombre: 'Astrid Cristina', apellido_paterno: 'Diaz', apellido_materno: 'Moreno', grado: '2° Semestre', grupo: '201-TUR', carrera: 'Lic. en Turismo', carrera_id: 'c4', grupo_id: 'g201-tur', tutor: 'Tutor UNRC', telefono: '+525510000002', qr_code: 'UNRC-2026-006' },
-  { id: 'al-3', matricula: 'UNRC-2026-007', nombre: 'Julibeth', apellido_paterno: 'Hernandez', apellido_materno: 'Herrera', grado: '2° Semestre', grupo: '201-TUR', carrera: 'Lic. en Turismo', carrera_id: 'c4', grupo_id: 'g201-tur', tutor: 'Tutor UNRC', telefono: '+525510000003', qr_code: 'UNRC-2026-007' },
-  { id: 'al-4', matricula: 'UNRC-2026-008', nombre: 'Blanca Estela', apellido_paterno: 'Lopez', apellido_materno: 'Pablo', grado: '2° Semestre', grupo: '201-TUR', carrera: 'Lic. en Turismo', carrera_id: 'c4', grupo_id: 'g201-tur', tutor: 'Tutor UNRC', telefono: '+525510000004', qr_code: 'UNRC-2026-008' },
-  { id: 'al-5', matricula: 'UNRC-2026-009', nombre: 'Cecilia', apellido_paterno: 'Todd', apellido_materno: 'Ambriz', grado: '2° Semestre', grupo: '201-TUR', carrera: 'Lic. en Turismo', carrera_id: 'c4', grupo_id: 'g201-tur', tutor: 'Tutor UNRC', telefono: '+525510000005', qr_code: 'UNRC-2026-009' },
-  { id: 'al-6', matricula: 'UNRC-2026-010', nombre: 'Alejandra', apellido_paterno: 'Garcia', apellido_materno: 'Hernandez', grado: '2° Semestre', grupo: '201-TUR', carrera: 'Lic. en Turismo', carrera_id: 'c4', grupo_id: 'g201-tur', tutor: 'Tutor UNRC', telefono: '+525510000006', qr_code: 'UNRC-2026-010' },
+  // Group 201-TUR (Turismo - 6 Alumnos - Docente: Dr. Adrian Silva)
+  { id: 'al-1', matricula: 'UNRC-2026-005', nombre: 'Dayanna Gissel', apellido_paterno: 'Buitimea', apellido_materno: 'Garma', grado: '2° Semestre', grupo: '201-TUR', carrera: 'Lic. en Turismo', carrera_id: 'c4', grupo_id: 'g201-tur', tutor: 'Dr. Adrian Silva', telefono: '+525510000001', qr_code: 'UNRC-2026-005' },
+  { id: 'al-2', matricula: 'UNRC-2026-006', nombre: 'Astrid Cristina', apellido_paterno: 'Diaz', apellido_materno: 'Moreno', grado: '2° Semestre', grupo: '201-TUR', carrera: 'Lic. en Turismo', carrera_id: 'c4', grupo_id: 'g201-tur', tutor: 'Dr. Adrian Silva', telefono: '+525510000002', qr_code: 'UNRC-2026-006' },
+  { id: 'al-3', matricula: 'UNRC-2026-007', nombre: 'Julibeth', apellido_paterno: 'Hernandez', apellido_materno: 'Herrera', grado: '2° Semestre', grupo: '201-TUR', carrera: 'Lic. en Turismo', carrera_id: 'c4', grupo_id: 'g201-tur', tutor: 'Dr. Adrian Silva', telefono: '+525510000003', qr_code: 'UNRC-2026-007' },
+  { id: 'al-4', matricula: 'UNRC-2026-008', nombre: 'Blanca Estela', apellido_paterno: 'Lopez', apellido_materno: 'Pablo', grado: '2° Semestre', grupo: '201-TUR', carrera: 'Lic. en Turismo', carrera_id: 'c4', grupo_id: 'g201-tur', tutor: 'Dr. Adrian Silva', telefono: '+525510000004', qr_code: 'UNRC-2026-008' },
+  { id: 'al-5', matricula: 'UNRC-2026-009', nombre: 'Cecilia', apellido_paterno: 'Todd', apellido_materno: 'Ambriz', grado: '2° Semestre', grupo: '201-TUR', carrera: 'Lic. en Turismo', carrera_id: 'c4', grupo_id: 'g201-tur', tutor: 'Dr. Adrian Silva', telefono: '+525510000005', qr_code: 'UNRC-2026-009' },
+  { id: 'al-6', matricula: 'UNRC-2026-010', nombre: 'Alejandra', apellido_paterno: 'Garcia', apellido_materno: 'Hernandez', grado: '2° Semestre', grupo: '201-TUR', carrera: 'Lic. en Turismo', carrera_id: 'c4', grupo_id: 'g201-tur', tutor: 'Dr. Adrian Silva', telefono: '+525510000006', qr_code: 'UNRC-2026-010' },
 
   // Group 102
   { id: 'al-7', matricula: 'UNRC-2026-011', nombre: 'Stephanie', apellido_paterno: 'Morales', apellido_materno: 'Flores', grado: '1° Semestre', grupo: '102', carrera: 'Lic. en Ciencias de Datos e IA', carrera_id: 'c1', grupo_id: 'g102', tutor: 'Tutor UNRC', telefono: '+525510000007', qr_code: 'UNRC-2026-011' },
@@ -299,8 +302,8 @@ const MOCK_DOCENTES: Docente[] = [
     apellido_paterno: 'Silva',
     apellido_materno: '',
     email: 'adrian.silva@rcastellanos.cdmx.gob.mx',
-    departamento: 'Lic. en Administración',
-    materias: ['Matemáticas para la Administración'],
+    departamento: 'Lic. en Administración / Lic. en Turismo',
+    materias: ['Matemáticas para la Administración', 'Administración de Empresas de Hospedaje'],
     telefono: '+525511223344',
     foto_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200&h=200',
     created_at: new Date().toISOString()
@@ -311,28 +314,23 @@ const MOCK_DOCENTES: Docente[] = [
 const initLocalStorage = () => {
   if (typeof window === 'undefined') return;
 
-  if (!localStorage.getItem('unrc_carreras')) {
-    localStorage.setItem('unrc_carreras', JSON.stringify(MOCK_CARRERAS));
-  }
-  if (!localStorage.getItem('unrc_materias')) {
-    localStorage.setItem('unrc_materias', JSON.stringify(MOCK_MATERIAS));
-  }
-  if (!localStorage.getItem('unrc_grupos')) {
-    localStorage.setItem('unrc_grupos', JSON.stringify(MOCK_GRUPOS));
-  }
-  if (!localStorage.getItem('unrc_alumnos')) {
+  // Always keep seed data synced
+  localStorage.setItem('unrc_carreras', JSON.stringify(MOCK_CARRERAS));
+  localStorage.setItem('unrc_materias', JSON.stringify(MOCK_MATERIAS));
+  localStorage.setItem('unrc_grupos', JSON.stringify(MOCK_GRUPOS));
+  localStorage.setItem('unrc_docentes', JSON.stringify(MOCK_DOCENTES));
+
+  if (!localStorage.getItem('unrc_alumnos_v3')) {
     localStorage.setItem('unrc_alumnos', JSON.stringify(MOCK_ALUMNOS));
-  }
-  if (!localStorage.getItem('unrc_docentes')) {
-    localStorage.setItem('unrc_docentes', JSON.stringify(MOCK_DOCENTES));
+    localStorage.setItem('unrc_alumnos_v3', 'true');
   }
 
   // Seed Participaciones if empty
   if (!localStorage.getItem('unrc_participaciones')) {
     const mockParticipaciones: Participacion[] = [
-      { id: 'p1', alumno_id: 'al-2', grupo_id: 'g101', fecha: '2026-09-05', tipo: 'AP', puntos: 10, observaciones: 'Aprobada: Excelente aportación en clase' },
-      { id: 'p2', alumno_id: 'al-5', grupo_id: 'g101', fecha: '2026-09-05', tipo: 'AP', puntos: 10, observaciones: 'Aprobada: Aportación activa' },
-      { id: 'p3', alumno_id: 'al-6', grupo_id: 'g101', fecha: '2026-09-05', tipo: 'RP', puntos: 5, observaciones: 'Requerido: Participación deficiente/incompleta' },
+      { id: 'p1', alumno_id: 'al-2', grupo_id: 'g201-tur', fecha: '2026-09-05', tipo: 'AP', puntos: 10, observaciones: 'Aprobada: Excelente aportación en clase de Hospedaje' },
+      { id: 'p2', alumno_id: 'al-5', grupo_id: 'g201-tur', fecha: '2026-09-05', tipo: 'AP', puntos: 10, observaciones: 'Aprobada: Aportación activa en gestión hotelera' },
+      { id: 'p3', alumno_id: 'al-6', grupo_id: 'g201-tur', fecha: '2026-09-05', tipo: 'RP', puntos: 5, observaciones: 'Requerido: Repaso de empresas de hospedaje' },
       { id: 'p4', alumno_id: 'al-7', grupo_id: 'g102', fecha: '2026-09-10', tipo: 'AP', puntos: 10, observaciones: 'Aprobada: Exposición clara de conceptos' },
       { id: 'p5', alumno_id: 'al-8', grupo_id: 'g102', fecha: '2026-09-10', tipo: 'AP', puntos: 10, observaciones: 'Aprobada: Resolución de ejercicio en pizarrón' },
       { id: 'p6', alumno_id: 'al-9', grupo_id: 'g102', fecha: '2026-09-10', tipo: 'AP', puntos: 10, observaciones: 'Aprobada: Participación en debate de IA' },
@@ -345,13 +343,41 @@ const initLocalStorage = () => {
     localStorage.setItem('unrc_participaciones', JSON.stringify(mockParticipaciones));
   }
 
-  // Seed Asistencias if empty
-  if (!localStorage.getItem('unrc_asistencias')) {
+  // Seed Asistencias if empty or refresh for Turismo Wednesdays & Saturdays
+  if (!localStorage.getItem('unrc_asistencias_v2')) {
     const mockAsistencias: Asistencia[] = [
-      { id: 'as-1', alumno_id: 'al-1', grupo_id: 'g101', tipo: 'entrada', estado: 'A', fecha: '2026-09-02', hora: '07:05:00', observaciones: 'Presente' },
-      { id: 'as-2', alumno_id: 'al-1', grupo_id: 'g101', tipo: 'entrada', estado: 'A', fecha: '2026-09-05', hora: '07:02:00', observaciones: 'Presente' },
-      { id: 'as-3', alumno_id: 'al-2', grupo_id: 'g101', tipo: 'entrada', estado: 'A', fecha: '2026-09-02', hora: '07:00:00', observaciones: 'Presente' },
-      { id: 'as-4', alumno_id: 'al-2', grupo_id: 'g101', tipo: 'entrada', estado: 'A', fecha: '2026-09-05', hora: '07:01:00', observaciones: 'Presente' },
+      // Turismo (Grupo 201-TUR) - Wednesday 09-11am & Saturday 07-09am
+      { id: 'as-tur-1', alumno_id: 'al-1', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'A', fecha: '2026-09-02', hora: '09:02:00', observaciones: 'Miércoles (09:00 - 11:00) Presente' },
+      { id: 'as-tur-2', alumno_id: 'al-1', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'A', fecha: '2026-09-05', hora: '07:01:00', observaciones: 'Sábado (07:00 - 09:00) Presente' },
+      { id: 'as-tur-3', alumno_id: 'al-1', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'A', fecha: '2026-09-09', hora: '09:05:00', observaciones: 'Miércoles (09:00 - 11:00) Presente' },
+      { id: 'as-tur-4', alumno_id: 'al-1', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'A', fecha: '2026-09-12', hora: '07:00:00', observaciones: 'Sábado (07:00 - 09:00) Presente' },
+
+      { id: 'as-tur-5', alumno_id: 'al-2', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'A', fecha: '2026-09-02', hora: '09:00:00', observaciones: 'Miércoles Presente' },
+      { id: 'as-tur-6', alumno_id: 'al-2', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'A', fecha: '2026-09-05', hora: '07:05:00', observaciones: 'Sábado Presente' },
+      { id: 'as-tur-7', alumno_id: 'al-2', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'A', fecha: '2026-09-09', hora: '09:01:00', observaciones: 'Miércoles Presente' },
+      { id: 'as-tur-8', alumno_id: 'al-2', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'R', fecha: '2026-09-12', hora: '07:18:00', observaciones: 'Sábado Retardo' },
+
+      { id: 'as-tur-9', alumno_id: 'al-3', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'A', fecha: '2026-09-02', hora: '09:00:00', observaciones: 'Miércoles Presente' },
+      { id: 'as-tur-10', alumno_id: 'al-3', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'A', fecha: '2026-09-05', hora: '07:00:00', observaciones: 'Sábado Presente' },
+      { id: 'as-tur-11', alumno_id: 'al-3', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'A', fecha: '2026-09-09', hora: '09:00:00', observaciones: 'Miércoles Presente' },
+      { id: 'as-tur-12', alumno_id: 'al-3', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'A', fecha: '2026-09-12', hora: '07:02:00', observaciones: 'Sábado Presente' },
+
+      { id: 'as-tur-13', alumno_id: 'al-4', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'A', fecha: '2026-09-02', hora: '09:04:00', observaciones: 'Miércoles Presente' },
+      { id: 'as-tur-14', alumno_id: 'al-4', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'A', fecha: '2026-09-05', hora: '07:00:00', observaciones: 'Sábado Presente' },
+      { id: 'as-tur-15', alumno_id: 'al-4', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'R', fecha: '2026-09-09', hora: '09:16:00', observaciones: 'Miércoles Retardo' },
+      { id: 'as-tur-16', alumno_id: 'al-4', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'A', fecha: '2026-09-12', hora: '07:01:00', observaciones: 'Sábado Presente' },
+
+      { id: 'as-tur-17', alumno_id: 'al-5', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'A', fecha: '2026-09-02', hora: '09:00:00', observaciones: 'Miércoles Presente' },
+      { id: 'as-tur-18', alumno_id: 'al-5', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'A', fecha: '2026-09-05', hora: '07:02:00', observaciones: 'Sábado Presente' },
+      { id: 'as-tur-19', alumno_id: 'al-5', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'A', fecha: '2026-09-09', hora: '09:00:00', observaciones: 'Miércoles Presente' },
+      { id: 'as-tur-20', alumno_id: 'al-5', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'A', fecha: '2026-09-12', hora: '07:00:00', observaciones: 'Sábado Presente' },
+
+      { id: 'as-tur-21', alumno_id: 'al-6', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'A', fecha: '2026-09-02', hora: '09:01:00', observaciones: 'Miércoles Presente' },
+      { id: 'as-tur-22', alumno_id: 'al-6', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'A', fecha: '2026-09-05', hora: '07:03:00', observaciones: 'Sábado Presente' },
+      { id: 'as-tur-23', alumno_id: 'al-6', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'J', fecha: '2026-09-09', hora: '09:00:00', observaciones: 'Miércoles Justificado' },
+      { id: 'as-tur-24', alumno_id: 'al-6', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'A', fecha: '2026-09-12', hora: '07:00:00', observaciones: 'Sábado Presente' },
+
+      // Other groups
       { id: 'as-5', alumno_id: 'al-9', grupo_id: 'g102', tipo: 'entrada', estado: 'R', fecha: '2026-09-08', hora: '07:22:00', observaciones: 'Retardo' },
       { id: 'as-6', alumno_id: 'al-10', grupo_id: 'g102', tipo: 'entrada', estado: 'J', fecha: '2026-09-08', hora: '07:00:00', observaciones: 'Justificante médico' },
       { id: 'as-7', alumno_id: 'al-16', grupo_id: 'g201', tipo: 'entrada', estado: 'R', fecha: '2026-09-08', hora: '07:18:00', observaciones: 'Retardo' },
@@ -359,6 +385,7 @@ const initLocalStorage = () => {
       { id: 'as-9', alumno_id: 'al-45', grupo_id: 'g501', tipo: 'entrada', estado: 'J', fecha: '2026-09-11', hora: '07:00:00', observaciones: 'Justificado' }
     ];
     localStorage.setItem('unrc_asistencias', JSON.stringify(mockAsistencias));
+    localStorage.setItem('unrc_asistencias_v2', 'true');
   }
 };
 
@@ -695,13 +722,17 @@ export const db = {
       const carreraObj = carreras.find(c => c.id === al.carrera_id);
 
       const alAsistencias = asistencias.filter(a => a.alumno_id === al.id || a.alumno?.id === al.id);
-      const totalSesiones = Math.max(alAsistencias.length, 1);
+      const isTurismo = al.grupo === '201-TUR' || al.grupo_id === 'g201-tur' || (al.carrera && al.carrera.toLowerCase().includes('turismo'));
+      // Turismo has 2 scheduled classes per week (Wednesdays & Saturdays) -> 4 sessions in evaluated period
+      // Other groups have classes Mon-Sat -> 8 sessions in evaluated period
+      const expectedSessions = isTurismo ? 4 : 8;
+      const totalSesiones = Math.max(alAsistencias.length, expectedSessions);
       const sesionScoreSum = alAsistencias.reduce((acc, curr) => {
         if (curr.estado === 'A' || curr.estado === 'J') return acc + 1.0;
         if (curr.estado === 'R') return acc + 0.75;
         return acc;
       }, 0);
-      const porcentajeAsistencia = Number(((sesionScoreSum / totalSesiones) * 100).toFixed(2));
+      const porcentajeAsistencia = Number(Math.min(100, Number(((sesionScoreSum / totalSesiones) * 100).toFixed(2))));
 
       const alParticipaciones = participaciones.filter(p => p.alumno_id === al.id || p.alumno?.id === al.id);
       const promedioPart = alParticipaciones.length > 0
