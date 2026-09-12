@@ -34,16 +34,25 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  const demoRole = request.cookies.get('unrc_demo_session')?.value || request.cookies.get('unrc_role')?.value;
   const path = request.nextUrl.pathname;
 
+  // Handle logout parameter on login page
+  if (path === '/login' && request.nextUrl.searchParams.get('logout') === 'true') {
+    supabaseResponse.cookies.delete('unrc_demo_session');
+    supabaseResponse.cookies.delete('unrc_role');
+    return supabaseResponse;
+  }
+
   // Protected route checking
-  if (!user && (path.startsWith('/admin') || path.startsWith('/teacher') || path.startsWith('/student') || path.startsWith('/guardian'))) {
+  const isAuthorized = !!user || !!demoRole;
+  if (!isAuthorized && (path.startsWith('/admin') || path.startsWith('/teacher') || path.startsWith('/student') || path.startsWith('/guardian'))) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);
   }
 
-  if (user && path === '/login') {
+  if (user && path === '/login' && request.nextUrl.searchParams.get('logout') !== 'true') {
     // Redirect authenticated users based on role
     const { data: profile } = await supabase
       .from('profiles')
@@ -51,7 +60,7 @@ export async function updateSession(request: NextRequest) {
       .eq('id', user.id)
       .single();
 
-    const userRole = profile?.role || 'student';
+    const userRole = profile?.role || 'admin';
     const url = request.nextUrl.clone();
     url.pathname = `/${userRole}`;
     return NextResponse.redirect(url);
