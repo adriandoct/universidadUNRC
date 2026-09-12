@@ -508,6 +508,26 @@ export const db = {
     return list.length < initialLen;
   },
 
+  updateAlumno: async (id: string, updates: Partial<Alumno>): Promise<Alumno | null> => {
+    initLocalStorage();
+    let list = await db.getAlumnos();
+    const index = list.findIndex(a => a.id === id || a.matricula === id);
+    if (index === -1) return null;
+
+    list[index] = { ...list[index], ...updates };
+    localStorage.setItem('unrc_alumnos', JSON.stringify(list));
+
+    if (supabase) {
+      try {
+        await supabase.from('alumnos').update(updates).eq('id', id);
+      } catch (e) {
+        console.warn('Supabase update alumno notice:', e);
+      }
+    }
+
+    return list[index];
+  },
+
   // Asistencia operations
   getAsistencias: async (): Promise<Asistencia[]> => {
     initLocalStorage();

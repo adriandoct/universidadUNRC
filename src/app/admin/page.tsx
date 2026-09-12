@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
-import { db, isSupabaseConfigured, Alumno, Docente } from '../../lib/db';
+import { db, isSupabaseConfigured, Alumno, Docente, ResumenAcademico, Asistencia, Participacion } from '../../lib/db';
 import { useAuth } from '../../lib/AuthContext';
 
 export default function AdminPage() {
@@ -12,6 +12,21 @@ export default function AdminPage() {
   const [dbUrlInput, setDbUrlInput] = useState('https://uyqkxqlovxkgurnuxnfd.supabase.co');
   const [dbKeyInput, setDbKeyInput] = useState('sb_publishable_F-KMTWS6SQt_hOvo9UGK4A_gbDsM0SQ');
   const [customConnected, setCustomConnected] = useState(false);
+
+  // Active Main Tab
+  const [activeTab, setActiveTab] = useState<'gestion' | 'upload' | 'preview' | 'schema' | 'stats'>('gestion');
+
+  // Academic Management States
+  const [alumnosList, setAlumnosList] = useState<Alumno[]>([]);
+  const [resumenList, setResumenList] = useState<ResumenAcademico[]>([]);
+  const [asistenciasList, setAsistenciasList] = useState<Asistencia[]>([]);
+  const [participacionesList, setParticipacionesList] = useState<Participacion[]>([]);
+  const [selectedGrupo, setSelectedGrupo] = useState<string>('todos');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // Editing Modal State
+  const [editingAlumno, setEditingAlumno] = useState<Alumno | null>(null);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
 
   // File Upload & Data States
   const [selectedTable, setSelectedTable] = useState<'alumnos' | 'docentes'>('alumnos');
@@ -28,27 +43,35 @@ export default function AdminPage() {
 
   // Live Database Table Statistics
   const [stats, setStats] = useState({ alumnosCount: 0, docentesCount: 0, asistenciasCount: 0 });
-  const [activeTab, setActiveTab] = useState<'upload' | 'preview' | 'schema' | 'stats'>('upload');
   const [sqlSchemaCode, setSqlSchemaCode] = useState('');
 
-  // Fetch initial table counts
-  const loadStats = async () => {
+  // Fetch all database records
+  const loadAllData = async () => {
     try {
       const alumnos = await db.getAlumnos();
       const docentes = await db.getDocentes();
       const asistencias = await db.getAsistencias();
+      const participaciones = await db.getParticipaciones();
+      const resumen = await db.getResumenAcademico(selectedGrupo);
+
+      setAlumnosList(alumnos);
+      setAsistenciasList(asistencias);
+      setParticipacionesList(participaciones);
+      setResumenList(resumen);
+
       setStats({
         alumnosCount: alumnos.length,
         docentesCount: docentes.length,
         asistenciasCount: asistencias.length
       });
     } catch (e) {
-      console.error('Error fetching table stats:', e);
+      console.error('Error loading admin data:', e);
     }
   };
 
   useEffect(() => {
-    loadStats();
+    loadAllData();
+
     // Load schema text preview
     fetch('/supabase_schema.sql')
       .then(res => res.text())
@@ -56,9 +79,89 @@ export default function AdminPage() {
       .catch(() => {
         setSqlSchemaCode(`-- Database Schema for UNRC\nCREATE TABLE alumnos (...);\nCREATE TABLE docentes (...);`);
       });
-  }, []);
+  }, [selectedGrupo]);
 
-  // Handle Drag & Drop / File Change
+  // Filter Alumnos based on Group & Search Query
+  const filteredAlumnos = alumnosList.filter(al => {
+    const matchesGrupo = selectedGrupo === 'todos' || al.grupo === selectedGrupo || al.grupo_id === selectedGrupo;
+    const q = searchQuery.toLowerCase().trim();
+    const matchesSearch = !q || 
+      al.nombre.toLowerCase().includes(q) ||
+      al.apellido_paterno.toLowerCase().includes(q) ||
+      (al.apellido_materno && al.apellido_materno.toLowerCase().includes(q)) ||
+      al.matricula.toLowerCase().includes(q) ||
+      (al.carrera && al.carrera.toLowerCase().includes(q));
+
+    return matchesGrupo && matchesSearch;
+  });
+
+  // Handle Quick Attendance Toggle (Presente, Retardo, Justificado, Ausente)
+  const handleAttendanceToggle = async (alumno: Alumno, estado: 'A' | 'R' | 'J' | 'F') => {
+    try {
+      await db.registrarAsistencia(
+        alumno.matricula,
+        'entrada',
+        'Consola Administrador',
+        'Campus UNRC',
+        'Administrador de Sistema'
+      );
+      await loadAllData();
+    } catch (e: any) {
+      alert(`Error al registrar asistencia: ${e.message}`);
+    }
+  };
+
+  // Handle Quick Participation Add
+  const handleParticipationAdd = async (alumnoId: string, tipo: 'AP' | 'RP') => {
+    try {
+      await db.registrarParticipacion(alumnoId, tipo, tipo === 'AP' ? 'Aprobada por Administrador' : 'Requerida por Administrador');
+      await loadAllData();
+      alert(`Participación ${tipo} registrada exitosamente.`);
+    } catch (e: any) {
+      alert(`Error al registrar participación: ${e.message}`);
+    }
+  };
+
+  // Save Student Modifications
+  const handleSaveStudent = async () => {
+    if (!editingAlumno) return;
+    setIsSaving(true);
+    try {
+      await db.updateAlumno(editingAlumno.id, {
+        nombre: editingAlumno.nombre,
+        apellido_paterno: editingAlumno.apellido_paterno,
+        apellido_materno: editingAlumno.apellido_materno,
+        matricula: editingAlumno.matricula,
+        carrera: editingAlumno.carrera,
+        grupo: editingAlumno.grupo,
+        grado: editingAlumno.grado,
+        tutor: editingAlumno.tutor,
+        telefono: editingAlumno.telefono
+      });
+
+      alert('✅ Datos del alumno actualizados correctamente.');
+      setEditingAlumno(null);
+      await loadAllData();
+    } catch (e: any) {
+      alert(`❌ Error al guardar cambios: ${e.message}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Delete Student
+  const handleDeleteStudent = async (id: string, nombre: string) => {
+    if (!confirm(`¿Estás seguro de que deseas eliminar permanentemente al alumno ${nombre}?`)) return;
+    try {
+      await db.deleteAlumno(id);
+      await loadAllData();
+      alert(`Alumno ${nombre} eliminado.`);
+    } catch (e: any) {
+      alert(`Error al eliminar alumno: ${e.message}`);
+    }
+  };
+
+  // File Upload Handlers
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -164,7 +267,7 @@ export default function AdminPage() {
       }
 
       setSyncProgress(100);
-      await loadStats();
+      await loadAllData();
     } catch (e: any) {
       setSyncLogs(prev => [...prev, `❌ Error fatal durante la carga: ${e.message}`]);
       setSyncSuccess(false);
@@ -173,7 +276,6 @@ export default function AdminPage() {
     }
   };
 
-  // Preset Sample Excel Generator
   const downloadSampleExcel = () => {
     const sampleData = [
       {
@@ -182,24 +284,12 @@ export default function AdminPage() {
         apellido_paterno: 'García',
         apellido_materno: 'Ríos',
         grado: '1° Semestre',
-        grupo: 'Group 101',
+        grupo: '101',
         carrera: 'Lic. en Inteligencia Artificial',
         tutor: 'Sra. Elena Ríos',
         telefono: '+525511223344'
-      },
-      {
-        matricula: 'UNRC-2026-102',
-        nombre: 'Luis Fernando',
-        apellido_paterno: 'Mendoza',
-        apellido_materno: 'Soto',
-        grado: '1° Semestre',
-        grupo: 'Group 101',
-        carrera: 'Lic. en Ciencias de la Computación',
-        tutor: 'Sr. Fernando Mendoza',
-        telefono: '+525522334455'
       }
     ];
-
     const ws = XLSX.utils.json_to_sheet(sampleData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Alumnos_UNRC');
@@ -214,7 +304,7 @@ export default function AdminPage() {
         </div>
         <h1 className="text-3xl font-bold text-white">Acceso Reservado para Administrador de Base de Datos</h1>
         <p className="text-gray-400 max-w-md mx-auto">
-          Esta consola está diseñada exclusivamente para que el Administrador cargue archivos de base de datos Excel/CSV y ejecute la sincronización de datos.
+          Esta consola está diseñada exclusivamente para que el Administrador gestione, edite y sincronice los registros académicos.
         </p>
         <button
           onClick={() => openAuthModal('administrador')}
@@ -236,13 +326,13 @@ export default function AdminPage() {
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
           <div className="space-y-2">
             <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-semibold">
-              <span>⚡ Consola Senior de Administración de Datos</span>
+              <span>⚡ Consola Senior de Edición & Administración de Datos</span>
             </div>
             <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-              Gestión y Carga de Base de Datos <span className="text-amber-400">UNRC</span>
+              Gestión y Edición de Base de Datos <span className="text-amber-400">UNRC</span>
             </h1>
             <p className="text-gray-400 text-sm max-w-2xl">
-              Modulo exclusivo para importar archivos Excel (`.xlsx`), CSV y JSON y realizar la migración y sincronización de tablas directamente en la Base de Datos.
+              Modulo de edición completa para el Administrador. Visualiza y edita en tiempo real la información de alumnos, grupos, asistencias y participaciones.
             </p>
           </div>
 
@@ -251,7 +341,7 @@ export default function AdminPage() {
             <div className="flex items-center space-x-2">
               <span className={`w-3 h-3 rounded-full ${isSupabaseConfigured || customConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`}></span>
               <span className="text-xs font-bold text-white">
-                {isSupabaseConfigured || customConnected ? 'Conectado a Base de Datos' : 'Modo Sandbox Activo'}
+                {isSupabaseConfigured || customConnected ? 'Conectado a Supabase' : 'Modo Sandbox Activo'}
               </span>
             </div>
             <div className="text-[11px] text-gray-400 truncate">
@@ -267,6 +357,17 @@ export default function AdminPage() {
       {/* Navigation Tabs */}
       <div className="flex flex-wrap items-center gap-2 border-b border-white/10 pb-4">
         <button
+          onClick={() => setActiveTab('gestion')}
+          className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 ${
+            activeTab === 'gestion'
+              ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20'
+              : 'bg-white/5 text-gray-300 hover:bg-white/10'
+          }`}
+        >
+          <span>✏️ 1. Ver y Editar Registros ({filteredAlumnos.length})</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab('upload')}
           className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 ${
             activeTab === 'upload'
@@ -274,7 +375,7 @@ export default function AdminPage() {
               : 'bg-white/5 text-gray-300 hover:bg-white/10'
           }`}
         >
-          <span>📤 1. Cargar Archivo Base de Datos</span>
+          <span>📤 2. Cargar Archivo Excel / CSV</span>
         </button>
 
         <button
@@ -286,7 +387,7 @@ export default function AdminPage() {
               : 'bg-white/5 text-gray-300 hover:bg-white/10 disabled:opacity-40'
           }`}
         >
-          <span>👀 2. Vista Previa y Sincronización ({parsedRows.length})</span>
+          <span>👀 Previsualización ({parsedRows.length})</span>
         </button>
 
         <button
@@ -312,7 +413,270 @@ export default function AdminPage() {
         </button>
       </div>
 
-      {/* TAB 1: UPLOAD AREA */}
+      {/* TAB: GESTION Y EDICION COMPLETA */}
+      {activeTab === 'gestion' && (
+        <div className="space-y-6">
+          <div className="glass-panel p-6 rounded-3xl border border-white/10 space-y-6">
+            
+            {/* Filter Bar */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
+              <div>
+                <h3 className="text-lg font-bold text-white flex items-center space-x-2">
+                  <span>Edición de Alumnos y Evaluaciones</span>
+                </h3>
+                <p className="text-xs text-gray-400">Filtra por grupo o busca por nombre/matrícula para modificar datos directamente en Supabase</p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Buscar alumno o matrícula..."
+                  className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-amber-500 w-full sm:w-64"
+                />
+
+                <select
+                  value={selectedGrupo}
+                  onChange={(e) => setSelectedGrupo(e.target.value)}
+                  className="px-4 py-2 rounded-xl bg-[#090D16] border border-white/10 text-white text-xs focus:outline-none focus:border-amber-500"
+                >
+                  <option value="todos">Todos los Grupos</option>
+                  <option value="101">Grupo 101 (Lic. Ciencias de Datos)</option>
+                  <option value="102">Grupo 102 (Lic. Ciencias de Datos)</option>
+                  <option value="201">Grupo 201 (Lic. TIC)</option>
+                  <option value="201-TUR">Grupo 201 (Lic. Turismo)</option>
+                  <option value="203-ADM">Grupo 203 (Lic. Administración)</option>
+                  <option value="301">Grupo 301 (Lic. TIC)</option>
+                  <option value="501">Grupo 501 (Lic. Ciberseguridad)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Table of Alumnos for Admin Editing */}
+            <div className="overflow-x-auto rounded-2xl border border-white/10">
+              <table className="w-full text-left text-xs text-gray-300">
+                <thead className="bg-black/60 text-gray-400 uppercase text-[10px] font-bold">
+                  <tr>
+                    <th className="p-3">Alumno</th>
+                    <th className="p-3">Matrícula</th>
+                    <th className="p-3">Carrera / Semestre</th>
+                    <th className="p-3">Grupo</th>
+                    <th className="p-3">Asistencia Rápida</th>
+                    <th className="p-3">Participación</th>
+                    <th className="p-3 text-right">Acciones de Edición</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5 bg-black/20">
+                  {filteredAlumnos.map((al) => {
+                    const res = resumenList.find(r => r.alumno_id === al.id || r.matricula === al.matricula);
+
+                    return (
+                      <tr key={al.id} className="hover:bg-white/5 transition-colors">
+                        <td className="p-3 font-semibold text-white">
+                          <div>{al.nombre} {al.apellido_paterno} {al.apellido_materno || ''}</div>
+                          <div className="text-[10px] text-gray-500 font-normal">Tutor: {al.tutor || 'Sin tutor'}</div>
+                        </td>
+                        <td className="p-3 font-mono text-amber-400 font-bold">{al.matricula}</td>
+                        <td className="p-3">
+                          <div>{al.carrera || 'Licenciatura UNRC'}</div>
+                          <div className="text-[10px] text-gray-500">{al.grado || '1° Semestre'}</div>
+                        </td>
+                        <td className="p-3">
+                          <span className="px-2.5 py-1 rounded-lg bg-blue-500/10 border border-blue-500/30 text-blue-400 text-[10px] font-bold">
+                            Grupo {al.grupo}
+                          </span>
+                        </td>
+                        <td className="p-3">
+                          <div className="flex items-center space-x-1">
+                            <button
+                              onClick={() => handleAttendanceToggle(al, 'A')}
+                              className="px-2 py-1 rounded bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-400 text-[10px] font-bold"
+                              title="Marcar Asistencia (A)"
+                            >
+                              ⚡ A
+                            </button>
+                            <button
+                              onClick={() => handleAttendanceToggle(al, 'R')}
+                              className="px-2 py-1 rounded bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-400 text-[10px] font-bold"
+                              title="Marcar Retardo (R)"
+                            >
+                              ⏱️ R
+                            </button>
+                          </div>
+                        </td>
+                        <td className="p-3">
+                          <div className="flex items-center space-x-1">
+                            <button
+                              onClick={() => handleParticipationAdd(al.id, 'AP')}
+                              className="px-2 py-1 rounded bg-teal-500/20 hover:bg-teal-500/30 border border-teal-500/40 text-teal-300 text-[10px] font-bold"
+                              title="Asignar Participación Aprobada (+10)"
+                            >
+                              + AP
+                            </button>
+                            <button
+                              onClick={() => handleParticipationAdd(al.id, 'RP')}
+                              className="px-2 py-1 rounded bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/40 text-orange-300 text-[10px] font-bold"
+                              title="Asignar Participación Requerida (+5)"
+                            >
+                              + RP
+                            </button>
+                          </div>
+                        </td>
+                        <td className="p-3 text-right space-x-2">
+                          <button
+                            onClick={() => setEditingAlumno(al)}
+                            className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 font-bold text-xs border border-amber-500/30 transition-all"
+                          >
+                            ✏️ Editar
+                          </button>
+                          <button
+                            onClick={() => handleDeleteStudent(al.id, `${al.nombre} ${al.apellido_paterno}`)}
+                            className="px-2.5 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 font-bold text-xs border border-rose-500/30 transition-all"
+                          >
+                            🗑️
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {filteredAlumnos.length === 0 && (
+              <div className="text-center py-12 text-gray-500 text-xs">
+                No se encontraron alumnos para el grupo o término de búsqueda seleccionado.
+              </div>
+            )}
+
+          </div>
+        </div>
+      )}
+
+      {/* EDIT MODAL FOR ADMIN */}
+      {editingAlumno && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="glass-panel p-8 rounded-3xl border border-amber-500/30 max-w-lg w-full space-y-6 shadow-2xl animate-scaleUp">
+            
+            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+              <h3 className="text-lg font-bold text-white flex items-center space-x-2">
+                <span>✏️ Editar Alumno (Administrador)</span>
+              </h3>
+              <button
+                onClick={() => setEditingAlumno(null)}
+                className="text-gray-400 hover:text-white text-lg font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-400 mb-1">Nombre(s)</label>
+                <input
+                  type="text"
+                  value={editingAlumno.nombre}
+                  onChange={(e) => setEditingAlumno({ ...editingAlumno, nombre: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-400 mb-1">Apellido Paterno</label>
+                  <input
+                    type="text"
+                    value={editingAlumno.apellido_paterno}
+                    onChange={(e) => setEditingAlumno({ ...editingAlumno, apellido_paterno: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-400 mb-1">Apellido Materno</label>
+                  <input
+                    type="text"
+                    value={editingAlumno.apellido_materno || ''}
+                    onChange={(e) => setEditingAlumno({ ...editingAlumno, apellido_materno: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-400 mb-1">Matrícula</label>
+                  <input
+                    type="text"
+                    value={editingAlumno.matricula}
+                    onChange={(e) => setEditingAlumno({ ...editingAlumno, matricula: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-amber-400 font-mono font-bold text-xs focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-400 mb-1">Grupo</label>
+                  <input
+                    type="text"
+                    value={editingAlumno.grupo}
+                    onChange={(e) => setEditingAlumno({ ...editingAlumno, grupo: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-400 mb-1">Carrera</label>
+                <input
+                  type="text"
+                  value={editingAlumno.carrera || ''}
+                  onChange={(e) => setEditingAlumno({ ...editingAlumno, carrera: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-400 mb-1">Semestre / Grado</label>
+                  <input
+                    type="text"
+                    value={editingAlumno.grado || ''}
+                    onChange={(e) => setEditingAlumno({ ...editingAlumno, grado: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-400 mb-1">Tutor</label>
+                  <input
+                    type="text"
+                    value={editingAlumno.tutor || ''}
+                    onChange={(e) => setEditingAlumno({ ...editingAlumno, tutor: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end space-x-3 pt-4 border-t border-white/10">
+              <button
+                onClick={() => setEditingAlumno(null)}
+                className="px-5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 font-bold text-xs transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveStudent}
+                disabled={isSaving}
+                className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs shadow-lg shadow-amber-500/20 transition-all disabled:opacity-50"
+              >
+                {isSaving ? 'Guardando...' : '💾 Guardar Cambios'}
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* TAB 2: UPLOAD AREA */}
       {activeTab === 'upload' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
@@ -434,7 +798,7 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* TAB 2: PREVIEW & SYNC */}
+      {/* TAB 3: PREVIEW & SYNC */}
       {activeTab === 'preview' && (
         <div className="space-y-6">
           <div className="glass-panel p-6 rounded-3xl border border-white/10 space-y-6">
@@ -515,7 +879,7 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* TAB 3: TABLE STATISTICS */}
+      {/* TAB 4: TABLE STATISTICS */}
       {activeTab === 'stats' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="glass-panel p-6 rounded-3xl border border-emerald-500/20 space-y-3">
@@ -538,7 +902,7 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* TAB 4: SQL SCHEMA EDITOR */}
+      {/* TAB 5: SQL SCHEMA EDITOR */}
       {activeTab === 'schema' && (
         <div className="glass-panel p-6 rounded-3xl border border-white/10 space-y-4">
           <div className="flex items-center justify-between">
