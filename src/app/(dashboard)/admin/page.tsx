@@ -412,28 +412,34 @@ export default function AdminDashboardPage() {
     try {
       const sObj = sedes.find((s) => s.id === carreraForm.sede_id);
       if (editingId) {
-        await db.updateCarrera(editingId, {
+        const updated = await db.updateCarrera(editingId, {
           clave: carreraForm.clave,
           nombre: carreraForm.nombre,
           nivel: carreraForm.nivel,
           sede_id: carreraForm.sede_id,
           sede_nombre: sObj?.nombre,
         });
+        if (updated) {
+          setCarreras((prev) =>
+            prev.map((c) => (c.id === editingId || c.clave === editingId ? { ...c, ...updated } : c))
+          );
+        }
         showToast(`Carrera ${carreraForm.nombre} actualizada.`);
       } else {
-        await db.addCarrera({
+        const newCar = await db.addCarrera({
           clave: carreraForm.clave,
           nombre: carreraForm.nombre,
           nivel: carreraForm.nivel,
           sede_id: carreraForm.sede_id,
           sede_nombre: sObj?.nombre,
         });
+        setCarreras((prev) => [...prev, newCar]);
         showToast(`Carrera ${carreraForm.nombre} agregada.`);
       }
       setModalType(null);
       setEditingId(null);
       setCarreraForm({ clave: '', nombre: '', nivel: 'Licenciatura', sede_id: '' });
-      loadData();
+      await loadData();
     } catch (err: any) {
       showToast(`Error: ${err.message}`, 'error');
     }
@@ -442,8 +448,9 @@ export default function AdminDashboardPage() {
   const handleDeleteCarrera = async (id: string, name: string) => {
     if (confirm(`¿Eliminar la carrera "${name}"?`)) {
       await db.deleteCarrera(id);
+      setCarreras((prev) => prev.filter((c) => c.id !== id && c.clave !== id));
       showToast(`Carrera eliminada.`);
-      loadData();
+      await loadData();
     }
   };
 
@@ -452,7 +459,7 @@ export default function AdminDashboardPage() {
     e.preventDefault();
     try {
       if (editingId) {
-        await db.updateMateria(editingId, {
+        const updated = await db.updateMateria(editingId, {
           clave: materiaForm.clave,
           nombre: materiaForm.nombre,
           carrera_id: materiaForm.carrera_id,
@@ -460,9 +467,14 @@ export default function AdminDashboardPage() {
           semestre: materiaForm.semestre,
           horas_semana: Number(materiaForm.horas_semana),
         });
+        if (updated) {
+          setMaterias((prev) =>
+            prev.map((m) => (m.id === editingId || m.clave === editingId ? { ...m, ...updated } : m))
+          );
+        }
         showToast(`Asignatura ${materiaForm.nombre} actualizada.`);
       } else {
-        await db.addMateria({
+        const newMat = await db.addMateria({
           clave: materiaForm.clave,
           nombre: materiaForm.nombre,
           carrera_id: materiaForm.carrera_id,
@@ -470,6 +482,7 @@ export default function AdminDashboardPage() {
           semestre: materiaForm.semestre,
           horas_semana: Number(materiaForm.horas_semana),
         });
+        setMaterias((prev) => [...prev, newMat]);
         showToast(`Asignatura ${materiaForm.nombre} registrada.`);
       }
       setModalType(null);
@@ -482,7 +495,7 @@ export default function AdminDashboardPage() {
         semestre: '1° Semestre',
         horas_semana: 6,
       });
-      loadData();
+      await loadData();
     } catch (err: any) {
       showToast(`Error: ${err.message}`, 'error');
     }
@@ -491,8 +504,9 @@ export default function AdminDashboardPage() {
   const handleDeleteMateria = async (id: string, name: string) => {
     if (confirm(`¿Eliminar asignatura "${name}"?`)) {
       await db.deleteMateria(id);
+      setMaterias((prev) => prev.filter((m) => m.id !== id && m.clave !== id));
       showToast(`Asignatura eliminada.`);
-      loadData();
+      await loadData();
     }
   };
 

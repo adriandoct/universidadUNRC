@@ -845,31 +845,76 @@ export const db = {
   // Carreras operations
   getCarreras: async (): Promise<Carrera[]> => {
     initLocalStorage();
+    const raw = localStorage.getItem('unrc_carreras');
+    let localList: Carrera[] = raw ? JSON.parse(raw) : [];
+
     if (supabase) {
       try {
         const { data, error } = await supabase.from('carreras').select('*');
-        if (!error && data && data.length > 0) return data;
+        if (!error && data && data.length > 0) {
+          // Merge Supabase records with existing local data to preserve sedes and custom fields
+          const merged: Carrera[] = data.map((sc: any) => {
+            const local = localList.find(l => l.id === sc.id || l.clave === sc.clave);
+            return {
+              id: sc.id,
+              clave: sc.clave,
+              nombre: sc.nombre,
+              nivel: sc.nivel || 'Licenciatura',
+              sede_id: local?.sede_id || 'sede-mc',
+              sede_nombre: local?.sede_nombre || 'Campus Magdalena Contreras'
+            };
+          });
+          // Also append any local-only carreras created while offline
+          localList.forEach(loc => {
+            if (!merged.some(m => m.id === loc.id || m.clave === loc.clave)) {
+              merged.push(loc);
+            }
+          });
+          localStorage.setItem('unrc_carreras', JSON.stringify(merged));
+          return merged;
+        }
       } catch (err) {
         console.warn('Fallback carreras:', err);
       }
     }
-    const raw = localStorage.getItem('unrc_carreras');
-    return raw ? JSON.parse(raw) : MOCK_CARRERAS;
+    return localList.length > 0 ? localList : MOCK_CARRERAS;
   },
 
   // Materias operations
   getMaterias: async (): Promise<Materia[]> => {
     initLocalStorage();
+    const raw = localStorage.getItem('unrc_materias');
+    let localList: Materia[] = raw ? JSON.parse(raw) : [];
+
     if (supabase) {
       try {
         const { data, error } = await supabase.from('materias').select('*');
-        if (!error && data && data.length > 0) return data;
+        if (!error && data && data.length > 0) {
+          const merged: Materia[] = data.map((sm: any) => {
+            const local = localList.find(l => l.id === sm.id || l.clave === sm.clave);
+            return {
+              id: sm.id,
+              carrera_id: sm.carrera_id,
+              clave: sm.clave,
+              nombre: sm.nombre,
+              creditos: sm.creditos || 8,
+              semestre: sm.semestre || '1° Semestre',
+              horas_semana: local?.horas_semana || 6
+            };
+          });
+          localList.forEach(loc => {
+            if (!merged.some(m => m.id === loc.id || m.clave === loc.clave)) {
+              merged.push(loc);
+            }
+          });
+          localStorage.setItem('unrc_materias', JSON.stringify(merged));
+          return merged;
+        }
       } catch (err) {
         console.warn('Fallback materias:', err);
       }
     }
-    const raw = localStorage.getItem('unrc_materias');
-    return raw ? JSON.parse(raw) : MOCK_MATERIAS;
+    return localList.length > 0 ? localList : MOCK_MATERIAS;
   },
 
   // Grupos operations
@@ -894,15 +939,27 @@ export const db = {
       ...carrera,
       id: `c-${Date.now()}`
     };
-    list.push(newCarrera);
-    localStorage.setItem('unrc_carreras', JSON.stringify(list));
+
     if (supabase) {
       try {
-        await supabase.from('carreras').insert([newCarrera]);
+        const { data, error } = await supabase
+          .from('carreras')
+          .insert([{
+            clave: newCarrera.clave,
+            nombre: newCarrera.nombre,
+            nivel: newCarrera.nivel
+          }])
+          .select();
+        if (!error && data && data[0]?.id) {
+          newCarrera.id = data[0].id;
+        }
       } catch (e) {
         console.warn('Supabase carrera insert:', e);
       }
     }
+
+    list.push(newCarrera);
+    localStorage.setItem('unrc_carreras', JSON.stringify(list));
     await db.addAuditoria('ALTA_CARRERA', 'Oferta Académica', `Se registró la carrera ${newCarrera.nombre} (${newCarrera.clave})`, 'Administrador');
     return newCarrera;
   },
@@ -910,9 +967,19 @@ export const db = {
   deleteCarrera: async (id: string): Promise<boolean> => {
     initLocalStorage();
     let list = await db.getCarreras();
-    const target = list.find(c => c.id === id);
-    list = list.filter(c => c.id !== id);
+    const target = list.find(c => c.id === id || c.clave === id);
+    const targetId = target ? target.id : id;
+    list = list.filter(c => c.id !== targetId && c.clave !== id);
     localStorage.setItem('unrc_carreras', JSON.stringify(list));
+
+    if (supabase) {
+      try {
+        await supabase.from('carreras').delete().eq('id', targetId);
+      } catch (e) {
+        console.warn('Supabase carrera delete notice:', e);
+      }
+    }
+
     if (target) {
       await db.addAuditoria('BAJA_CARRERA', 'Oferta Académica', `Se eliminó la carrera ${target.nombre} (${target.clave})`, 'Administrador');
     }
@@ -959,9 +1026,23 @@ export const db = {
         console.warn('Sync related carrera entities notice:', e);
       }
     }
+
     if (supabase) {
       try {
-        await supabase.from('carreras').update(updates).eq('id', id);
+        const supabasePayload: Record<string, any> = {};
+        if (updates.clave !== undefined) supabasePayload.clave = updates.clave;
+        if (updates.nombre !== undefined) supabasePayload.nombre = updates.nombre;
+        if (updates.nivel !== undefined) supabasePayload.nivel = updates.nivel;
+
+        if (Object.keys(supabasePayload).length > 0) {
+          const { error: supaErr } = await supabase
+            .from('carreras')
+            .update(supabasePayload)
+            .eq('id', list[index].id);
+          if (supaErr) {
+            console.warn('Supabase carrera update error:', supaErr);
+          }
+        }
       } catch (e) {
         console.warn('Supabase carrera update notice:', e);
       }
@@ -977,15 +1058,29 @@ export const db = {
       ...materia,
       id: `m-${Date.now()}`
     };
-    list.push(newMateria);
-    localStorage.setItem('unrc_materias', JSON.stringify(list));
+
     if (supabase) {
       try {
-        await supabase.from('materias').insert([newMateria]);
+        const { data, error } = await supabase
+          .from('materias')
+          .insert([{
+            carrera_id: newMateria.carrera_id,
+            clave: newMateria.clave,
+            nombre: newMateria.nombre,
+            creditos: newMateria.creditos,
+            semestre: newMateria.semestre
+          }])
+          .select();
+        if (!error && data && data[0]?.id) {
+          newMateria.id = data[0].id;
+        }
       } catch (e) {
         console.warn('Supabase materia insert:', e);
       }
     }
+
+    list.push(newMateria);
+    localStorage.setItem('unrc_materias', JSON.stringify(list));
     await db.addAuditoria('ALTA_MATERIA', 'Plan Curricular', `Se agregó asignatura ${newMateria.nombre} (${newMateria.clave})`, 'Administrador');
     return newMateria;
   },
@@ -997,9 +1092,25 @@ export const db = {
     if (index === -1) return null;
     list[index] = { ...list[index], ...updates };
     localStorage.setItem('unrc_materias', JSON.stringify(list));
+
     if (supabase) {
       try {
-        await supabase.from('materias').update(updates).eq('id', id);
+        const supabasePayload: Record<string, any> = {};
+        if (updates.carrera_id !== undefined) supabasePayload.carrera_id = updates.carrera_id;
+        if (updates.clave !== undefined) supabasePayload.clave = updates.clave;
+        if (updates.nombre !== undefined) supabasePayload.nombre = updates.nombre;
+        if (updates.creditos !== undefined) supabasePayload.creditos = updates.creditos;
+        if (updates.semestre !== undefined) supabasePayload.semestre = updates.semestre;
+
+        if (Object.keys(supabasePayload).length > 0) {
+          const { error: supaErr } = await supabase
+            .from('materias')
+            .update(supabasePayload)
+            .eq('id', list[index].id);
+          if (supaErr) {
+            console.warn('Supabase materia update error:', supaErr);
+          }
+        }
       } catch (e) {
         console.warn('Supabase materia update notice:', e);
       }
@@ -1011,9 +1122,19 @@ export const db = {
   deleteMateria: async (id: string): Promise<boolean> => {
     initLocalStorage();
     let list = await db.getMaterias();
-    const target = list.find(m => m.id === id);
-    list = list.filter(m => m.id !== id);
+    const target = list.find(m => m.id === id || m.clave === id);
+    const targetId = target ? target.id : id;
+    list = list.filter(m => m.id !== targetId && m.clave !== id);
     localStorage.setItem('unrc_materias', JSON.stringify(list));
+
+    if (supabase) {
+      try {
+        await supabase.from('materias').delete().eq('id', targetId);
+      } catch (e) {
+        console.warn('Supabase materia delete notice:', e);
+      }
+    }
+
     if (target) {
       await db.addAuditoria('BAJA_MATERIA', 'Plan Curricular', `Se eliminó asignatura ${target.nombre}`, 'Administrador');
     }
