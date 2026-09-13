@@ -287,15 +287,19 @@ export default function AdminDashboardPage() {
     e.preventDefault();
     try {
       if (editingId) {
-        await db.updateSede(editingId, sedeForm);
+        const updated = await db.updateSede(editingId, sedeForm);
+        setSedes((prev) =>
+          prev.map((s) => (s.id === editingId ? { ...s, ...(updated || sedeForm) } : s))
+        );
         showToast('Sede universitaria actualizada con éxito');
       } else {
-        await db.addSede(sedeForm);
+        const newSede = await db.addSede(sedeForm);
+        setSedes((prev) => [...prev, newSede]);
         showToast('Nueva sede incorporada al sistema');
       }
       setModalType(null);
       setEditingId(null);
-      loadData();
+      await loadData();
     } catch (err: any) {
       showToast(`Error: ${err.message}`, 'error');
     }
@@ -304,8 +308,9 @@ export default function AdminDashboardPage() {
   const handleDeleteSede = async (id: string, name: string) => {
     if (confirm(`¿Confirma eliminar la sede "${name}"?`)) {
       await db.deleteSede(id);
+      setSedes((prev) => prev.filter((s) => s.id !== id));
       showToast(`Sede ${name} eliminada.`);
-      loadData();
+      await loadData();
     }
   };
 
@@ -313,11 +318,12 @@ export default function AdminDashboardPage() {
   const handleSaveCiclo = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await db.addCicloEscolar(cicloForm);
+      const newCiclo = await db.addCicloEscolar(cicloForm);
+      setCiclos((prev) => [...prev, newCiclo]);
       showToast(`Ciclo escolar ${cicloForm.nombre} creado.`);
       setModalType(null);
       setCicloForm({ nombre: '', fecha_inicio: '', fecha_fin: '', is_active: false });
-      loadData();
+      await loadData();
     } catch (err: any) {
       showToast(`Error: ${err.message}`, 'error');
     }
@@ -325,15 +331,19 @@ export default function AdminDashboardPage() {
 
   const handleActivarCiclo = async (id: string, nombre: string) => {
     await db.activarCicloEscolar(id);
+    setCiclos((prev) =>
+      prev.map((c) => ({ ...c, is_active: c.id === id }))
+    );
     showToast(`Ciclo oficial activo cambiado a: ${nombre}`);
-    loadData();
+    await loadData();
   };
 
   const handleDeleteCiclo = async (id: string, name: string) => {
     if (confirm(`¿Eliminar ciclo escolar "${name}"?`)) {
       await db.deleteCicloEscolar(id);
+      setCiclos((prev) => prev.filter((c) => c.id !== id));
       showToast('Ciclo eliminado.');
-      loadData();
+      await loadData();
     }
   };
 
@@ -341,15 +351,16 @@ export default function AdminDashboardPage() {
   const handleSaveGrado = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await db.addGrado({
+      const newGrado = await db.addGrado({
         nombre: gradoForm.nombre,
         nivel: gradoForm.nivel,
         orden: Number(gradoForm.orden),
       });
+      setGrados((prev) => [...prev, newGrado]);
       showToast(`Semestre/Grado ${gradoForm.nombre} creado.`);
       setModalType(null);
       setGradoForm({ nombre: '', nivel: 'Licenciatura', orden: grados.length + 1 });
-      loadData();
+      await loadData();
     } catch (err: any) {
       showToast(`Error: ${err.message}`, 'error');
     }
@@ -358,8 +369,9 @@ export default function AdminDashboardPage() {
   const handleDeleteGrado = async (id: string) => {
     if (confirm('¿Eliminar este nivel/semestre?')) {
       await db.deleteGrado(id);
+      setGrados((prev) => prev.filter((g) => g.id !== id));
       showToast('Grado eliminado.');
-      loadData();
+      await loadData();
     }
   };
 
@@ -372,27 +384,31 @@ export default function AdminDashboardPage() {
       const sObj = sedes.find((s) => s.id === seccionForm.sede_id);
 
       if (editingId) {
-        await db.updateSeccion(editingId, {
+        const updated = await db.updateSeccion(editingId, {
           ...seccionForm,
           grado_nombre: gObj?.nombre,
           carrera_nombre: cObj?.nombre,
           sede_nombre: sObj?.nombre,
           cupo_maximo: Number(seccionForm.cupo_maximo),
         });
+        setSecciones((prev) =>
+          prev.map((s) => (s.id === editingId ? { ...s, ...(updated || seccionForm) } : s))
+        );
         showToast('Sección actualizada.');
       } else {
-        await db.addSeccion({
+        const newSec = await db.addSeccion({
           ...seccionForm,
           grado_nombre: gObj?.nombre,
           carrera_nombre: cObj?.nombre,
           sede_nombre: sObj?.nombre,
           cupo_maximo: Number(seccionForm.cupo_maximo),
         });
+        setSecciones((prev) => [...prev, newSec]);
         showToast(`Sección ${seccionForm.nombre} dada de alta.`);
       }
       setModalType(null);
       setEditingId(null);
-      loadData();
+      await loadData();
     } catch (err: any) {
       showToast(`Error: ${err.message}`, 'error');
     }
@@ -401,8 +417,9 @@ export default function AdminDashboardPage() {
   const handleDeleteSeccion = async (id: string, name: string) => {
     if (confirm(`¿Eliminar la sección "${name}"?`)) {
       await db.deleteSeccion(id);
+      setSecciones((prev) => prev.filter((s) => s.id !== id));
       showToast(`Sección ${name} eliminada.`);
-      loadData();
+      await loadData();
     }
   };
 
@@ -536,7 +553,7 @@ export default function AdminDashboardPage() {
     e.preventDefault();
     try {
       if (editingId) {
-        await db.updateDocente(editingId, {
+        const updated = await db.updateDocente(editingId, {
           num_empleado: personalForm.num_empleado,
           nombre: personalForm.nombre,
           apellido_paterno: personalForm.apellido_paterno,
@@ -547,9 +564,16 @@ export default function AdminDashboardPage() {
           telefono: personalForm.telefono,
           sede_nombre: personalForm.sede_nombre,
         });
+        setDocentes((prev) =>
+          prev.map((d) =>
+            d.id === editingId || d.num_empleado === editingId || (updated && d.id === updated.id)
+              ? { ...d, ...(updated || personalForm) }
+              : d
+          )
+        );
         showToast('Expediente de personal actualizado');
       } else {
-        await db.addDocente({
+        const newDoc = await db.addDocente({
           num_empleado: personalForm.num_empleado,
           nombre: personalForm.nombre,
           apellido_paterno: personalForm.apellido_paterno,
@@ -561,14 +585,15 @@ export default function AdminDashboardPage() {
           sede_nombre: personalForm.sede_nombre,
           materias: [],
           carreras_asignadas: [personalForm.departamento],
-          horario_resumen: 'Por asignar',
+          horario_resumen: 'Por programar',
           horarios: [],
         });
+        setDocentes((prev) => [...prev, newDoc]);
         showToast('Personal registrado en la institución');
       }
       setModalType(null);
       setEditingId(null);
-      loadData();
+      await loadData();
     } catch (err: any) {
       showToast(`Error: ${err.message}`, 'error');
     }
@@ -577,8 +602,9 @@ export default function AdminDashboardPage() {
   const handleDeletePersonal = async (id: string, name: string) => {
     if (confirm(`¿Confirma dar de baja a ${name}?`)) {
       await db.deleteDocente(id);
+      setDocentes((prev) => prev.filter((d) => d.id !== id && d.num_empleado !== id));
       showToast(`Personal ${name} dado de baja.`);
-      loadData();
+      await loadData();
     }
   };
 
@@ -632,7 +658,7 @@ export default function AdminDashboardPage() {
               .join(' | ')
           : 'Sin horario fijado';
 
-      await db.asignarDocenteHorarioCarreras(selectedDocente.id, {
+      const updatedDoc = await db.asignarDocenteHorarioCarreras(selectedDocente.id, {
         carreras_asignadas: assignedCarreras,
         materias: assignedMaterias,
         horario_resumen: summary,
@@ -640,10 +666,27 @@ export default function AdminDashboardPage() {
         sede_nombre: assignedSede,
       });
 
+      // Update local state immediately so UI updates right now!
+      setDocentes((prev) =>
+        prev.map((d) =>
+          d.id === selectedDocente.id || d.num_empleado === selectedDocente.num_empleado
+            ? {
+                ...d,
+                ...(updatedDoc || {}),
+                carreras_asignadas: assignedCarreras,
+                materias: assignedMaterias,
+                horario_resumen: summary,
+                horarios: assignedHorarios,
+                sede_nombre: assignedSede,
+              }
+            : d
+        )
+      );
+
       showToast(`Asignación académica guardada para ${selectedDocente.nombre} ${selectedDocente.apellido_paterno}`);
       setModalType(null);
       setSelectedDocente(null);
-      loadData();
+      await loadData();
     } catch (err: any) {
       showToast(`Error: ${err.message}`, 'error');
     }
@@ -657,7 +700,7 @@ export default function AdminDashboardPage() {
       const selectedSede = sedes.find((s) => s.id === alumnoForm.sede_id);
 
       if (editingId) {
-        await db.updateAlumnoMatricula(editingId, {
+        const updated = await db.updateAlumnoMatricula(editingId, {
           matricula: alumnoForm.matricula,
           nombre: alumnoForm.nombre,
           apellido_paterno: alumnoForm.apellido_paterno,
@@ -673,9 +716,33 @@ export default function AdminDashboardPage() {
           tutor: alumnoForm.tutor,
           telefono: alumnoForm.telefono,
         });
+        setAlumnos((prev) =>
+          prev.map((a) =>
+            a.id === editingId || a.matricula === editingId || (updated && a.id === updated.id)
+              ? {
+                  ...a,
+                  ...(updated || {}),
+                  matricula: alumnoForm.matricula,
+                  nombre: alumnoForm.nombre,
+                  apellido_paterno: alumnoForm.apellido_paterno,
+                  apellido_materno: alumnoForm.apellido_materno,
+                  grado: alumnoForm.grado,
+                  grupo: alumnoForm.grupo,
+                  carrera_id: alumnoForm.carrera_id,
+                  carrera: selectedCarrera?.nombre || a.carrera,
+                  sede_id: alumnoForm.sede_id,
+                  sede_nombre: selectedSede?.nombre || a.sede_nombre,
+                  ciclo_id: alumnoForm.ciclo_id,
+                  estado_matricula: alumnoForm.estado_matricula,
+                  tutor: alumnoForm.tutor,
+                  telefono: alumnoForm.telefono,
+                }
+              : a
+          )
+        );
         showToast('Expediente y matrícula actualizados.');
       } else {
-        await db.addAlumno({
+        const newAl = await db.addAlumno({
           matricula: alumnoForm.matricula,
           nombre: alumnoForm.nombre,
           apellido_paterno: alumnoForm.apellido_paterno,
@@ -692,11 +759,12 @@ export default function AdminDashboardPage() {
           telefono: alumnoForm.telefono,
           qr_code: alumnoForm.matricula,
         });
+        setAlumnos((prev) => [...prev, newAl]);
         showToast('Estudiante matriculado con éxito en el sistema UNRC.');
       }
       setModalType(null);
       setEditingId(null);
-      loadData();
+      await loadData();
     } catch (err: any) {
       showToast(`Error: ${err.message}`, 'error');
     }
@@ -707,15 +775,19 @@ export default function AdminDashboardPage() {
     newStatus: 'activo' | 'baja_temporal' | 'egresado'
   ) => {
     await db.updateAlumnoMatricula(id, { estado_matricula: newStatus });
+    setAlumnos((prev) =>
+      prev.map((a) => (a.id === id || a.matricula === id ? { ...a, estado_matricula: newStatus } : a))
+    );
     showToast(`Estado de matrícula actualizado a: ${newStatus.toUpperCase()}`);
-    loadData();
+    await loadData();
   };
 
   const handleDeleteAlumno = async (id: string, name: string) => {
     if (confirm(`¿Confirma dar de baja definitiva la matrícula de ${name}?`)) {
       await db.deleteAlumno(id);
+      setAlumnos((prev) => prev.filter((a) => a.id !== id && a.matricula !== id));
       showToast(`Estudiante ${name} eliminado.`);
-      loadData();
+      await loadData();
     }
   };
 
@@ -723,7 +795,8 @@ export default function AdminDashboardPage() {
   const handleSaveAnuncio = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await db.addAnuncio(anuncioForm);
+      const newAnuncio = await db.addAnuncio(anuncioForm);
+      setAnuncios((prev) => [newAnuncio, ...prev]);
       showToast('Comunicado institucional publicado.');
       setModalType(null);
       setAnuncioForm({
@@ -733,7 +806,7 @@ export default function AdminDashboardPage() {
         prioridad: 'normal',
         autor: 'Rectoría General UNRC',
       });
-      loadData();
+      await loadData();
     } catch (err: any) {
       showToast(`Error: ${err.message}`, 'error');
     }
@@ -742,8 +815,9 @@ export default function AdminDashboardPage() {
   const handleDeleteAnuncio = async (id: string) => {
     if (confirm('¿Eliminar este comunicado?')) {
       await db.deleteAnuncio(id);
+      setAnuncios((prev) => prev.filter((a) => a.id !== id));
       showToast('Comunicado eliminado.');
-      loadData();
+      await loadData();
     }
   };
 
