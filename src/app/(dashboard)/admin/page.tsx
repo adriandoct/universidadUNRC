@@ -28,6 +28,9 @@ import {
   MapPin,
   Check,
   Eye,
+  EyeOff,
+  KeyRound,
+  Lock,
   UserCheck,
   Layers,
   Award,
@@ -47,7 +50,8 @@ import {
   CicloEscolar,
   Grado,
   Seccion,
-  HorarioDocenteItem
+  HorarioDocenteItem,
+  getDefaultUserPassword
 } from '@/lib/db';
 
 type TabType =
@@ -171,7 +175,9 @@ export default function AdminDashboardPage() {
     puesto: 'docente' as 'docente' | 'coordinador' | 'secretaria' | 'rectoria',
     telefono: '',
     sede_nombre: 'Campus Magdalena Contreras',
+    password: '',
   });
+  const [showPersonalPassword, setShowPersonalPassword] = useState(false);
 
   // State for Asignación Docente (carreras + horarios)
   const [selectedDocente, setSelectedDocente] = useState<Docente | null>(null);
@@ -204,7 +210,9 @@ export default function AdminDashboardPage() {
     estado_matricula: 'activo' as 'activo' | 'baja_temporal' | 'egresado' | 'aspirante',
     tutor: 'Dr. Adrian Silva',
     telefono: '',
+    password: '',
   });
+  const [showAlumnoPassword, setShowAlumnoPassword] = useState(false);
 
   const [anuncioForm, setAnuncioForm] = useState({
     titulo: '',
@@ -552,6 +560,10 @@ export default function AdminDashboardPage() {
   const handleSavePersonal = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const assignedPassword =
+        personalForm.password.trim() ||
+        getDefaultUserPassword(personalForm.num_empleado, '2026-2');
+
       if (editingId) {
         const updated = await db.updateDocente(editingId, {
           num_empleado: personalForm.num_empleado,
@@ -563,15 +575,16 @@ export default function AdminDashboardPage() {
           puesto: personalForm.puesto,
           telefono: personalForm.telefono,
           sede_nombre: personalForm.sede_nombre,
+          password: assignedPassword,
         });
         setDocentes((prev) =>
           prev.map((d) =>
             d.id === editingId || d.num_empleado === editingId || (updated && d.id === updated.id)
-              ? { ...d, ...(updated || personalForm) }
+              ? { ...d, ...(updated || personalForm), password: assignedPassword }
               : d
           )
         );
-        showToast('Expediente de personal actualizado');
+        showToast('Expediente de personal y contraseña actualizados');
       } else {
         const newDoc = await db.addDocente({
           num_empleado: personalForm.num_empleado,
@@ -583,13 +596,14 @@ export default function AdminDashboardPage() {
           puesto: personalForm.puesto,
           telefono: personalForm.telefono,
           sede_nombre: personalForm.sede_nombre,
+          password: assignedPassword,
           materias: [],
           carreras_asignadas: [personalForm.departamento],
           horario_resumen: 'Por programar',
           horarios: [],
         });
         setDocentes((prev) => [...prev, newDoc]);
-        showToast('Personal registrado en la institución');
+        showToast('Personal registrado con contraseña institucional');
       }
       setModalType(null);
       setEditingId(null);
@@ -698,6 +712,9 @@ export default function AdminDashboardPage() {
     try {
       const selectedCarrera = carreras.find((c) => c.id === alumnoForm.carrera_id);
       const selectedSede = sedes.find((s) => s.id === alumnoForm.sede_id);
+      const assignedPassword =
+        alumnoForm.password.trim() ||
+        getDefaultUserPassword(alumnoForm.matricula, '2026-2');
 
       if (editingId) {
         const updated = await db.updateAlumnoMatricula(editingId, {
@@ -715,6 +732,7 @@ export default function AdminDashboardPage() {
           estado_matricula: alumnoForm.estado_matricula,
           tutor: alumnoForm.tutor,
           telefono: alumnoForm.telefono,
+          password: assignedPassword,
         });
         setAlumnos((prev) =>
           prev.map((a) =>
@@ -736,11 +754,12 @@ export default function AdminDashboardPage() {
                   estado_matricula: alumnoForm.estado_matricula,
                   tutor: alumnoForm.tutor,
                   telefono: alumnoForm.telefono,
+                  password: assignedPassword,
                 }
               : a
           )
         );
-        showToast('Expediente y matrícula actualizados.');
+        showToast('Expediente, matrícula y contraseña actualizados.');
       } else {
         const newAl = await db.addAlumno({
           matricula: alumnoForm.matricula,
@@ -758,9 +777,10 @@ export default function AdminDashboardPage() {
           tutor: alumnoForm.tutor,
           telefono: alumnoForm.telefono,
           qr_code: alumnoForm.matricula,
+          password: assignedPassword,
         });
         setAlumnos((prev) => [...prev, newAl]);
-        showToast('Estudiante matriculado con éxito en el sistema UNRC.');
+        showToast('Estudiante matriculado con contraseña institucional.');
       }
       setModalType(null);
       setEditingId(null);
@@ -1173,9 +1193,10 @@ export default function AdminDashboardPage() {
                 </div>
                 <button
                   onClick={() => {
+                    const newEmp = `DOC-UNRC-0${docentes.length + 1}`;
                     setEditingId(null);
                     setPersonalForm({
-                      num_empleado: `DOC-UNRC-0${docentes.length + 1}`,
+                      num_empleado: newEmp,
                       nombre: '',
                       apellido_paterno: '',
                       apellido_materno: '',
@@ -1184,7 +1205,9 @@ export default function AdminDashboardPage() {
                       puesto: 'docente',
                       telefono: '',
                       sede_nombre: sedes[0]?.nombre || 'Campus Magdalena Contreras',
+                      password: getDefaultUserPassword(newEmp, '2026-2'),
                     });
+                    setShowPersonalPassword(false);
                     setModalType('personal');
                   }}
                   className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow-lg shadow-amber-600/30 transition-all flex items-center space-x-1.5 whitespace-nowrap"
@@ -1201,11 +1224,11 @@ export default function AdminDashboardPage() {
                 <thead className="bg-black/60 text-gray-400 uppercase text-[10px] font-bold">
                   <tr>
                     <th className="p-3.5">Clave / Puesto</th>
-                    <th className="p-3.5">Nombre Completo</th>
-                    <th className="p-3.5">Carreras Asignadas</th>
-                    <th className="p-3.5">Horarios de Clase</th>
-                    <th className="p-3.5">Sede Asignada</th>
-                    <th className="p-3.5">Contacto</th>
+                    <th className="p-3.5">Nombre y Correo</th>
+                    <th className="p-3.5">Carreras / Departamento</th>
+                    <th className="p-3.5">Horarios Asignados</th>
+                    <th className="p-3.5">Sede</th>
+                    <th className="p-3.5">Contacto / Contraseña</th>
                     <th className="p-3.5 text-right">Acciones</th>
                   </tr>
                 </thead>
@@ -1267,7 +1290,14 @@ export default function AdminDashboardPage() {
                         </div>
                       </td>
                       <td className="p-3.5 text-gray-400 font-mono text-[11px]">
-                        {doc.telefono || 'Sin teléfono'}
+                        <div>{doc.telefono || 'Sin teléfono'}</div>
+                        <div
+                          className="mt-1 flex items-center space-x-1 text-[10px] text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/25 max-w-fit font-mono font-bold"
+                          title="Contraseña institucional oficial activa"
+                        >
+                          <KeyRound className="w-3 h-3 text-amber-400 shrink-0" />
+                          <span>{doc.password || getDefaultUserPassword(doc.num_empleado, '2026-2')}</span>
+                        </div>
                       </td>
                       <td className="p-3.5 text-right">
                         <div className="flex items-center justify-end space-x-1.5">
@@ -1294,11 +1324,13 @@ export default function AdminDashboardPage() {
                                 puesto: doc.puesto || 'docente',
                                 telefono: doc.telefono || '',
                                 sede_nombre: doc.sede_nombre || 'Campus Magdalena Contreras',
+                                password: doc.password || getDefaultUserPassword(doc.num_empleado, '2026-2'),
                               });
+                              setShowPersonalPassword(false);
                               setModalType('personal');
                             }}
                             className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 transition-all"
-                            title="Editar expediente"
+                            title="Editar expediente y contraseña"
                           >
                             <Edit className="w-3.5 h-3.5" />
                           </button>
@@ -1347,9 +1379,10 @@ export default function AdminDashboardPage() {
               <div className="flex items-center space-x-3 w-full sm:w-auto">
                 <button
                   onClick={() => {
+                    const newMat = `UNRC-2026-0${alumnos.length + 10}`;
                     setEditingId(null);
                     setAlumnoForm({
-                      matricula: `UNRC-2026-0${alumnos.length + 10}`,
+                      matricula: newMat,
                       nombre: '',
                       apellido_paterno: '',
                       apellido_materno: '',
@@ -1361,7 +1394,9 @@ export default function AdminDashboardPage() {
                       estado_matricula: 'activo',
                       tutor: 'Dr. Adrian Silva',
                       telefono: '+525500000000',
+                      password: getDefaultUserPassword(newMat, '2026-2'),
                     });
+                    setShowAlumnoPassword(false);
                     setModalType('alumno');
                   }}
                   className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-600/30 transition-all flex items-center space-x-1.5 whitespace-nowrap"
@@ -1381,46 +1416,52 @@ export default function AdminDashboardPage() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Buscar alumno o matrícula..."
-                  className="w-full pl-9 pr-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs focus:outline-none focus:border-blue-500"
+                  className="w-full pl-9 pr-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-xs focus:outline-none focus:border-blue-500"
                 />
               </div>
 
-              <select
-                value={filterCarrera}
-                onChange={(e) => setFilterCarrera(e.target.value)}
-                className="px-3 py-1.5 rounded-xl bg-[#090E1A] border border-white/10 text-white text-xs focus:outline-none"
-              >
-                <option value="todos">Todas las Carreras</option>
-                {carreras.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.nombre}
-                  </option>
-                ))}
-              </select>
+              <div>
+                <select
+                  value={filterCarrera}
+                  onChange={(e) => setFilterCarrera(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-[#090E1A] border border-white/10 text-white text-xs"
+                >
+                  <option value="todos">Todas las carreras</option>
+                  {carreras.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-              <select
-                value={filterSede}
-                onChange={(e) => setFilterSede(e.target.value)}
-                className="px-3 py-1.5 rounded-xl bg-[#090E1A] border border-white/10 text-white text-xs focus:outline-none"
-              >
-                <option value="todos">Todas las Sedes</option>
-                {sedes.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.nombre}
-                  </option>
-                ))}
-              </select>
+              <div>
+                <select
+                  value={filterSede}
+                  onChange={(e) => setFilterSede(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-[#090E1A] border border-white/10 text-white text-xs"
+                >
+                  <option value="todos">Todas las sedes</option>
+                  {sedes.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-              <select
-                value={filterEstadoMatricula}
-                onChange={(e) => setFilterEstadoMatricula(e.target.value)}
-                className="px-3 py-1.5 rounded-xl bg-[#090E1A] border border-white/10 text-white text-xs focus:outline-none"
-              >
-                <option value="todos">Todos los Estados</option>
-                <option value="activo">Activo / Inscrito</option>
-                <option value="baja_temporal">Baja Temporal</option>
-                <option value="egresado">Egresado</option>
-              </select>
+              <div>
+                <select
+                  value={filterEstadoMatricula}
+                  onChange={(e) => setFilterEstadoMatricula(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-[#090E1A] border border-white/10 text-white text-xs"
+                >
+                  <option value="todos">Todos los estados</option>
+                  <option value="activo">Activo</option>
+                  <option value="baja_temporal">Baja Temporal</option>
+                  <option value="egresado">Egresado</option>
+                </select>
+              </div>
             </div>
 
             {/* Alumnos Table */}
@@ -1428,13 +1469,13 @@ export default function AdminDashboardPage() {
               <table className="w-full text-left text-xs text-gray-300">
                 <thead className="bg-black/60 text-gray-400 uppercase text-[10px] font-bold">
                   <tr>
-                    <th className="p-3.5">Matrícula</th>
-                    <th className="p-3.5">Nombre del Alumno</th>
-                    <th className="p-3.5">Carrera / Programa</th>
-                    <th className="p-3.5">Semestre & Grupo</th>
+                    <th className="p-3.5">Matrícula / Contraseña</th>
+                    <th className="p-3.5">Nombre Completo</th>
+                    <th className="p-3.5">Licenciatura / Programa</th>
+                    <th className="p-3.5">Grupo / Semestre</th>
                     <th className="p-3.5">Sede</th>
-                    <th className="p-3.5">Estado Matrícula</th>
-                    <th className="p-3.5 text-right">Credencial / Acciones</th>
+                    <th className="p-3.5">Estado</th>
+                    <th className="p-3.5 text-right">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5 bg-black/20">
@@ -1442,8 +1483,15 @@ export default function AdminDashboardPage() {
                     const status = al.estado_matricula || 'activo';
                     return (
                       <tr key={al.id} className="hover:bg-white/5 transition-colors">
-                        <td className="p-3.5 font-mono font-bold text-blue-400 text-xs">
-                          {al.matricula}
+                        <td className="p-3.5 font-mono text-xs">
+                          <div className="font-bold text-blue-400">{al.matricula}</div>
+                          <div
+                            className="mt-1 flex items-center space-x-1 text-[10px] text-blue-300 bg-blue-500/10 px-2 py-0.5 rounded-md border border-blue-500/25 max-w-fit font-mono font-bold"
+                            title="Contraseña institucional oficial activa"
+                          >
+                            <KeyRound className="w-3 h-3 text-blue-400 shrink-0" />
+                            <span>{al.password || getDefaultUserPassword(al.matricula, '2026-2')}</span>
+                          </div>
                         </td>
                         <td className="p-3.5">
                           <div className="font-bold text-white">
@@ -1514,11 +1562,13 @@ export default function AdminDashboardPage() {
                                   estado_matricula: al.estado_matricula || 'activo',
                                   tutor: al.tutor,
                                   telefono: al.telefono,
+                                  password: al.password || getDefaultUserPassword(al.matricula, '2026-2'),
                                 });
+                                setShowAlumnoPassword(false);
                                 setModalType('alumno');
                               }}
                               className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300"
-                              title="Editar expediente"
+                              title="Editar expediente y contraseña"
                             >
                               <Edit className="w-3.5 h-3.5" />
                             </button>
@@ -2636,6 +2686,52 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
 
+              {/* Contraseña Institucional Personal */}
+              <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-amber-300 font-bold flex items-center space-x-1.5 text-xs">
+                    <KeyRound className="w-4 h-4 text-amber-400" />
+                    <span>Contraseña Oficial Institucional</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const defaultPwd = getDefaultUserPassword(personalForm.num_empleado, '2026-2');
+                      setPersonalForm({ ...personalForm, password: defaultPwd });
+                      showToast(`Contraseña reestablecida a: ${defaultPwd}`);
+                    }}
+                    className="text-[11px] text-amber-400 hover:text-amber-300 underline font-medium flex items-center space-x-1"
+                    title="Restaurar a Clave + Ciclo Escolar"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    <span>Restablecer (Clave + Ciclo)</span>
+                  </button>
+                </div>
+                <div className="relative">
+                  <input
+                    type={showPersonalPassword ? 'text' : 'password'}
+                    required
+                    value={personalForm.password}
+                    onChange={(e) =>
+                      setPersonalForm({ ...personalForm, password: e.target.value })
+                    }
+                    placeholder="Ej. DOC-UNRC-02-2026-2"
+                    className="w-full px-3.5 py-2 rounded-xl bg-black/40 border border-amber-500/30 text-white font-mono text-xs pr-10 focus:outline-none focus:border-amber-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPersonalPassword(!showPersonalPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-amber-300"
+                    title={showPersonalPassword ? 'Ocultar' : 'Mostrar'}
+                  >
+                    {showPersonalPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <p className="text-[11px] text-gray-400">
+                  Por defecto se asigna su <strong>Clave de Empleado + Ciclo Escolar</strong> (<code className="text-amber-300">{getDefaultUserPassword(personalForm.num_empleado || 'DOC-UNRC-02', '2026-2')}</code>). Puede actualizarla libremente cuando lo requiera.
+                </p>
+              </div>
+
               <div className="flex justify-end space-x-3 pt-3 border-t border-white/10">
                 <button
                   type="button"
@@ -2831,6 +2927,52 @@ export default function AdminDashboardPage() {
                     className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white"
                   />
                 </div>
+              </div>
+
+              {/* Contraseña Institucional Alumno */}
+              <div className="p-3.5 rounded-2xl bg-blue-500/10 border border-blue-500/20 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-blue-300 font-bold flex items-center space-x-1.5 text-xs">
+                    <KeyRound className="w-4 h-4 text-blue-400" />
+                    <span>Contraseña Oficial Institucional</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const defaultPwd = getDefaultUserPassword(alumnoForm.matricula, '2026-2');
+                      setAlumnoForm({ ...alumnoForm, password: defaultPwd });
+                      showToast(`Contraseña reestablecida a: ${defaultPwd}`);
+                    }}
+                    className="text-[11px] text-blue-400 hover:text-blue-300 underline font-medium flex items-center space-x-1"
+                    title="Restaurar a Matrícula + Ciclo Escolar"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    <span>Restablecer (Matrícula + Ciclo)</span>
+                  </button>
+                </div>
+                <div className="relative">
+                  <input
+                    type={showAlumnoPassword ? 'text' : 'password'}
+                    required
+                    value={alumnoForm.password}
+                    onChange={(e) =>
+                      setAlumnoForm({ ...alumnoForm, password: e.target.value })
+                    }
+                    placeholder="Ej. UNRC-2026-005-2026-2"
+                    className="w-full px-3.5 py-2 rounded-xl bg-black/40 border border-blue-500/30 text-white font-mono text-xs pr-10 focus:outline-none focus:border-blue-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowAlumnoPassword(!showAlumnoPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-300"
+                    title={showAlumnoPassword ? 'Ocultar' : 'Mostrar'}
+                  >
+                    {showAlumnoPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <p className="text-[11px] text-gray-400">
+                  Por defecto se asigna su <strong>Matrícula + Ciclo Escolar</strong> (<code className="text-blue-300">{getDefaultUserPassword(alumnoForm.matricula || 'UNRC-2026-005', '2026-2')}</code>). Puede actualizarla libremente cuando lo requiera.
+                </p>
               </div>
 
               <div className="flex justify-end space-x-3 pt-3 border-t border-white/10">

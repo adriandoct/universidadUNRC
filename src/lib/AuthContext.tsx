@@ -17,7 +17,7 @@ interface AuthContextType {
   lastDetectedAccount: UserProfile | null;
   loginWithGoogle: (role: 'alumno' | 'docente', accountOverride?: Partial<UserProfile>) => Promise<AuthResult>;
   loginAsAdmin: (accessCodeOrEmail: string, passInput?: string) => Promise<AuthResult>;
-  loginWithCredentials: (role: UserRole, idOrEmail: string) => Promise<AuthResult>;
+  loginWithCredentials: (role: UserRole, idOrEmail: string, passwordInput?: string) => Promise<AuthResult>;
   loginWithLastAccount: () => void;
   logout: () => void;
   setRole: (role: UserRole) => void;
@@ -187,7 +187,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // 2. Authenticate Alumno or Docente strictly against Superadmin database
-  const loginWithCredentials = async (targetRole: UserRole, idOrEmail: string): Promise<AuthResult> => {
+  const loginWithCredentials = async (
+    targetRole: UserRole,
+    idOrEmail: string,
+    passwordInput?: string
+  ): Promise<AuthResult> => {
     setIsLoading(true);
     const { isLocked, remainingSeconds } = checkLockout();
     if (isLocked) {
@@ -244,6 +248,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           };
         }
 
+        // Check password (assigned matricula + ciclo escolar, or updated password)
+        if (passwordInput !== undefined && passwordInput !== '') {
+          const expectedPass = (found.password || `${found.matricula}-2026-2`).trim().toLowerCase();
+          const givenPass = passwordInput.trim().toLowerCase();
+          const default1 = `${found.matricula.toLowerCase()}-2026-2`;
+          const default2 = `${found.matricula.toLowerCase()}2026-2`;
+
+          if (givenPass !== expectedPass && givenPass !== default1 && givenPass !== default2) {
+            const attempts = recordFailedAttempt();
+            await db.addAuditoria(
+              'CONTRASENA_INCORRECTA_ALUMNO',
+              'Seguridad / Autenticación',
+              `Contraseña incorrecta para alumno: ${found.matricula} (${attempts}/${MAX_FAILED_ATTEMPTS})`,
+              'Sistema Anti-Hackeo UNRC'
+            );
+            setIsLoading(false);
+            return {
+              success: false,
+              error: `Contraseña incorrecta para la matrícula ${found.matricula}. La contraseña por defecto es tu Matrícula con el Ciclo Escolar (ej. ${found.matricula}-2026-2).`
+            };
+          }
+        }
+
         // Student successfully verified
         clearFailedAttempts();
         const profile: UserProfile = {
@@ -293,6 +320,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             success: false,
             error: `Acceso Denegado: El número de empleado o correo '${cleanInput}' no ha sido asignado ni validado por el Superadmin.`
           };
+        }
+
+        // Check password (assigned clave + ciclo escolar, or updated password)
+        if (passwordInput !== undefined && passwordInput !== '') {
+          const expectedPass = (found.password || `${found.num_empleado}-2026-2`).trim().toLowerCase();
+          const givenPass = passwordInput.trim().toLowerCase();
+          const default1 = `${found.num_empleado.toLowerCase()}-2026-2`;
+          const default2 = `${found.num_empleado.toLowerCase()}2026-2`;
+
+          if (givenPass !== expectedPass && givenPass !== default1 && givenPass !== default2) {
+            const attempts = recordFailedAttempt();
+            await db.addAuditoria(
+              'CONTRASENA_INCORRECTA_DOCENTE',
+              'Seguridad / Autenticación',
+              `Contraseña incorrecta para docente: ${found.num_empleado} (${attempts}/${MAX_FAILED_ATTEMPTS})`,
+              'Sistema Anti-Hackeo UNRC'
+            );
+            setIsLoading(false);
+            return {
+              success: false,
+              error: `Contraseña incorrecta para la clave ${found.num_empleado}. La contraseña por defecto es tu Clave con el Ciclo Escolar (ej. ${found.num_empleado}-2026-2).`
+            };
+          }
         }
 
         // Teacher successfully verified

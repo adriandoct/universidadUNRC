@@ -92,6 +92,12 @@ export interface HorarioDocenteItem {
   aula?: string;
 }
 
+export function getDefaultUserPassword(identifier: string, ciclo = '2026-2'): string {
+  const cleanId = (identifier || '').trim();
+  const cleanCiclo = (ciclo || '2026-2').replace(/[^0-9-]/g, '').trim() || '2026-2';
+  return `${cleanId}-${cleanCiclo}`;
+}
+
 export interface Alumno {
   id: string;
   matricula: string;
@@ -111,6 +117,7 @@ export interface Alumno {
   telefono: string;
   foto_url?: string;
   qr_code: string;
+  password?: string;
   created_at?: string;
 }
 
@@ -131,6 +138,7 @@ export interface Docente {
   sede_nombre?: string;
   telefono?: string;
   foto_url?: string;
+  password?: string;
   created_at?: string;
 }
 
@@ -1280,7 +1288,21 @@ export const db = {
       try {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.sort((a: Alumno, b: Alumno) =>
+          let hadChanges = false;
+          const enriched = parsed.map((a: Alumno) => {
+            if (!a.password) {
+              hadChanges = true;
+              return {
+                ...a,
+                password: getDefaultUserPassword(a.matricula, '2026-2')
+              };
+            }
+            return a;
+          });
+          if (hadChanges) {
+            localStorage.setItem('unrc_alumnos', JSON.stringify(enriched));
+          }
+          return enriched.sort((a: Alumno, b: Alumno) =>
             (a.apellido_paterno || '').localeCompare(b.apellido_paterno || '')
           );
         }
@@ -1301,6 +1323,7 @@ export const db = {
             return {
               ...mockMatch,
               ...sa,
+              password: sa.password || mockMatch?.password || getDefaultUserPassword(sa.matricula, '2026-2'),
               sede_id: sa.sede_id || mockMatch?.sede_id || 'sede-mc',
               sede_nombre: sa.sede_nombre || mockMatch?.sede_nombre || 'Campus Magdalena Contreras',
               ciclo_id: sa.ciclo_id || mockMatch?.ciclo_id || 'ciclo-2026-2',
@@ -1317,8 +1340,12 @@ export const db = {
       }
     }
 
-    localStorage.setItem('unrc_alumnos', JSON.stringify(MOCK_ALUMNOS));
-    return MOCK_ALUMNOS.sort((a, b) => a.apellido_paterno.localeCompare(b.apellido_paterno));
+    const seeded = MOCK_ALUMNOS.map(a => ({
+      ...a,
+      password: a.password || getDefaultUserPassword(a.matricula, '2026-2')
+    }));
+    localStorage.setItem('unrc_alumnos', JSON.stringify(seeded));
+    return seeded.sort((a, b) => a.apellido_paterno.localeCompare(b.apellido_paterno));
   },
 
   getAlumnoByQR: async (qrCode: string): Promise<Alumno | null> => {
@@ -1331,6 +1358,7 @@ export const db = {
     const list = await db.getAlumnos();
     const newAlumno: Alumno = {
       ...alumno,
+      password: alumno.password || getDefaultUserPassword(alumno.matricula, '2026-2'),
       id: `student-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       created_at: new Date().toISOString()
     };
@@ -1717,18 +1745,24 @@ export const db = {
       try {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          // If any docente is missing schedule or is "Por programar", assign their official default schedule
+          // If any docente is missing schedule or password, assign them
           let hadChanges = false;
           const enriched = parsed.map((d: Docente) => {
             const isValdez = d.num_empleado === 'DOC-UNRC-01' || d.id === 'a1111111-1111-1111-1111-111111111111' || d.email?.includes('valdez') || d.apellido_paterno?.includes('Valdez');
             const isSanchez = d.num_empleado === 'DOC-UNRC-02' || d.id === 'b2222222-2222-2222-2222-222222222222' || d.email?.includes('sanchez') || d.apellido_paterno?.includes('Sánchez');
             const isSilva = d.num_empleado === 'DOC-UNRC-03' || d.id === 'd0000003-0000-0000-0000-000000000003' || d.email?.includes('silva') || d.apellido_paterno?.includes('Silva');
 
+            let updated = { ...d };
+            if (!updated.password) {
+              hadChanges = true;
+              updated.password = getDefaultUserPassword(d.num_empleado, '2026-2');
+            }
+
             if (!d.horarios || d.horarios.length === 0 || d.horario_resumen === 'Por programar' || d.horario_resumen === 'Por asignar') {
               hadChanges = true;
               if (isValdez) {
                 return {
-                  ...d,
+                  ...updated,
                   carreras_asignadas: (d.carreras_asignadas && d.carreras_asignadas.length > 0) ? d.carreras_asignadas : ['Ciencias de la Computación', 'Lic. en Ciencias de Datos e Inteligencia Artificial'],
                   materias: (d.materias && d.materias.length > 0) ? d.materias : ['Programación Web y Bases de Datos', 'Inteligencia Artificial y Aprendizaje Automático'],
                   horario_resumen: 'Lunes a Sábado (07:00 - 13:00 hrs)',
@@ -1741,7 +1775,7 @@ export const db = {
               }
               if (isSanchez) {
                 return {
-                  ...d,
+                  ...updated,
                   carreras_asignadas: (d.carreras_asignadas && d.carreras_asignadas.length > 0) ? d.carreras_asignadas : ['Inteligencia Artificial', 'Lic. en Tecnologías de la Información y Comunicación'],
                   materias: (d.materias && d.materias.length > 0) ? d.materias : ['Redes Neuronales', 'Algoritmos Complejos', 'Estructura de Datos y Algoritmos'],
                   horario_resumen: 'Lunes a Sábado (14:00 - 20:00 hrs)',
@@ -1754,7 +1788,7 @@ export const db = {
               }
               if (isSilva) {
                 return {
-                  ...d,
+                  ...updated,
                   carreras_asignadas: (d.carreras_asignadas && d.carreras_asignadas.length > 0) ? d.carreras_asignadas : ['Licenciatura en Administración', 'Licenciatura en Turismo'],
                   materias: (d.materias && d.materias.length > 0) ? d.materias : ['Administración de Empresas de Hospedaje', 'Matemáticas para la Administración'],
                   horario_resumen: 'Miércoles (09:00 - 11:00 hrs) y Sábados (07:00 - 09:00 hrs)',
@@ -1767,7 +1801,7 @@ export const db = {
                 };
               }
             }
-            return d;
+            return updated;
           });
 
           if (hadChanges) {
@@ -1792,6 +1826,7 @@ export const db = {
             return {
               ...mockMatch,
               ...sd,
+              password: sd.password || mockMatch?.password || getDefaultUserPassword(sd.num_empleado, '2026-2'),
               carreras_asignadas: sd.carreras_asignadas || mockMatch?.carreras_asignadas || [sd.departamento || 'Licenciatura'],
               materias: sd.materias || mockMatch?.materias || [],
               horario_resumen: sd.horario_resumen || mockMatch?.horario_resumen || 'Por programar',
@@ -1807,8 +1842,12 @@ export const db = {
       }
     }
 
-    localStorage.setItem('unrc_docentes', JSON.stringify(MOCK_DOCENTES));
-    return MOCK_DOCENTES;
+    const seeded = MOCK_DOCENTES.map(d => ({
+      ...d,
+      password: d.password || getDefaultUserPassword(d.num_empleado, '2026-2')
+    }));
+    localStorage.setItem('unrc_docentes', JSON.stringify(seeded));
+    return seeded;
   },
 
   addDocentesBulk: async (docentes: Omit<Docente, 'id' | 'created_at'>[]): Promise<Docente[]> => {
@@ -1819,6 +1858,7 @@ export const db = {
     docentes.forEach((doc, idx) => {
       const item: Docente = {
         ...doc,
+        password: doc.password || getDefaultUserPassword(doc.num_empleado, '2026-2'),
         id: `docente-${Date.now()}-${idx}`,
         created_at: new Date().toISOString()
       };
@@ -1837,6 +1877,7 @@ export const db = {
     const list = await db.getDocentes();
     const newDoc: Docente = {
       ...docente,
+      password: docente.password || getDefaultUserPassword(docente.num_empleado, '2026-2'),
       id: `docente-${Date.now()}`,
       created_at: new Date().toISOString()
     };

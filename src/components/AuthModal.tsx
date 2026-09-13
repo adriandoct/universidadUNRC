@@ -18,6 +18,8 @@ export const AuthModal: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<UserRole>(activeModalTab || 'alumno');
   const [credentialInput, setCredentialInput] = useState('');
+  const [userPasswordInput, setUserPasswordInput] = useState('');
+  const [showUserPassword, setShowUserPassword] = useState(false);
   const [adminEmailInput, setAdminEmailInput] = useState('admin@admin.com');
   const [adminKeyInput, setAdminKeyInput] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -55,7 +57,7 @@ export const AuthModal: React.FC = () => {
         setIsSubmitting(false);
         return;
       }
-      const res = await loginWithCredentials(activeTab, credentialInput);
+      const res = await loginWithCredentials(activeTab, credentialInput, userPasswordInput);
       if (!res.success) {
         setErrorMessage(res.error || `Acceso Denegado: No cuenta con registro activo validado por el Superadmin.`);
       }
@@ -270,12 +272,39 @@ export const AuthModal: React.FC = () => {
                     type="text"
                     value={credentialInput}
                     onChange={(e) => setCredentialInput(e.target.value)}
-                    placeholder={activeTab === 'alumno' ? 'UNRC-2026-001 o tu.nombre@rcastellanos.cdmx.gob.mx' : 'DOC-UNRC-01 o tu.nombre@rcastellanos.cdmx.gob.mx'}
-                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-sm transition-all"
+                    placeholder={activeTab === 'alumno' ? 'UNRC-2026-005 o tu.nombre@rcastellanos.cdmx.gob.mx' : 'DOC-UNRC-02 o tu.nombre@rcastellanos.cdmx.gob.mx'}
+                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-sm transition-all font-mono"
                   />
-                  <p className="text-[11px] text-emerald-400/80 mt-1 flex items-center space-x-1">
-                    <span>⚡ Acceso Inmediato:</span>
-                    <span>Puedes escribir tu correo @rcastellanos.cdmx.gob.mx o matrícula</span>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs text-gray-300 font-medium">
+                      Contraseña Institucional Oficial
+                    </label>
+                    <span className="text-[10px] text-gray-400">
+                      Ciclo: <span className="text-emerald-400 font-mono font-bold">2026-2</span>
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type={showUserPassword ? 'text' : 'password'}
+                      value={userPasswordInput}
+                      onChange={(e) => setUserPasswordInput(e.target.value)}
+                      placeholder={activeTab === 'alumno' ? 'Ej. UNRC-2026-005-2026-2' : 'Ej. DOC-UNRC-02-2026-2'}
+                      className="w-full px-4 py-2.5 pr-10 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-sm font-mono transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowUserPassword(!showUserPassword)}
+                      className="absolute right-3 top-2.5 text-gray-400 hover:text-white text-xs"
+                      title={showUserPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+                    >
+                      {showUserPassword ? 'Ocultar' : 'Ver'}
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-emerald-400/90 mt-1">
+                    🔐 Contraseña por defecto: <span className="font-mono font-bold text-white">{credentialInput ? `${credentialInput.trim()}-2026-2` : 'MATRICULA-2026-2'}</span>
                   </p>
                 </div>
 
