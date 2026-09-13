@@ -302,21 +302,21 @@ const MOCK_SECCIONES: Seccion[] = [
 ];
 
 const MOCK_CARRERAS: Carrera[] = [
-  { id: 'c1', clave: 'LIC-CDIA', nombre: 'Lic. en Ciencias de Datos e Inteligencia Artificial', nivel: 'Licenciatura', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras' },
-  { id: 'c2', clave: 'LIC-TIC', nombre: 'Lic. en Tecnologías de la Información y Comunicación', nivel: 'Licenciatura', sede_id: 'sede-js', sede_nombre: 'Sede Justo Sierra' },
-  { id: 'c3', clave: 'LIC-CIB', nombre: 'Lic. en Ciberseguridad', nivel: 'Licenciatura', sede_id: 'sede-coy', sede_nombre: 'Sede Coyoacán' },
-  { id: 'c4', clave: 'LIC-TUR', nombre: 'Lic. en Turismo', nivel: 'Licenciatura', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras' },
-  { id: 'c5', clave: 'LIC-ADM', nombre: 'Lic. en Administración', nivel: 'Licenciatura', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras' }
+  { id: 'c1111111-1111-1111-1111-111111111111', clave: 'LIC-CDIA', nombre: 'Licenciatura en Ciencias de Datos e Inteligencia Artificial', nivel: 'Licenciatura', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras' },
+  { id: 'c2222222-2222-2222-2222-222222222222', clave: 'LIC-TIC', nombre: 'Licenciatura en Tecnologías de la Información y Comunicación', nivel: 'Licenciatura', sede_id: 'sede-js', sede_nombre: 'Sede Justo Sierra' },
+  { id: 'c3333333-3333-3333-3333-333333333333', clave: 'LIC-CIB', nombre: 'Licenciatura en Ciberseguridad', nivel: 'Licenciatura', sede_id: 'sede-coy', sede_nombre: 'Sede Coyoacán' },
+  { id: 'c4444444-4444-4444-4444-444444444444', clave: 'LIC-TUR', nombre: 'Licenciatura en Turismo', nivel: 'Licenciatura', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras' },
+  { id: 'c5555555-5555-5555-5555-555555555555', clave: 'LIC-ADM', nombre: 'Licenciatura en Administración', nivel: 'Licenciatura', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras' }
 ];
 
 const MOCK_MATERIAS: Materia[] = [
-  { id: 'm1', carrera_id: 'c1', clave: 'CDIA-101', nombre: 'Programación Web y Bases de Datos', creditos: 8, semestre: '1° Semestre', horas_semana: 6 },
-  { id: 'm2', carrera_id: 'c1', clave: 'CDIA-102', nombre: 'Inteligencia Artificial y Aprendizaje Automático', creditos: 10, semestre: '1° Semestre', horas_semana: 6 },
-  { id: 'm3', carrera_id: 'c2', clave: 'TIC-201', nombre: 'Estructura de Datos y Algoritmos', creditos: 8, semestre: '3° Semestre', horas_semana: 6 },
-  { id: 'm4', carrera_id: 'c2', clave: 'TIC-301', nombre: 'Ingeniería de Software y Sistemas Web', creditos: 10, semestre: '3° Semestre', horas_semana: 6 },
-  { id: 'm5', carrera_id: 'c3', clave: 'CIB-501', nombre: 'Ciberseguridad y Auditoría de Sistemas', creditos: 10, semestre: '5° Semestre', horas_semana: 6 },
-  { id: 'm6', carrera_id: 'c4', clave: 'TUR-201', nombre: 'Administración de Empresas de Hospedaje', creditos: 8, semestre: '2° Semestre', horas_semana: 4 },
-  { id: 'm7', carrera_id: 'c5', clave: 'ADM-203', nombre: 'Matemáticas para la Administración', creditos: 8, semestre: '2° Semestre', horas_semana: 6 }
+  { id: 'f1111111-1111-1111-1111-111111111111', carrera_id: 'c1111111-1111-1111-1111-111111111111', clave: 'CDIA-101', nombre: 'Programación Web y Bases de Datos', creditos: 8, semestre: '1° Semestre', horas_semana: 6 },
+  { id: 'f2222222-2222-2222-2222-222222222222', carrera_id: 'c1111111-1111-1111-1111-111111111111', clave: 'CDIA-102', nombre: 'Inteligencia Artificial y Aprendizaje Automático', creditos: 10, semestre: '1° Semestre', horas_semana: 6 },
+  { id: 'f3333333-3333-3333-3333-333333333333', carrera_id: 'c2222222-2222-2222-2222-222222222222', clave: 'TIC-201', nombre: 'Estructura de Datos y Algoritmos', creditos: 8, semestre: '3° Semestre', horas_semana: 6 },
+  { id: 'f4444444-4444-4444-4444-444444444444', carrera_id: 'c2222222-2222-2222-2222-222222222222', clave: 'TIC-301', nombre: 'Ingeniería de Software y Sistemas Web', creditos: 10, semestre: '3° Semestre', horas_semana: 6 },
+  { id: 'f5555555-5555-5555-5555-555555555555', carrera_id: 'c3333333-3333-3333-3333-333333333333', clave: 'CIB-501', nombre: 'Ciberseguridad y Auditoría de Sistemas', creditos: 10, semestre: '5° Semestre', horas_semana: 6 },
+  { id: 'f6666666-6666-6666-6666-666666666666', carrera_id: 'c4444444-4444-4444-4444-444444444444', clave: 'TUR-201', nombre: 'Administración de Empresas de Hospedaje', creditos: 8, semestre: '2° Semestre', horas_semana: 4 },
+  { id: 'f7777777-7777-7777-7777-777777777777', carrera_id: 'c5555555-5555-5555-5555-555555555555', clave: 'ADM-203', nombre: 'Matemáticas para la Administración', creditos: 8, semestre: '2° Semestre', horas_semana: 6 }
 ];
 
 const MOCK_GRUPOS: Grupo[] = [
@@ -846,75 +846,79 @@ export const db = {
   getCarreras: async (): Promise<Carrera[]> => {
     initLocalStorage();
     const raw = localStorage.getItem('unrc_carreras');
-    let localList: Carrera[] = raw ? JSON.parse(raw) : [];
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      } catch (e) {
+        console.warn('Error parsing unrc_carreras:', e);
+      }
+    }
 
     if (supabase) {
       try {
         const { data, error } = await supabase.from('carreras').select('*');
         if (!error && data && data.length > 0) {
-          // Merge Supabase records with existing local data to preserve sedes and custom fields
-          const merged: Carrera[] = data.map((sc: any) => {
-            const local = localList.find(l => l.id === sc.id || l.clave === sc.clave);
-            return {
-              id: sc.id,
-              clave: sc.clave,
-              nombre: sc.nombre,
-              nivel: sc.nivel || 'Licenciatura',
-              sede_id: local?.sede_id || 'sede-mc',
-              sede_nombre: local?.sede_nombre || 'Campus Magdalena Contreras'
-            };
-          });
-          // Also append any local-only carreras created while offline
-          localList.forEach(loc => {
-            if (!merged.some(m => m.id === loc.id || m.clave === loc.clave)) {
-              merged.push(loc);
-            }
-          });
-          localStorage.setItem('unrc_carreras', JSON.stringify(merged));
-          return merged;
+          const list: Carrera[] = data.map((sc: any) => ({
+            id: sc.id,
+            clave: sc.clave,
+            nombre: sc.nombre,
+            nivel: sc.nivel || 'Licenciatura',
+            sede_id: sc.sede_id || 'sede-mc',
+            sede_nombre: sc.sede_nombre || 'Campus Magdalena Contreras'
+          }));
+          localStorage.setItem('unrc_carreras', JSON.stringify(list));
+          return list;
         }
       } catch (err) {
         console.warn('Fallback carreras:', err);
       }
     }
-    return localList.length > 0 ? localList : MOCK_CARRERAS;
+
+    localStorage.setItem('unrc_carreras', JSON.stringify(MOCK_CARRERAS));
+    return MOCK_CARRERAS;
   },
 
   // Materias operations
   getMaterias: async (): Promise<Materia[]> => {
     initLocalStorage();
     const raw = localStorage.getItem('unrc_materias');
-    let localList: Materia[] = raw ? JSON.parse(raw) : [];
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      } catch (e) {
+        console.warn('Error parsing unrc_materias:', e);
+      }
+    }
 
     if (supabase) {
       try {
         const { data, error } = await supabase.from('materias').select('*');
         if (!error && data && data.length > 0) {
-          const merged: Materia[] = data.map((sm: any) => {
-            const local = localList.find(l => l.id === sm.id || l.clave === sm.clave);
-            return {
-              id: sm.id,
-              carrera_id: sm.carrera_id,
-              clave: sm.clave,
-              nombre: sm.nombre,
-              creditos: sm.creditos || 8,
-              semestre: sm.semestre || '1° Semestre',
-              horas_semana: local?.horas_semana || 6
-            };
-          });
-          localList.forEach(loc => {
-            if (!merged.some(m => m.id === loc.id || m.clave === loc.clave)) {
-              merged.push(loc);
-            }
-          });
-          localStorage.setItem('unrc_materias', JSON.stringify(merged));
-          return merged;
+          const list: Materia[] = data.map((sm: any) => ({
+            id: sm.id,
+            carrera_id: sm.carrera_id,
+            clave: sm.clave,
+            nombre: sm.nombre,
+            creditos: sm.creditos || 8,
+            semestre: sm.semestre || '1° Semestre',
+            horas_semana: 6
+          }));
+          localStorage.setItem('unrc_materias', JSON.stringify(list));
+          return list;
         }
       } catch (err) {
         console.warn('Fallback materias:', err);
       }
     }
-    return localList.length > 0 ? localList : MOCK_MATERIAS;
+
+    localStorage.setItem('unrc_materias', JSON.stringify(MOCK_MATERIAS));
+    return MOCK_MATERIAS;
   },
 
   // Grupos operations
@@ -988,9 +992,32 @@ export const db = {
 
   updateCarrera: async (id: string, updates: Partial<Carrera>): Promise<Carrera | null> => {
     initLocalStorage();
-    const list = await db.getCarreras();
-    const index = list.findIndex(c => c.id === id || c.clave === id);
-    if (index === -1) return null;
+    let list = await db.getCarreras();
+    let index = list.findIndex(c =>
+      c.id === id ||
+      c.clave === id ||
+      (updates.clave && c.clave === updates.clave) ||
+      (id.startsWith('c1') && (c.id === 'c1' || c.clave === 'LIC-CDIA')) ||
+      (id.startsWith('c2') && (c.id === 'c2' || c.clave === 'LIC-TIC')) ||
+      (id.startsWith('c3') && (c.id === 'c3' || c.clave === 'LIC-CIB')) ||
+      (id.startsWith('c4') && (c.id === 'c4' || c.clave === 'LIC-TUR')) ||
+      (id.startsWith('c5') && (c.id === 'c5' || c.clave === 'LIC-ADM'))
+    );
+
+    if (index === -1) {
+      const newCar: Carrera = {
+        id: id || `c-${Date.now()}`,
+        clave: updates.clave || 'CARR',
+        nombre: updates.nombre || 'Nueva Carrera',
+        nivel: updates.nivel || 'Licenciatura',
+        sede_id: updates.sede_id || 'sede-mc',
+        sede_nombre: updates.sede_nombre || 'Campus Magdalena Contreras',
+        ...updates
+      };
+      list.push(newCar);
+      index = list.length - 1;
+    }
+
     list[index] = { ...list[index], ...updates };
     localStorage.setItem('unrc_carreras', JSON.stringify(list));
 
@@ -1002,7 +1029,7 @@ export const db = {
           const alumnos = JSON.parse(rawAlumnos);
           let changed = false;
           alumnos.forEach((a: any) => {
-            if (a.carrera_id === id || a.carrera_id === list[index].id) {
+            if (a.carrera_id === id || a.carrera_id === list[index].id || a.carrera === list[index].nombre) {
               a.carrera = updates.nombre;
               changed = true;
             }
@@ -1015,7 +1042,7 @@ export const db = {
           const sec = JSON.parse(rawSec);
           let secChanged = false;
           sec.forEach((s: any) => {
-            if (s.carrera_id === id || s.carrera_id === list[index].id) {
+            if (s.carrera_id === id || s.carrera_id === list[index].id || s.carrera_nombre === list[index].nombre) {
               s.carrera_nombre = updates.nombre;
               secChanged = true;
             }
@@ -1035,13 +1062,10 @@ export const db = {
         if (updates.nivel !== undefined) supabasePayload.nivel = updates.nivel;
 
         if (Object.keys(supabasePayload).length > 0) {
-          const { error: supaErr } = await supabase
+          await supabase
             .from('carreras')
             .update(supabasePayload)
             .eq('id', list[index].id);
-          if (supaErr) {
-            console.warn('Supabase carrera update error:', supaErr);
-          }
         }
       } catch (e) {
         console.warn('Supabase carrera update notice:', e);
@@ -1087,9 +1111,35 @@ export const db = {
 
   updateMateria: async (id: string, updates: Partial<Materia>): Promise<Materia | null> => {
     initLocalStorage();
-    const list = await db.getMaterias();
-    const index = list.findIndex(m => m.id === id || m.clave === id);
-    if (index === -1) return null;
+    let list = await db.getMaterias();
+    let index = list.findIndex(m =>
+      m.id === id ||
+      m.clave === id ||
+      (updates.clave && m.clave === updates.clave) ||
+      (id.startsWith('f1') && (m.id === 'm1' || m.clave === 'CDIA-101')) ||
+      (id.startsWith('f2') && (m.id === 'm2' || m.clave === 'CDIA-102')) ||
+      (id.startsWith('f3') && (m.id === 'm3' || m.clave === 'TIC-201')) ||
+      (id.startsWith('f4') && (m.id === 'm4' || m.clave === 'TIC-301')) ||
+      (id.startsWith('f5') && (m.id === 'm5' || m.clave === 'CIB-501')) ||
+      (id.startsWith('f6') && (m.id === 'm6' || m.clave === 'TUR-201')) ||
+      (id.startsWith('f7') && (m.id === 'm7' || m.clave === 'ADM-203'))
+    );
+
+    if (index === -1) {
+      const newMat: Materia = {
+        id: id || `m-${Date.now()}`,
+        carrera_id: updates.carrera_id || 'c1',
+        clave: updates.clave || 'MAT',
+        nombre: updates.nombre || 'Nueva Materia',
+        creditos: updates.creditos || 8,
+        semestre: updates.semestre || '1° Semestre',
+        horas_semana: updates.horas_semana || 6,
+        ...updates
+      };
+      list.push(newMat);
+      index = list.length - 1;
+    }
+
     list[index] = { ...list[index], ...updates };
     localStorage.setItem('unrc_materias', JSON.stringify(list));
 
@@ -1103,13 +1153,10 @@ export const db = {
         if (updates.semestre !== undefined) supabasePayload.semestre = updates.semestre;
 
         if (Object.keys(supabasePayload).length > 0) {
-          const { error: supaErr } = await supabase
+          await supabase
             .from('materias')
             .update(supabasePayload)
             .eq('id', list[index].id);
-          if (supaErr) {
-            console.warn('Supabase materia update error:', supaErr);
-          }
         }
       } catch (e) {
         console.warn('Supabase materia update notice:', e);

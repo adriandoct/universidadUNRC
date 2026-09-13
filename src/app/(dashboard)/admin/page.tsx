@@ -419,11 +419,21 @@ export default function AdminDashboardPage() {
           sede_id: carreraForm.sede_id,
           sede_nombre: sObj?.nombre,
         });
-        if (updated) {
-          setCarreras((prev) =>
-            prev.map((c) => (c.id === editingId || c.clave === editingId ? { ...c, ...updated } : c))
-          );
-        }
+        setCarreras((prev) =>
+          prev.map((c) =>
+            c.id === editingId || c.clave === editingId || c.clave === carreraForm.clave || (updated && c.id === updated.id)
+              ? {
+                  ...c,
+                  ...(updated || {}),
+                  clave: carreraForm.clave,
+                  nombre: carreraForm.nombre,
+                  nivel: carreraForm.nivel,
+                  sede_id: carreraForm.sede_id,
+                  sede_nombre: sObj?.nombre || c.sede_nombre,
+                }
+              : c
+          )
+        );
         showToast(`Carrera ${carreraForm.nombre} actualizada.`);
       } else {
         const newCar = await db.addCarrera({
@@ -467,11 +477,22 @@ export default function AdminDashboardPage() {
           semestre: materiaForm.semestre,
           horas_semana: Number(materiaForm.horas_semana),
         });
-        if (updated) {
-          setMaterias((prev) =>
-            prev.map((m) => (m.id === editingId || m.clave === editingId ? { ...m, ...updated } : m))
-          );
-        }
+        setMaterias((prev) =>
+          prev.map((m) =>
+            m.id === editingId || m.clave === editingId || m.clave === materiaForm.clave || (updated && m.id === updated.id)
+              ? {
+                  ...m,
+                  ...(updated || {}),
+                  clave: materiaForm.clave,
+                  nombre: materiaForm.nombre,
+                  carrera_id: materiaForm.carrera_id,
+                  creditos: Number(materiaForm.creditos),
+                  semestre: materiaForm.semestre,
+                  horas_semana: Number(materiaForm.horas_semana),
+                }
+              : m
+          )
+        );
         showToast(`Asignatura ${materiaForm.nombre} actualizada.`);
       } else {
         const newMat = await db.addMateria({
