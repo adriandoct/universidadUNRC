@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '../../../utils/supabase/client';
+import { db } from '@/lib/db';
 import { 
   ShieldCheck, 
   User, 
@@ -25,14 +26,14 @@ const ROLE_PRESETS = {
     label: 'Super Admin (Rectoría / Control Total)'
   },
   teacher: {
-    email: 'alejandro.valdez@rcastellanos.cdmx.gob.mx',
+    email: 'adrian.silva@rcastellanos.cdmx.gob.mx',
     password: '12345678Rosario',
-    label: 'Docente Titular'
+    label: 'Docente Titular (Validado por Superadmin)'
   },
   student: {
-    email: 'carlos.martinez@rcastellanos.cdmx.gob.mx',
+    email: 'UNRC-2026-005',
     password: '12345678Rosario',
-    label: 'Estudiante UNRC'
+    label: 'Estudiante UNRC (Grupo 201-TUR)'
   },
   guardian: {
     email: 'tutor@rcastellanos.cdmx.gob.mx',
@@ -70,41 +71,108 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const targetRole = selectedRole;
+      const cleanEmail = email.trim();
+      const cleanPass = password.trim();
 
-      // 1. Set demo cookies to allow middleware pass-through
-      document.cookie = `unrc_demo_session=${targetRole}; path=/; max-age=86400; SameSite=Lax`;
-      document.cookie = `unrc_role=${targetRole}; path=/; max-age=86400; SameSite=Lax`;
+      if (selectedRole === 'admin') {
+        const isAdminValid = (cleanEmail === 'admin@admin.com' || cleanEmail === 'admin') && cleanPass === '12345678Rosario';
+        if (!isAdminValid) {
+          throw new Error('ACCESO DENEGADO: Credenciales de Super Admin inválidas. Acceso restringido exclusivamente a Rectoría.');
+        }
 
-      // 2. Persist in localStorage for AuthContext compatibility
-      if (typeof window !== 'undefined') {
-        const localRole = targetRole === 'admin' ? 'administrador' : targetRole === 'teacher' ? 'docente' : 'alumno';
-        localStorage.setItem('unrc_auth_role', localRole);
-        localStorage.setItem('unrc_auth_user', JSON.stringify({
-          id: targetRole === 'admin' ? 'admin-01' : 'user-demo',
-          nombre: targetRole === 'admin' ? 'Dra. Rosaura Ruiz Gutiérrez' : 'Usuario UNRC',
-          email: email,
-          role: localRole,
-          cargo: targetRole === 'admin' ? 'Super Admin / Secretaria de Educación' : 'Usuario Institucional'
-        }));
+        document.cookie = `unrc_demo_session=admin; path=/; max-age=86400; SameSite=Lax`;
+        document.cookie = `unrc_role=admin; path=/; max-age=86400; SameSite=Lax`;
+        document.cookie = `unrc_user_id=admin-01; path=/; max-age=86400; SameSite=Lax`;
+
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('unrc_auth_role', 'administrador');
+          localStorage.setItem('unrc_auth_user', JSON.stringify({
+            id: 'admin-01',
+            nombre: 'Dra. Rosaura Ruiz Gutiérrez',
+            email: 'admin@admin.com',
+            role: 'administrador',
+            cargo: 'Super Admin / Secretaria de Educación'
+          }));
+        }
+
+        await db.addAuditoria('ACCESO_SUPERADMIN_AUTORIZADO', 'Seguridad / Login', 'Ingreso exitoso a panel de control Superadmin', 'Rectoría');
+        window.location.href = '/admin';
+        return;
+
+      } else if (selectedRole === 'teacher') {
+        const docentes = await db.getDocentes();
+        const found = docentes.find(d => 
+          d.email.toLowerCase() === cleanEmail.toLowerCase() ||
+          d.num_empleado.toLowerCase() === cleanEmail.toLowerCase()
+        );
+
+        if (!found) {
+          await db.addAuditoria('ACCESO_BLOQUEADO_DOCENTE_NO_ASIGNADO', 'Seguridad / Login', `Intento de acceso con correo o número no asignado por el Superadmin: '${cleanEmail}'`, 'Sistema Anti-Hackeo');
+          throw new Error('ACCESO DENEGADO: El docente no se encuentra validado ni asignado por el Superadmin.');
+        }
+
+        document.cookie = `unrc_demo_session=teacher; path=/; max-age=86400; SameSite=Lax`;
+        document.cookie = `unrc_role=teacher; path=/; max-age=86400; SameSite=Lax`;
+        document.cookie = `unrc_user_id=${found.id}; path=/; max-age=86400; SameSite=Lax`;
+
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('unrc_auth_role', 'docente');
+          localStorage.setItem('unrc_auth_user', JSON.stringify({
+            id: found.id,
+            nombre: `${found.nombre} ${found.apellido_paterno} ${found.apellido_materno || ''}`.trim(),
+            email: found.email,
+            role: 'docente',
+            num_empleado: found.num_empleado,
+            carrera_o_depto: found.departamento
+          }));
+        }
+
+        await db.addAuditoria('ACCESO_DOCENTE_AUTORIZADO', 'Seguridad / Login', `Ingreso de docente validado: ${found.nombre} ${found.apellido_paterno}`, 'Seguridad UNRC');
+        window.location.href = '/docente';
+        return;
+
+      } else if (selectedRole === 'student') {
+        const alumnos = await db.getAlumnos();
+        const found = alumnos.find(a => 
+          a.matricula.toLowerCase() === cleanEmail.toLowerCase() ||
+          a.qr_code.toLowerCase() === cleanEmail.toLowerCase() ||
+          `${a.matricula.toLowerCase()}@rcastellanos.cdmx.gob.mx` === cleanEmail.toLowerCase()
+        );
+
+        if (!found) {
+          await db.addAuditoria('ACCESO_BLOQUEADO_ALUMNO_NO_REGISTRADO', 'Seguridad / Login', `Intento de acceso no autorizado con matrícula: '${cleanEmail}'`, 'Sistema Anti-Hackeo');
+          throw new Error('ACCESO DENEGADO: La matrícula no se encuentra registrada ni asignada por el Superadmin.');
+        }
+
+        if (found.estado_matricula && found.estado_matricula !== 'activo') {
+          throw new Error(`ACCESO RESTRINGIDO: Matrícula en estatus '${found.estado_matricula.toUpperCase()}'. Contacta a Rectoría para validar tu situación escolar.`);
+        }
+
+        document.cookie = `unrc_demo_session=student; path=/; max-age=86400; SameSite=Lax`;
+        document.cookie = `unrc_role=student; path=/; max-age=86400; SameSite=Lax`;
+        document.cookie = `unrc_user_id=${found.id}; path=/; max-age=86400; SameSite=Lax`;
+
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('unrc_auth_role', 'alumno');
+          localStorage.setItem('unrc_auth_user', JSON.stringify({
+            id: found.id,
+            nombre: `${found.nombre} ${found.apellido_paterno} ${found.apellido_materno || ''}`.trim(),
+            email: `${found.matricula.toLowerCase()}@rcastellanos.cdmx.gob.mx`,
+            role: 'alumno',
+            matricula: found.matricula,
+            carrera_o_depto: found.carrera || 'Licenciatura UNRC'
+          }));
+        }
+
+        await db.addAuditoria('ACCESO_ALUMNO_AUTORIZADO', 'Seguridad / Login', `Ingreso de alumno validado: ${found.nombre} (${found.matricula})`, 'Seguridad UNRC');
+        window.location.href = '/alumno';
+        return;
+
+      } else {
+        window.location.href = '/guardian';
       }
-
-      // 3. Attempt Supabase Auth login
-      try {
-        const supabase = createClient();
-        await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-      } catch (authErr) {
-        console.warn('Supabase Auth notice (continuing in authorized session):', authErr);
-      }
-
-      // 4. Navigate directly to dashboard via window.location to ensure fresh cookies
-      window.location.href = `/${targetRole}`;
     } catch (err: any) {
-      setErrorMsg(err.message || 'Error al iniciar sesión.');
-      window.location.href = `/${selectedRole}`;
+      setErrorMsg(err.message || 'Error al validar credenciales.');
     } finally {
       setLoading(false);
     }

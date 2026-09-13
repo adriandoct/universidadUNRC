@@ -1,7 +1,13 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { UserRole, UserProfile, supabase, db } from './db';
+import { UserRole, UserProfile, db, Alumno, Docente } from './db';
+
+export interface AuthResult {
+  success: boolean;
+  error?: string;
+  user?: UserProfile;
+}
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -9,9 +15,9 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   lastDetectedAccount: UserProfile | null;
-  loginWithGoogle: (role: 'alumno' | 'docente', accountOverride?: Partial<UserProfile>) => Promise<void>;
-  loginAsAdmin: (accessCodeOrEmail: string, passInput?: string) => boolean;
-  loginWithCredentials: (role: UserRole, idOrEmail: string) => Promise<boolean>;
+  loginWithGoogle: (role: 'alumno' | 'docente', accountOverride?: Partial<UserProfile>) => Promise<AuthResult>;
+  loginAsAdmin: (accessCodeOrEmail: string, passInput?: string) => Promise<AuthResult>;
+  loginWithCredentials: (role: UserRole, idOrEmail: string) => Promise<AuthResult>;
   loginWithLastAccount: () => void;
   logout: () => void;
   setRole: (role: UserRole) => void;
@@ -19,38 +25,50 @@ interface AuthContextType {
   closeAuthModal: () => void;
   isAuthModalOpen: boolean;
   activeModalTab: UserRole;
+  authSecurityMessage: string | null;
 }
 
-const DEFAULT_USERS: Record<UserRole, UserProfile> = {
-  alumno: {
-    id: 'user-alumno-demo',
-    email: 'carlos.martinez@rcastellanos.cdmx.gob.mx',
-    nombre: 'Carlos Martínez López',
-    role: 'alumno',
-    avatar_url: 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&q=80&w=200&h=200',
-    matricula: 'UNRC-2026-001',
-    carrera_o_depto: 'Lic. en Ciencias de la Computación'
-  },
-  docente: {
-    id: 'user-docente-demo',
-    email: 'alejandro.valdez@rcastellanos.cdmx.gob.mx',
-    nombre: 'Dr. Alejandro Valdez Mendoza',
-    role: 'docente',
-    avatar_url: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=200&h=200',
-    num_empleado: 'DOC-UNRC-01',
-    carrera_o_depto: 'Departamento de Computación e IA'
-  },
-  administrador: {
-    id: 'user-admin-demo',
-    email: 'admin@admin.com',
-    nombre: 'Administrador UNRC',
-    role: 'administrador',
-    avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200&h=200',
-    carrera_o_depto: 'Coordinación de Tecnologías y Base de Datos'
-  }
+const DEFAULT_ADMIN: UserProfile = {
+  id: 'admin-rectoria-01',
+  email: 'admin@admin.com',
+  nombre: 'Dra. Rosaura Ruiz Gutiérrez (Rectoría)',
+  role: 'administrador',
+  avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200&h=200',
+  carrera_o_depto: 'Superadmin / Control Total de la Institución'
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// Helper for security rate limiting & anti-hack lockout
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MS = 5 * 60 * 1000; // 5 minutes
+
+function checkLockout(): { isLocked: boolean; remainingSeconds: number } {
+  if (typeof window === 'undefined') return { isLocked: false, remainingSeconds: 0 };
+  const lockoutUntil = parseInt(localStorage.getItem('unrc_sec_lockout_until') || '0', 10);
+  const now = Date.now();
+  if (lockoutUntil && now < lockoutUntil) {
+    return { isLocked: true, remainingSeconds: Math.ceil((lockoutUntil - now) / 1000) };
+  }
+  return { isLocked: false, remainingSeconds: 0 };
+}
+
+function recordFailedAttempt(): number {
+  if (typeof window === 'undefined') return 0;
+  const current = parseInt(localStorage.getItem('unrc_sec_failed_attempts') || '0', 10) + 1;
+  localStorage.setItem('unrc_sec_failed_attempts', current.toString());
+  if (current >= MAX_FAILED_ATTEMPTS) {
+    const lockUntil = Date.now() + LOCKOUT_DURATION_MS;
+    localStorage.setItem('unrc_sec_lockout_until', lockUntil.toString());
+  }
+  return current;
+}
+
+function clearFailedAttempts() {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem('unrc_sec_failed_attempts');
+  localStorage.removeItem('unrc_sec_lockout_until');
+}
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -59,32 +77,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [activeModalTab, setActiveModalTab] = useState<UserRole>('alumno');
+  const [authSecurityMessage, setAuthSecurityMessage] = useState<string | null>(null);
 
-  // Load session from localStorage on mount
+  // Restore authenticated session from localStorage and verify validity
   useEffect(() => {
     try {
-      const savedUser = localStorage.getItem('unrc_auth_user');
+      const savedUserStr = localStorage.getItem('unrc_auth_user');
       const savedRole = localStorage.getItem('unrc_auth_role') as UserRole | null;
       const lastAcc = localStorage.getItem('unrc_last_account');
 
       if (lastAcc) {
         try {
           setLastDetectedAccount(JSON.parse(lastAcc));
-        } catch (e) {
+        } catch {
           console.warn('Could not parse last account');
         }
       }
 
-      if (savedUser && savedRole) {
-        const parsed = JSON.parse(savedUser);
+      if (savedUserStr && savedRole) {
+        const parsed = JSON.parse(savedUserStr);
         setUser(parsed);
         setRoleState(savedRole);
-        setLastDetectedAccount(parsed);
       } else {
-        // Default to Alumno demo user for immediate rich UX
-        setUser(DEFAULT_USERS.alumno);
-        setRoleState('alumno');
-        setLastDetectedAccount(DEFAULT_USERS.alumno);
+        // No automatic default login! Enforce strict authentication
+        setUser(null);
+        setRoleState(null);
       }
     } catch (err) {
       console.error('Error restoring auth session:', err);
@@ -96,14 +113,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const saveSession = (newUser: UserProfile | null, newRole: UserRole | null) => {
     setUser(newUser);
     setRoleState(newRole);
+
     if (newUser && newRole) {
       localStorage.setItem('unrc_auth_user', JSON.stringify(newUser));
       localStorage.setItem('unrc_auth_role', newRole);
       localStorage.setItem('unrc_last_account', JSON.stringify(newUser));
       setLastDetectedAccount(newUser);
+
+      // Sync security cookies for Next.js Middleware
+      const cookieRole = newRole === 'administrador' ? 'admin' : newRole === 'docente' ? 'teacher' : 'student';
+      document.cookie = `unrc_role=${cookieRole}; path=/; max-age=86400; SameSite=Lax`;
+      document.cookie = `unrc_demo_session=${cookieRole}; path=/; max-age=86400; SameSite=Lax`;
+      document.cookie = `unrc_user_id=${newUser.id}; path=/; max-age=86400; SameSite=Lax`;
     } else {
       localStorage.removeItem('unrc_auth_user');
       localStorage.removeItem('unrc_auth_role');
+      // Expire security cookies
+      document.cookie = 'unrc_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+      document.cookie = 'unrc_demo_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+      document.cookie = 'unrc_user_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+      document.cookie = 'unrc_session_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
     }
   };
 
@@ -114,169 +143,305 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const helperBuildProfileFromEmail = (email: string, targetRole: 'alumno' | 'docente'): UserProfile => {
-    const cleanEmail = email.trim().toLowerCase();
-    const usernamePart = cleanEmail.split('@')[0] || 'usuario';
-    const formattedName = usernamePart
-      .split('.')
-      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
-      .join(' ');
-
-    const randomNum = Math.floor(100 + Math.random() * 900);
-
-    return {
-      id: `user-custom-${Date.now()}`,
-      email: cleanEmail.includes('@') ? cleanEmail : `${cleanEmail}@rcastellanos.cdmx.gob.mx`,
-      nombre: formattedName || (targetRole === 'alumno' ? 'Estudiante UNRC' : 'Docente UNRC'),
-      role: targetRole,
-      avatar_url: targetRole === 'alumno' 
-        ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200&h=200' 
-        : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200&h=200',
-      matricula: targetRole === 'alumno' ? `UNRC-2026-${randomNum}` : undefined,
-      num_empleado: targetRole === 'docente' ? `DOC-UNRC-${randomNum}` : undefined,
-      carrera_o_depto: targetRole === 'alumno' ? 'Universidad Rosario Castellanos' : 'Cuerpo Académico UNRC'
-    };
-  };
-
-  const loginWithGoogle = async (targetRole: 'alumno' | 'docente', accountOverride?: Partial<UserProfile>) => {
-    setIsLoading(true);
-
-    // If explicit account selected or custom email typed from modal picker
-    if (accountOverride) {
-      const baseUser = DEFAULT_USERS[targetRole];
-      const email = accountOverride.email || baseUser.email;
-      const isCustomEmail = email && !email.includes('carlos.martinez') && !email.includes('sofia.herrera') && !email.includes('alejandro.valdez') && !email.includes('beatriz.sanchez');
-
-      let loggedUser: UserProfile;
-      if (isCustomEmail) {
-        const derived = helperBuildProfileFromEmail(email, targetRole);
-        loggedUser = { ...derived, ...accountOverride };
-      } else {
-        loggedUser = {
-          ...baseUser,
-          ...accountOverride,
-          role: targetRole,
-          email: email
-        };
-      }
-
-      saveSession(loggedUser, targetRole);
-      setIsLoading(false);
-      setIsAuthModalOpen(false);
-      return;
+  // 1. Authenticate Super Admin
+  const loginAsAdmin = async (accessCodeOrEmail: string, passInput?: string): Promise<AuthResult> => {
+    const { isLocked, remainingSeconds } = checkLockout();
+    if (isLocked) {
+      return {
+        success: false,
+        error: `🛡️ Sistema bloqueado temporalmente por seguridad anti-hackeo. Espera ${remainingSeconds} segundos antes de reintentar.`
+      };
     }
 
-    // Fallback to demo Gmail account for instantaneous sign-in
-    const baseUser = DEFAULT_USERS[targetRole];
-    saveSession(baseUser, targetRole);
-    setIsLoading(false);
-    setIsAuthModalOpen(false);
-  };
-
-  const loginAsAdmin = (accessCodeOrEmail: string, passInput?: string): boolean => {
     const email = accessCodeOrEmail.trim().toLowerCase();
     const pass = (passInput || '').trim();
 
-    // Valid admin credentials: admin@admin.com & 12345678Rosario
-    const isValidUser = email === 'admin@admin.com' || email === 'admin' || email === 'admin@admin';
-    const isValidPass = pass === '12345678Rosario' || pass === '12345678rosario' || accessCodeOrEmail.trim().toLowerCase() === '12345678rosario' || accessCodeOrEmail.trim().toLowerCase() === 'admin';
+    const isValidUser = email === 'admin@admin.com' || email === 'admin';
+    const isValidPass = pass === '12345678Rosario' || accessCodeOrEmail.trim() === '12345678Rosario';
 
-    if (isValidUser && (isValidPass || !passInput)) {
-      saveSession(DEFAULT_USERS.administrador, 'administrador');
+    if (isValidUser && isValidPass) {
+      clearFailedAttempts();
+      saveSession(DEFAULT_ADMIN, 'administrador');
       setIsAuthModalOpen(false);
-      return true;
+      await db.addAuditoria(
+        'ACCESO_SUPERADMIN_AUTORIZADO',
+        'Seguridad / Autenticación',
+        'Acceso validado a consola de Rectoría / Superadmin',
+        'Superadmin UNRC'
+      );
+      return { success: true, user: DEFAULT_ADMIN };
     }
-    return false;
+
+    const attempts = recordFailedAttempt();
+    await db.addAuditoria(
+      'ACCESO_BLOQUEADO_CREDENCIALES_INVALIDAS',
+      'Seguridad / Autenticación',
+      `Intento fallido de acceso administrativo (${attempts}/${MAX_FAILED_ATTEMPTS}) con usuario '${email}'`,
+      'Sistema Anti-Hackeo UNRC'
+    );
+
+    return {
+      success: false,
+      error: `Credenciales de Administrador incorrectas. Intento ${attempts} de ${MAX_FAILED_ATTEMPTS}.`
+    };
   };
 
-  const loginWithCredentials = async (targetRole: UserRole, idOrEmail: string): Promise<boolean> => {
+  // 2. Authenticate Alumno or Docente strictly against Superadmin database
+  const loginWithCredentials = async (targetRole: UserRole, idOrEmail: string): Promise<AuthResult> => {
     setIsLoading(true);
+    const { isLocked, remainingSeconds } = checkLockout();
+    if (isLocked) {
+      setIsLoading(false);
+      return {
+        success: false,
+        error: `🛡️ Acceso suspendido temporalmente por seguridad anti-hackeo. Espera ${remainingSeconds} segundos.`
+      };
+    }
+
     const cleanInput = idOrEmail.trim().toLowerCase();
 
     try {
       if (targetRole === 'alumno') {
         const alumnos = await db.getAlumnos();
-        const found = alumnos.find(
-          a => a.matricula.toLowerCase() === cleanInput || 
-               a.qr_code.toLowerCase() === cleanInput ||
-               `${a.matricula.toLowerCase()}@rcastellanos.cdmx.gob.mx` === cleanInput ||
-               (a.nombre + a.apellido_paterno).toLowerCase().includes(cleanInput.replace(/\s+/g, ''))
+        const found = alumnos.find((a: Alumno) => {
+          const mat = a.matricula.toLowerCase();
+          const qr = (a.qr_code || '').toLowerCase();
+          const email = `${mat}@rcastellanos.cdmx.gob.mx`;
+          const fullName = `${a.nombre} ${a.apellido_paterno} ${a.apellido_materno || ''}`.toLowerCase().replace(/\s+/g, '');
+          const normalizedInput = cleanInput.replace(/\s+/g, '');
+
+          return mat === cleanInput || qr === cleanInput || email === cleanInput || fullName.includes(normalizedInput);
+        });
+
+        if (!found) {
+          const attempts = recordFailedAttempt();
+          await db.addAuditoria(
+            'ACCESO_DENEGADO_ALUMNO_NO_REGISTRADO',
+            'Seguridad / Autenticación',
+            `Intento no autorizado de alumno con identificador: '${cleanInput}' (${attempts}/${MAX_FAILED_ATTEMPTS})`,
+            'Sistema Anti-Hackeo UNRC'
+          );
+          setIsLoading(false);
+          return {
+            success: false,
+            error: `Acceso Denegado: La matrícula o usuario '${cleanInput}' no está registrado ni validado por el Superadmin.`
+          };
+        }
+
+        // Check if student status is active
+        const status = found.estado_matricula || 'activo';
+        if (status !== 'activo') {
+          await db.addAuditoria(
+            'ACCESO_RESTRINGIDO_ALUMNO_INACTIVO',
+            'Seguridad / Autenticación',
+            `Intento de ingreso de alumno inactivo: ${found.matricula} (${found.nombre} ${found.apellido_paterno}) con estatus: ${status}`,
+            'Control Escolar UNRC'
+          );
+          setIsLoading(false);
+          return {
+            success: false,
+            error: `Acceso Restringido: El expediente del alumno está en estatus '${status.toUpperCase()}'. Contacte a Rectoría para validar su reingreso.`
+          };
+        }
+
+        // Student successfully verified
+        clearFailedAttempts();
+        const profile: UserProfile = {
+          id: found.id,
+          email: `${found.matricula.toLowerCase()}@rcastellanos.cdmx.gob.mx`,
+          nombre: `${found.nombre} ${found.apellido_paterno} ${found.apellido_materno || ''}`.trim(),
+          role: 'alumno',
+          avatar_url: found.foto_url,
+          matricula: found.matricula,
+          carrera_o_depto: found.carrera || 'Universidad Rosario Castellanos'
+        };
+
+        saveSession(profile, 'alumno');
+        setIsAuthModalOpen(false);
+        setIsLoading(false);
+
+        await db.addAuditoria(
+          'ACCESO_ALUMNO_VALIDADO',
+          'Seguridad / Autenticación',
+          `Ingreso exitoso del alumno validado: ${profile.nombre} (${found.matricula}) - Grupo: ${found.grupo}`,
+          'Control Escolar UNRC'
         );
 
-        if (found) {
-          const profile: UserProfile = {
-            id: found.id,
-            email: `${found.matricula.toLowerCase()}@rcastellanos.cdmx.gob.mx`,
-            nombre: `${found.nombre} ${found.apellido_paterno} ${found.apellido_materno || ''}`.trim(),
-            role: 'alumno',
-            avatar_url: found.foto_url,
-            matricula: found.matricula,
-            carrera_o_depto: found.carrera || 'Universidad Rosario Castellanos'
-          };
-          saveSession(profile, 'alumno');
-          setIsAuthModalOpen(false);
-          setIsLoading(false);
-          return true;
-        }
+        return { success: true, user: profile };
 
-        // If user typed an institutional email or username, allow INSTANT ACCESS
-        if (cleanInput.includes('@') || cleanInput.includes('.')) {
-          const profile = helperBuildProfileFromEmail(cleanInput, 'alumno');
-          saveSession(profile, 'alumno');
-          setIsAuthModalOpen(false);
-          setIsLoading(false);
-          return true;
-        }
       } else if (targetRole === 'docente') {
         const docentes = await db.getDocentes();
-        const found = docentes.find(
-          d => d.num_empleado.toLowerCase() === cleanInput || d.email.toLowerCase() === cleanInput
+        const found = docentes.find((d: Docente) => {
+          const num = d.num_empleado.toLowerCase();
+          const email = (d.email || '').toLowerCase();
+          const fullName = `${d.nombre} ${d.apellido_paterno} ${d.apellido_materno || ''}`.toLowerCase().replace(/\s+/g, '');
+          const normalizedInput = cleanInput.replace(/\s+/g, '');
+
+          return num === cleanInput || email === cleanInput || fullName.includes(normalizedInput);
+        });
+
+        if (!found) {
+          const attempts = recordFailedAttempt();
+          await db.addAuditoria(
+            'ACCESO_DENEGADO_DOCENTE_NO_REGISTRADO',
+            'Seguridad / Autenticación',
+            `Intento no autorizado de docente con identificador: '${cleanInput}' (${attempts}/${MAX_FAILED_ATTEMPTS})`,
+            'Sistema Anti-Hackeo UNRC'
+          );
+          setIsLoading(false);
+          return {
+            success: false,
+            error: `Acceso Denegado: El número de empleado o correo '${cleanInput}' no ha sido asignado ni validado por el Superadmin.`
+          };
+        }
+
+        // Teacher successfully verified
+        clearFailedAttempts();
+        const profile: UserProfile = {
+          id: found.id,
+          email: found.email,
+          nombre: `${found.nombre} ${found.apellido_paterno} ${found.apellido_materno || ''}`.trim(),
+          role: 'docente',
+          avatar_url: found.foto_url,
+          num_empleado: found.num_empleado,
+          carrera_o_depto: found.departamento
+        };
+
+        saveSession(profile, 'docente');
+        setIsAuthModalOpen(false);
+        setIsLoading(false);
+
+        await db.addAuditoria(
+          'ACCESO_DOCENTE_VALIDADO',
+          'Seguridad / Autenticación',
+          `Ingreso exitoso del docente validado: ${profile.nombre} (${found.num_empleado})`,
+          'Recursos Humanos UNRC'
         );
 
-        if (found) {
-          const profile: UserProfile = {
-            id: found.id,
-            email: found.email,
-            nombre: `${found.nombre} ${found.apellido_paterno} ${found.apellido_materno || ''}`.trim(),
-            role: 'docente',
-            avatar_url: found.foto_url,
-            num_empleado: found.num_empleado,
-            carrera_o_depto: found.departamento
-          };
-          saveSession(profile, 'docente');
-          setIsAuthModalOpen(false);
-          setIsLoading(false);
-          return true;
-        }
-
-        // If docente typed an email, allow INSTANT ACCESS
-        if (cleanInput.includes('@') || cleanInput.includes('.')) {
-          const profile = helperBuildProfileFromEmail(cleanInput, 'docente');
-          saveSession(profile, 'docente');
-          setIsAuthModalOpen(false);
-          setIsLoading(false);
-          return true;
-        }
+        return { success: true, user: profile };
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('Credential auth error:', e);
+      setIsLoading(false);
+      return { success: false, error: `Error de verificación: ${e.message}` };
     }
 
     setIsLoading(false);
-    return false;
+    return { success: false, error: 'Rol no soportado.' };
+  };
+
+  // 3. Strict Google Auth validation against Superadmin database
+  const loginWithGoogle = async (
+    targetRole: 'alumno' | 'docente',
+    accountOverride?: Partial<UserProfile>
+  ): Promise<AuthResult> => {
+    setIsLoading(true);
+    const emailToVerify = (accountOverride?.email || '').trim().toLowerCase();
+
+    if (!emailToVerify) {
+      setIsLoading(false);
+      return { success: false, error: 'Debe proporcionar una cuenta de correo institucional.' };
+    }
+
+    // Verify against DB
+    if (targetRole === 'alumno') {
+      const alumnos = await db.getAlumnos();
+      const found = alumnos.find(a => 
+        `${a.matricula.toLowerCase()}@rcastellanos.cdmx.gob.mx` === emailToVerify ||
+        a.matricula.toLowerCase() === emailToVerify.split('@')[0]
+      );
+
+      if (!found) {
+        setIsLoading(false);
+        await db.addAuditoria(
+          'ACCESO_GOOGLE_NO_AUTORIZADO',
+          'Seguridad / Autenticación',
+          `Intento de acceso por Google no autorizado para alumno: ${emailToVerify}`,
+          'Sistema Anti-Hackeo'
+        );
+        return {
+          success: false,
+          error: `Acceso Denegado: La cuenta Google institucional '${emailToVerify}' no está vinculada a ningún alumno matriculado por el Superadmin.`
+        };
+      }
+
+      if (found.estado_matricula !== 'activo') {
+        setIsLoading(false);
+        return {
+          success: false,
+          error: `Acceso Restringido: El alumno se encuentra en estado '${found.estado_matricula}'.`
+        };
+      }
+
+      const profile: UserProfile = {
+        id: found.id,
+        email: emailToVerify,
+        nombre: `${found.nombre} ${found.apellido_paterno}`,
+        role: 'alumno',
+        avatar_url: found.foto_url,
+        matricula: found.matricula,
+        carrera_o_depto: found.carrera
+      };
+      saveSession(profile, 'alumno');
+      setIsAuthModalOpen(false);
+      setIsLoading(false);
+      return { success: true, user: profile };
+
+    } else {
+      const docentes = await db.getDocentes();
+      const found = docentes.find(d => d.email.toLowerCase() === emailToVerify);
+
+      if (!found) {
+        setIsLoading(false);
+        await db.addAuditoria(
+          'ACCESO_GOOGLE_NO_AUTORIZADO',
+          'Seguridad / Autenticación',
+          `Intento de acceso por Google no autorizado para docente: ${emailToVerify}`,
+          'Sistema Anti-Hackeo'
+        );
+        return {
+          success: false,
+          error: `Acceso Denegado: El correo docente '${emailToVerify}' no está registrado por el Superadmin.`
+        };
+      }
+
+      const profile: UserProfile = {
+        id: found.id,
+        email: found.email,
+        nombre: `${found.nombre} ${found.apellido_paterno}`,
+        role: 'docente',
+        avatar_url: found.foto_url,
+        num_empleado: found.num_empleado,
+        carrera_o_depto: found.departamento
+      };
+      saveSession(profile, 'docente');
+      setIsAuthModalOpen(false);
+      setIsLoading(false);
+      return { success: true, user: profile };
+    }
   };
 
   const logout = () => {
     saveSession(null, null);
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login?logout=true';
+    }
   };
 
+  // Safe setRole restricted only to Superadmin for administrative simulation
   const setRole = (newRole: UserRole) => {
-    const defaultUser = DEFAULT_USERS[newRole];
-    saveSession(defaultUser, newRole);
+    if (user?.role === 'administrador') {
+      if (newRole === 'administrador') {
+        saveSession(DEFAULT_ADMIN, 'administrador');
+      }
+    } else {
+      console.warn('Security alert: Role change blocked for non-superadmin users.');
+    }
   };
 
   const openAuthModal = (defaultRole: UserRole = 'alumno') => {
     setActiveModalTab(defaultRole);
+    setAuthSecurityMessage(null);
     setIsAuthModalOpen(true);
   };
 
@@ -301,7 +466,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         openAuthModal,
         closeAuthModal,
         isAuthModalOpen,
-        activeModalTab
+        activeModalTab,
+        authSecurityMessage
       }}
     >
       {children}

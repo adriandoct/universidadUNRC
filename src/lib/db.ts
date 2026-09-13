@@ -1203,6 +1203,46 @@ export const db = {
     return { asistencia: asistenciaData, alumno, duplicateWarning };
   },
 
+  registrarAsistenciasLote: async (
+    registros: Array<{
+      alumno_id: string;
+      estado: EstadoAsistencia;
+      fecha: string;
+      curso_id?: string;
+      materia?: string;
+      observaciones?: string;
+    }>
+  ): Promise<number> => {
+    initLocalStorage();
+    const raw = localStorage.getItem('unrc_asistencias');
+    let list: Asistencia[] = raw ? JSON.parse(raw) : [];
+    const alumnos = await db.getAlumnos();
+    const timeStr = new Date().toTimeString().split(' ')[0];
+
+    registros.forEach(r => {
+      const alumno = alumnos.find(al => al.id === r.alumno_id || al.matricula === r.alumno_id);
+      list = list.filter(item => !(item.alumno_id === r.alumno_id && item.fecha === r.fecha && item.grupo_id === r.curso_id));
+      list.push({
+        id: `att-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        alumno_id: r.alumno_id,
+        grupo_id: r.curso_id || alumno?.grupo_id,
+        tipo: 'entrada',
+        estado: r.estado,
+        fecha: r.fecha,
+        hora: timeStr,
+        dispositivo: 'Consola Docente UNRC',
+        ubicacion: 'Aula de Clases',
+        escaneado_por: 'Docente Titular / Superadmin',
+        observaciones: r.observaciones,
+        created_at: new Date().toISOString(),
+        alumno
+      });
+    });
+
+    localStorage.setItem('unrc_asistencias', JSON.stringify(list));
+    return registros.length;
+  },
+
   // Participaciones Operations
   getParticipaciones: async (): Promise<Participacion[]> => {
     initLocalStorage();

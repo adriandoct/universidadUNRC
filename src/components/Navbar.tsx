@@ -125,31 +125,53 @@ export const Navbar: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="py-1">
-                    <div className="px-3 py-1 text-[10px] text-gray-500 font-bold uppercase tracking-wider">Cambiar de Rol</div>
-                    <button
-                      onClick={() => setRole('alumno')}
-                      className={`w-full p-2.5 rounded-xl text-left flex items-center space-x-2 transition-colors ${role === 'alumno' ? 'bg-emerald-500/20 text-emerald-300 font-semibold' : 'text-gray-300 hover:bg-white/5'}`}
-                    >
-                      <span>🎓 Rol Alumno</span>
-                    </button>
-
-                    <button
-                      onClick={() => setRole('docente')}
-                      className={`w-full p-2.5 rounded-xl text-left flex items-center space-x-2 transition-colors ${role === 'docente' ? 'bg-blue-500/20 text-blue-300 font-semibold' : 'text-gray-300 hover:bg-white/5'}`}
-                    >
-                      <span>👨‍🏫 Rol Docente</span>
-                    </button>
-
-                    <button
-                      onClick={() => setRole('administrador')}
-                      className={`w-full p-2.5 rounded-xl text-left flex items-center space-x-2 transition-colors ${role === 'administrador' ? 'bg-amber-500/20 text-amber-300 font-semibold' : 'text-gray-300 hover:bg-white/5'}`}
-                    >
-                      <span>⚡ Rol Admin BD</span>
-                    </button>
+                  <div className="p-2.5 my-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[11px] space-y-1">
+                    <div className="font-bold text-emerald-400 flex items-center gap-1.5">
+                      <span>🛡️</span>
+                      <span>Validado por Superadmin</span>
+                    </div>
+                    {user.matricula && (
+                      <div className="text-gray-300 font-mono text-[10px]">
+                        Matrícula: <strong className="text-white">{user.matricula}</strong>
+                      </div>
+                    )}
+                    {user.num_empleado && (
+                      <div className="text-gray-300 font-mono text-[10px]">
+                        Num. Empleado: <strong className="text-white">{user.num_empleado}</strong>
+                      </div>
+                    )}
+                    {user.carrera_o_depto && (
+                      <div className="text-gray-400 text-[10px] truncate">
+                        {user.carrera_o_depto}
+                      </div>
+                    )}
                   </div>
 
                   <div className="border-t border-white/10 pt-1">
+                    {role === 'alumno' && (
+                      <Link
+                        href="/alumno"
+                        className="w-full p-2.5 rounded-xl text-left text-emerald-400 hover:bg-emerald-500/10 flex items-center space-x-2 transition-colors font-medium text-xs block mb-1"
+                      >
+                        <span>🎓 Mi Portal de Alumno</span>
+                      </Link>
+                    )}
+                    {role === 'docente' && (
+                      <Link
+                        href="/docente"
+                        className="w-full p-2.5 rounded-xl text-left text-blue-400 hover:bg-blue-500/10 flex items-center space-x-2 transition-colors font-medium text-xs block mb-1"
+                      >
+                        <span>👨‍🏫 Mi Consola Docente</span>
+                      </Link>
+                    )}
+                    {role === 'administrador' && (
+                      <Link
+                        href="/admin"
+                        className="w-full p-2.5 rounded-xl text-left text-amber-400 hover:bg-amber-500/10 flex items-center space-x-2 transition-colors font-medium text-xs block mb-1"
+                      >
+                        <span>⚡ Consola Superadmin</span>
+                      </Link>
+                    )}
                     <button
                       onClick={logout}
                       className="w-full p-2.5 rounded-xl text-left text-rose-400 hover:bg-rose-500/10 flex items-center space-x-2 transition-colors font-semibold"

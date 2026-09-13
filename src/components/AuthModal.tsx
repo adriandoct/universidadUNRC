@@ -45,19 +45,19 @@ export const AuthModal: React.FC = () => {
         return;
       }
 
-      const success = loginAsAdmin(adminEmailInput, adminKeyInput);
-      if (!success) {
-        setErrorMessage('Usuario o contraseña de Administrador incorrectos. (Usuario: admin@admin.com | Pass: 12345678Rosario)');
+      const res = await loginAsAdmin(adminEmailInput, adminKeyInput);
+      if (!res.success) {
+        setErrorMessage(res.error || 'Credenciales de Administrador incorrectas.');
       }
     } else {
       if (!credentialInput.trim()) {
-        setErrorMessage(`Ingresa tu ${activeTab === 'alumno' ? 'Matrícula o Correo Institucional' : 'Número de Empleado o Correo'}.`);
+        setErrorMessage(`Ingresa tu ${activeTab === 'alumno' ? 'Matrícula Oficial' : 'Número de Empleado'}.`);
         setIsSubmitting(false);
         return;
       }
-      const success = await loginWithCredentials(activeTab, credentialInput);
-      if (!success) {
-        setErrorMessage(`${activeTab === 'alumno' ? 'Matrícula o Correo' : 'Número de Empleado o Correo'} no encontrado.`);
+      const res = await loginWithCredentials(activeTab, credentialInput);
+      if (!res.success) {
+        setErrorMessage(res.error || `Acceso Denegado: No cuenta con registro activo validado por el Superadmin.`);
       }
     }
     setIsSubmitting(false);
@@ -69,17 +69,22 @@ export const AuthModal: React.FC = () => {
     setCustomInstitutionalEmail('');
   };
 
-  const handleSelectGmailAccount = (name: string, email: string, matriculaOrEmp: string) => {
+  const handleSelectGmailAccount = async (name: string, email: string, matriculaOrEmp: string) => {
     setShowGmailAccountPicker(false);
-    loginWithGoogle(activeTab as 'alumno' | 'docente', {
+    setIsSubmitting(true);
+    const res = await loginWithGoogle(activeTab as 'alumno' | 'docente', {
       nombre: name,
       email: email,
       matricula: activeTab === 'alumno' ? matriculaOrEmp : undefined,
       num_empleado: activeTab === 'docente' ? matriculaOrEmp : undefined
     });
+    if (!res.success) {
+      setErrorMessage(res.error || 'Cuenta Google institucional no validada por el Superadmin.');
+    }
+    setIsSubmitting(false);
   };
 
-  const handleCustomEmailSubmit = (e: React.FormEvent) => {
+  const handleCustomEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!customInstitutionalEmail.trim()) return;
 
@@ -89,9 +94,14 @@ export const AuthModal: React.FC = () => {
     }
 
     setShowGmailAccountPicker(false);
-    loginWithGoogle(activeTab as 'alumno' | 'docente', {
+    setIsSubmitting(true);
+    const res = await loginWithGoogle(activeTab as 'alumno' | 'docente', {
       email: fullEmail
     });
+    if (!res.success) {
+      setErrorMessage(res.error || 'Cuenta institucional no validada por el Superadmin.');
+    }
+    setIsSubmitting(false);
   };
 
   return (

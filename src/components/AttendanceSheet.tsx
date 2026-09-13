@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { CheckCircle2, Clock, XCircle, FileText, Search, Send, Sparkles, RefreshCw, Calendar } from 'lucide-react';
 import { recordBulkAttendance } from '../app/actions/attendance';
+import { db } from '@/lib/db';
 
 export type AttendanceStatusType = 'present' | 'absent' | 'late' | 'excused';
 
@@ -81,6 +82,24 @@ export default function AttendanceSheet({
     }));
 
     try {
+      // Sync locally in db
+      const statusMap: Record<AttendanceStatusType, 'A' | 'R' | 'F' | 'J'> = {
+        present: 'A',
+        late: 'R',
+        absent: 'F',
+        excused: 'J'
+      };
+      await db.registrarAsistenciasLote(
+        records.map(r => ({
+          alumno_id: r.student_id,
+          estado: statusMap[r.status] || 'A',
+          fecha: selectedDate,
+          curso_id: courseId,
+          materia: courseName,
+          observaciones: r.notes
+        }))
+      );
+
       const result = await recordBulkAttendance({
         course_id: courseId,
         date: selectedDate,
@@ -90,7 +109,7 @@ export default function AttendanceSheet({
       if (result.success) {
         setFeedback({
           type: 'success',
-          message: `✅ ${result.message || 'Asistencia registrada con éxito en el sistema.'}`,
+          message: `✅ Asistencia registrada y validada correctamente para el ${selectedDate}.`,
         });
         if (onAttendanceSubmitted) onAttendanceSubmitted();
       } else {
