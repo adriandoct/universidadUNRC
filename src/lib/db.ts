@@ -510,10 +510,16 @@ const initLocalStorage = () => {
     localStorage.setItem('unrc_secciones', JSON.stringify(MOCK_SECCIONES));
   }
 
-  // Always keep seed data synced
-  localStorage.setItem('unrc_carreras', JSON.stringify(MOCK_CARRERAS));
-  localStorage.setItem('unrc_materias', JSON.stringify(MOCK_MATERIAS));
-  localStorage.setItem('unrc_grupos', JSON.stringify(MOCK_GRUPOS));
+  // Institutional catalogs initialized once
+  if (!localStorage.getItem('unrc_carreras')) {
+    localStorage.setItem('unrc_carreras', JSON.stringify(MOCK_CARRERAS));
+  }
+  if (!localStorage.getItem('unrc_materias')) {
+    localStorage.setItem('unrc_materias', JSON.stringify(MOCK_MATERIAS));
+  }
+  if (!localStorage.getItem('unrc_grupos')) {
+    localStorage.setItem('unrc_grupos', JSON.stringify(MOCK_GRUPOS));
+  }
   
   if (!localStorage.getItem('unrc_docentes_v2')) {
     localStorage.setItem('unrc_docentes', JSON.stringify(MOCK_DOCENTES));
@@ -920,6 +926,39 @@ export const db = {
     if (index === -1) return null;
     list[index] = { ...list[index], ...updates };
     localStorage.setItem('unrc_carreras', JSON.stringify(list));
+
+    // Propagate updated carrera name to alumnos and secciones if changed
+    if (updates.nombre) {
+      try {
+        const rawAlumnos = localStorage.getItem('unrc_alumnos');
+        if (rawAlumnos) {
+          const alumnos = JSON.parse(rawAlumnos);
+          let changed = false;
+          alumnos.forEach((a: any) => {
+            if (a.carrera_id === id || a.carrera_id === list[index].id) {
+              a.carrera = updates.nombre;
+              changed = true;
+            }
+          });
+          if (changed) localStorage.setItem('unrc_alumnos', JSON.stringify(alumnos));
+        }
+
+        const rawSec = localStorage.getItem('unrc_secciones');
+        if (rawSec) {
+          const sec = JSON.parse(rawSec);
+          let secChanged = false;
+          sec.forEach((s: any) => {
+            if (s.carrera_id === id || s.carrera_id === list[index].id) {
+              s.carrera_nombre = updates.nombre;
+              secChanged = true;
+            }
+          });
+          if (secChanged) localStorage.setItem('unrc_secciones', JSON.stringify(sec));
+        }
+      } catch (e) {
+        console.warn('Sync related carrera entities notice:', e);
+      }
+    }
     if (supabase) {
       try {
         await supabase.from('carreras').update(updates).eq('id', id);
