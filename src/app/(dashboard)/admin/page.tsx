@@ -411,15 +411,27 @@ export default function AdminDashboardPage() {
     e.preventDefault();
     try {
       const sObj = sedes.find((s) => s.id === carreraForm.sede_id);
-      await db.addCarrera({
-        clave: carreraForm.clave,
-        nombre: carreraForm.nombre,
-        nivel: carreraForm.nivel,
-        sede_id: carreraForm.sede_id,
-        sede_nombre: sObj?.nombre,
-      });
-      showToast(`Carrera ${carreraForm.nombre} agregada.`);
+      if (editingId) {
+        await db.updateCarrera(editingId, {
+          clave: carreraForm.clave,
+          nombre: carreraForm.nombre,
+          nivel: carreraForm.nivel,
+          sede_id: carreraForm.sede_id,
+          sede_nombre: sObj?.nombre,
+        });
+        showToast(`Carrera ${carreraForm.nombre} actualizada.`);
+      } else {
+        await db.addCarrera({
+          clave: carreraForm.clave,
+          nombre: carreraForm.nombre,
+          nivel: carreraForm.nivel,
+          sede_id: carreraForm.sede_id,
+          sede_nombre: sObj?.nombre,
+        });
+        showToast(`Carrera ${carreraForm.nombre} agregada.`);
+      }
       setModalType(null);
+      setEditingId(null);
       setCarreraForm({ clave: '', nombre: '', nivel: 'Licenciatura', sede_id: '' });
       loadData();
     } catch (err: any) {
@@ -439,16 +451,29 @@ export default function AdminDashboardPage() {
   const handleSaveMateria = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await db.addMateria({
-        clave: materiaForm.clave,
-        nombre: materiaForm.nombre,
-        carrera_id: materiaForm.carrera_id,
-        creditos: Number(materiaForm.creditos),
-        semestre: materiaForm.semestre,
-        horas_semana: Number(materiaForm.horas_semana),
-      });
-      showToast(`Asignatura ${materiaForm.nombre} registrada.`);
+      if (editingId) {
+        await db.updateMateria(editingId, {
+          clave: materiaForm.clave,
+          nombre: materiaForm.nombre,
+          carrera_id: materiaForm.carrera_id,
+          creditos: Number(materiaForm.creditos),
+          semestre: materiaForm.semestre,
+          horas_semana: Number(materiaForm.horas_semana),
+        });
+        showToast(`Asignatura ${materiaForm.nombre} actualizada.`);
+      } else {
+        await db.addMateria({
+          clave: materiaForm.clave,
+          nombre: materiaForm.nombre,
+          carrera_id: materiaForm.carrera_id,
+          creditos: Number(materiaForm.creditos),
+          semestre: materiaForm.semestre,
+          horas_semana: Number(materiaForm.horas_semana),
+        });
+        showToast(`Asignatura ${materiaForm.nombre} registrada.`);
+      }
       setModalType(null);
+      setEditingId(null);
       setMateriaForm({
         clave: '',
         nombre: '',
@@ -1799,6 +1824,7 @@ export default function AdminDashboardPage() {
                 </div>
                 <button
                   onClick={() => {
+                    setEditingId(null);
                     setCarreraForm({
                       clave: `LIC-${Date.now().toString().slice(-3)}`,
                       nombre: '',
@@ -1818,7 +1844,7 @@ export default function AdminDashboardPage() {
                 {carreras.map((car) => (
                   <div
                     key={car.id}
-                    className="p-3.5 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-between"
+                    className="p-3.5 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-between hover:border-white/20 transition-colors"
                   >
                     <div>
                       <div className="flex items-center space-x-2">
@@ -1834,12 +1860,31 @@ export default function AdminDashboardPage() {
                         Sede: {car.sede_nombre || 'Campus Magdalena Contreras'}
                       </p>
                     </div>
-                    <button
-                      onClick={() => handleDeleteCarrera(car.id, car.nombre)}
-                      className="p-1.5 rounded-lg text-gray-500 hover:text-rose-400 hover:bg-white/5 transition-all"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center space-x-1">
+                      <button
+                        onClick={() => {
+                          setEditingId(car.id);
+                          setCarreraForm({
+                            clave: car.clave,
+                            nombre: car.nombre,
+                            nivel: car.nivel,
+                            sede_id: car.sede_id || sedes[0]?.id || '',
+                          });
+                          setModalType('carrera');
+                        }}
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-amber-400 hover:bg-white/5 transition-all"
+                        title="Editar Carrera"
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteCarrera(car.id, car.nombre)}
+                        className="p-1.5 rounded-lg text-gray-500 hover:text-rose-400 hover:bg-white/5 transition-all"
+                        title="Eliminar Carrera"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1859,6 +1904,7 @@ export default function AdminDashboardPage() {
                 </div>
                 <button
                   onClick={() => {
+                    setEditingId(null);
                     setMateriaForm({
                       clave: '',
                       nombre: '',
@@ -1882,7 +1928,7 @@ export default function AdminDashboardPage() {
                   return (
                     <div
                       key={m.id}
-                      className="p-3.5 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-between"
+                      className="p-3.5 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-between hover:border-white/20 transition-colors"
                     >
                       <div>
                         <div className="flex items-center space-x-2">
@@ -1901,12 +1947,33 @@ export default function AdminDashboardPage() {
                           Programa: {carObj?.nombre || 'Licenciatura UNRC'}
                         </p>
                       </div>
-                      <button
-                        onClick={() => handleDeleteMateria(m.id, m.nombre)}
-                        className="p-1.5 rounded-lg text-gray-500 hover:text-rose-400 hover:bg-white/5 transition-all"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center space-x-1">
+                        <button
+                          onClick={() => {
+                            setEditingId(m.id);
+                            setMateriaForm({
+                              clave: m.clave,
+                              nombre: m.nombre,
+                              carrera_id: m.carrera_id,
+                              creditos: m.creditos,
+                              semestre: m.semestre,
+                              horas_semana: m.horas_semana || 6,
+                            });
+                            setModalType('materia');
+                          }}
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-teal-400 hover:bg-white/5 transition-all"
+                          title="Editar Asignatura"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteMateria(m.id, m.nombre)}
+                          className="p-1.5 rounded-lg text-gray-500 hover:text-rose-400 hover:bg-white/5 transition-all"
+                          title="Eliminar Asignatura"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
@@ -3157,7 +3224,7 @@ export default function AdminDashboardPage() {
             <div className="flex items-center justify-between border-b border-white/10 pb-4">
               <h3 className="text-lg font-bold text-white flex items-center space-x-2">
                 <GraduationCap className="w-5 h-5 text-amber-400" />
-                <span>Registrar Nueva Carrera</span>
+                <span>{editingId ? 'Editar Carrera / Programa' : 'Registrar Nueva Carrera'}</span>
               </h3>
               <button onClick={() => setModalType(null)} className="text-gray-400 hover:text-white">
                 <X className="w-5 h-5" />
@@ -3230,7 +3297,7 @@ export default function AdminDashboardPage() {
                   type="submit"
                   className="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold shadow-lg"
                 >
-                  Crear Carrera
+                  {editingId ? 'Actualizar Carrera' : 'Crear Carrera'}
                 </button>
               </div>
             </form>
@@ -3247,7 +3314,7 @@ export default function AdminDashboardPage() {
             <div className="flex items-center justify-between border-b border-white/10 pb-4">
               <h3 className="text-lg font-bold text-white flex items-center space-x-2">
                 <BookOpen className="w-5 h-5 text-teal-400" />
-                <span>Agregar Asignatura</span>
+                <span>{editingId ? 'Editar Asignatura' : 'Agregar Asignatura'}</span>
               </h3>
               <button onClick={() => setModalType(null)} className="text-gray-400 hover:text-white">
                 <X className="w-5 h-5" />
@@ -3350,7 +3417,7 @@ export default function AdminDashboardPage() {
                   type="submit"
                   className="px-5 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold shadow-lg"
                 >
-                  Guardar Asignatura
+                  {editingId ? 'Actualizar Asignatura' : 'Guardar Asignatura'}
                 </button>
               </div>
             </form>

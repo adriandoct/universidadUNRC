@@ -913,6 +913,24 @@ export const db = {
     return true;
   },
 
+  updateCarrera: async (id: string, updates: Partial<Carrera>): Promise<Carrera | null> => {
+    initLocalStorage();
+    const list = await db.getCarreras();
+    const index = list.findIndex(c => c.id === id || c.clave === id);
+    if (index === -1) return null;
+    list[index] = { ...list[index], ...updates };
+    localStorage.setItem('unrc_carreras', JSON.stringify(list));
+    if (supabase) {
+      try {
+        await supabase.from('carreras').update(updates).eq('id', id);
+      } catch (e) {
+        console.warn('Supabase carrera update notice:', e);
+      }
+    }
+    await db.addAuditoria('MODIFICACION_CARRERA', 'Oferta Académica', `Se actualizó la carrera ${list[index].nombre} (${list[index].clave})`, 'Administrador');
+    return list[index];
+  },
+
   addMateria: async (materia: Omit<Materia, 'id'>): Promise<Materia> => {
     initLocalStorage();
     const list = await db.getMaterias();
@@ -931,6 +949,24 @@ export const db = {
     }
     await db.addAuditoria('ALTA_MATERIA', 'Plan Curricular', `Se agregó asignatura ${newMateria.nombre} (${newMateria.clave})`, 'Administrador');
     return newMateria;
+  },
+
+  updateMateria: async (id: string, updates: Partial<Materia>): Promise<Materia | null> => {
+    initLocalStorage();
+    const list = await db.getMaterias();
+    const index = list.findIndex(m => m.id === id || m.clave === id);
+    if (index === -1) return null;
+    list[index] = { ...list[index], ...updates };
+    localStorage.setItem('unrc_materias', JSON.stringify(list));
+    if (supabase) {
+      try {
+        await supabase.from('materias').update(updates).eq('id', id);
+      } catch (e) {
+        console.warn('Supabase materia update notice:', e);
+      }
+    }
+    await db.addAuditoria('MODIFICACION_MATERIA', 'Plan Curricular', `Se actualizó la asignatura ${list[index].nombre} (${list[index].clave})`, 'Administrador');
+    return list[index];
   },
 
   deleteMateria: async (id: string): Promise<boolean> => {
