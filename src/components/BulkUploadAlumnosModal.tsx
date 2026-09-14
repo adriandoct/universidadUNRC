@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import {
   X,
   FileSpreadsheet,
@@ -14,7 +14,11 @@ import {
   Trash2,
   Check,
   Building,
-  GraduationCap
+  GraduationCap,
+  SlidersHorizontal,
+  ChevronDown,
+  ChevronUp,
+  Info
 } from 'lucide-react';
 import { Alumno, Carrera, Sede, CicloEscolar, db, getDefaultUserPassword } from '@/lib/db';
 
@@ -32,6 +36,7 @@ interface BulkUploadAlumnosModalProps {
 interface ParsedAlumnoRow {
   index: number;
   matricula: string;
+  isMatriculaGenerated?: boolean;
   nombre: string;
   apellido_paterno: string;
   apellido_materno: string;
@@ -50,6 +55,22 @@ interface ParsedAlumnoRow {
   errorMessage?: string;
 }
 
+interface ColumnMapping {
+  colMatricula: number;
+  colAlumnoCompleto: number;
+  colNombre: number;
+  colPaterno: number;
+  colMaterno: number;
+  colGrado: number;
+  colGrupo: number;
+  colCarrera: number;
+  colSede: number;
+  colEstado: number;
+  colTutor: number;
+  colTelefono: number;
+  colPassword: number;
+}
+
 export default function BulkUploadAlumnosModal({
   isOpen,
   onClose,
@@ -61,14 +82,50 @@ export default function BulkUploadAlumnosModal({
   showToast
 }: BulkUploadAlumnosModalProps) {
   const [file, setFile] = useState<File | null>(null);
+  const [fileRawContent, setFileRawContent] = useState<string>('');
   const [parsedRows, setParsedRows] = useState<ParsedAlumnoRow[]>([]);
-  const [isProcessingFile, setIsProcessingFile] = useState(false);
+  const [detectedHeaders, setDetectedHeaders] = useState<string[]>([]);
+  const [headerRowIdx, setHeaderRowIdx] = useState<number>(0);
+  const [delimiterChar, setDelimiterChar] = useState<string>(',');
+  const [columnMapping, setColumnMapping] = useState<ColumnMapping>({
+    colMatricula: -1,
+    colAlumnoCompleto: -1,
+    colNombre: -1,
+    colPaterno: -1,
+    colMaterno: -1,
+    colGrado: -1,
+    colGrupo: -1,
+    colCarrera: -1,
+    colSede: -1,
+    colEstado: -1,
+    colTutor: -1,
+    colTelefono: -1,
+    colPassword: -1
+  });
+
+  // Default fallbacks from filename or selectors
+  const [defaultCarreraId, setDefaultCarreraId] = useState<string>('');
+  const [defaultGrupo, setDefaultGrupo] = useState<string>('201');
+  const [defaultGrado, setDefaultGrado] = useState<string>('2° Semestre');
+  const [defaultSedeId, setDefaultSedeId] = useState<string>('');
+
+  const [showMappingSettings, setShowMappingSettings] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [updateExisting, setUpdateExisting] = useState(true);
   const [filterView, setFilterView] = useState<'all' | 'valid' | 'exists' | 'error'>('all');
   const [dragActive, setDragActive] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Initialize default selectors from props
+  useEffect(() => {
+    if (carreras.length > 0 && !defaultCarreraId) {
+      setDefaultCarreraId(carreras[0].id);
+    }
+    if (sedes.length > 0 && !defaultSedeId) {
+      setDefaultSedeId(sedes[0].id);
+    }
+  }, [carreras, sedes]);
 
   if (!isOpen) return null;
 
@@ -157,7 +214,7 @@ export default function BulkUploadAlumnosModal({
     showToast('Plantilla oficial descargada correctamente', 'info');
   };
 
-  // 2. CSV Line Parser supporting quotes and delimiters (, or ;)
+  // 2. CSV Line Parser supporting quotes and delimiters (, or ; or \t)
   const parseCSVLine = (text: string, delimiter: string): string[] => {
     const result: string[] = [];
     let cur = '';
@@ -185,173 +242,317 @@ export default function BulkUploadAlumnosModal({
     return result;
   };
 
-  // 3. Process CSV file content
-  const processCSV = (content: string) => {
-    setIsProcessingFile(true);
+  // Split single full name into nombre, apellido_paterno, apellido_materno
+  const splitFullName = (full: string) => {
+    const clean = full.trim().replace(/\s+/g, ' ');
+    if (!clean) return { nombre: '', apellido_paterno: '', apellido_materno: '' };
+
+    // Format: "APELLIDOS, NOMBRES" (very common in school exports)
+    if (clean.includes(',')) {
+      const parts = clean.split(',');
+      const apellidos = (parts[0] || '').trim().split(' ');
+      const nombres = (parts[1] || '').trim();
+      return {
+        nombre: nombres || apellidos[0] || '',
+        apellido_paterno: apellidos[0] || '',
+        apellido_materno: apellidos.slice(1).join(' ') || ''
+      };
+    }
+
+    const words = clean.split(' ');
+    if (words.length === 1) {
+      return { nombre: words[0], apellido_paterno: words[0], apellido_materno: '' };
+    }
+    if (words.length === 2) {
+      return { nombre: words[0], apellido_paterno: words[1], apellido_materno: '' };
+    }
+    if (words.length === 3) {
+      // E.g. "Morales Flores Stephanie" (Mexican lists typically start with paternal & maternal surname)
+      return {
+        apellido_paterno: words[0],
+        apellido_materno: words[1],
+        nombre: words[2]
+      };
+    }
+    // 4 or more: First two are surnames, rest are names
+    return {
+      apellido_paterno: words[0],
+      apellido_materno: words[1],
+      nombre: words.slice(2).join(' ')
+    };
+  };
+
+  // 3. Main parser engine with header search and content tolerance
+  const analyzeAndParseContent = (
+    content: string,
+    filename = '',
+    customMapping?: Partial<ColumnMapping>,
+    overrideHeaderIdx?: number
+  ) => {
     try {
-      // Remove UTF-8 BOM if present
       const cleanContent = content.replace(/^\uFEFF/, '');
       const rawLines = cleanContent.split(/\r\n|\n|\r/).filter((l) => l.trim().length > 0);
 
-      if (rawLines.length < 2) {
-        showToast('El archivo CSV debe contener una fila de encabezados y al menos un registro.', 'error');
+      if (rawLines.length === 0) {
         setParsedRows([]);
         return;
       }
 
-      // Detect delimiter (, or ;)
-      const firstLine = rawLines[0];
-      const semicolonCount = (firstLine.match(/;/g) || []).length;
-      const commaCount = (firstLine.match(/,/g) || []).length;
-      const delimiter = semicolonCount > commaCount ? ';' : ',';
+      // Infer Carrera and Grupo from Filename if available
+      // Example: "LCDN 201 PROGRAMACION PARA LA CIENCIA DE DATOS - Hoja 1.csv"
+      let inferredCarreraId = defaultCarreraId;
+      let inferredGrupo = defaultGrupo;
+      let inferredGrado = defaultGrado;
 
-      const headerTokens = parseCSVLine(firstLine, delimiter).map((h) =>
-        h.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[\s_-]+/g, '')
+      const upperFilename = filename.toUpperCase();
+      if (upperFilename.includes('LCDN') || upperFilename.includes('CIENCIA DE DATOS') || upperFilename.includes('DATOS')) {
+        const found = carreras.find(c => c.clave?.includes('CDIA') || c.nombre.toLowerCase().includes('datos'));
+        if (found) inferredCarreraId = found.id;
+      } else if (upperFilename.includes('TURISMO') || upperFilename.includes('TUR')) {
+        const found = carreras.find(c => c.clave?.includes('TUR') || c.nombre.toLowerCase().includes('turismo'));
+        if (found) inferredCarreraId = found.id;
+      } else if (upperFilename.includes('ADMINISTRACION') || upperFilename.includes('ADM')) {
+        const found = carreras.find(c => c.clave?.includes('ADM') || c.nombre.toLowerCase().includes('administración'));
+        if (found) inferredCarreraId = found.id;
+      } else if (upperFilename.includes('TIC') || upperFilename.includes('TECNOLOGIAS')) {
+        const found = carreras.find(c => c.clave?.includes('TIC') || c.nombre.toLowerCase().includes('tecnologías'));
+        if (found) inferredCarreraId = found.id;
+      } else if (upperFilename.includes('CIBER') || upperFilename.includes('CIB')) {
+        const found = carreras.find(c => c.clave?.includes('CIB') || c.nombre.toLowerCase().includes('ciberseguridad'));
+        if (found) inferredCarreraId = found.id;
+      }
+
+      // Infer group
+      const groupMatch = upperFilename.match(/\b([1-8]0[1-9](?:-[A-Z]+)?)\b/);
+      if (groupMatch) {
+        inferredGrupo = groupMatch[1];
+        const semDigit = inferredGrupo.charAt(0);
+        inferredGrado = `${semDigit}° Semestre`;
+      }
+
+      if (inferredCarreraId && inferredCarreraId !== defaultCarreraId) {
+        setDefaultCarreraId(inferredCarreraId);
+      }
+      if (inferredGrupo && inferredGrupo !== defaultGrupo) {
+        setDefaultGrupo(inferredGrupo);
+      }
+      if (inferredGrado && inferredGrado !== defaultGrado) {
+        setDefaultGrado(inferredGrado);
+      }
+
+      // Auto-detect delimiter
+      const sampleChunk = rawLines.slice(0, 5).join('\n');
+      const commaMatches = (sampleChunk.match(/,/g) || []).length;
+      const semicolonMatches = (sampleChunk.match(/;/g) || []).length;
+      const tabMatches = (sampleChunk.match(/\t/g) || []).length;
+
+      let detectedDelim = ',';
+      if (semicolonMatches > commaMatches && semicolonMatches > tabMatches) detectedDelim = ';';
+      else if (tabMatches > commaMatches && tabMatches > semicolonMatches) detectedDelim = '\t';
+      setDelimiterChar(detectedDelim);
+
+      // Score first 15 lines to identify the table header row
+      const keywordWeight = (str: string): number => {
+        const s = str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        let score = 0;
+        if (s.includes('matricula') || s.includes('student') || s.includes('cuenta') || s.includes('control') || s.includes('boleta')) score += 5;
+        if (s.includes('alumno') || s.includes('estudiante') || s.includes('nombre') || s.includes('paterno')) score += 5;
+        if (s.includes('grupo') || s.includes('seccion') || s.includes('grado') || s.includes('semestre')) score += 3;
+        if (s.includes('carrera') || s.includes('sede') || s.includes('campus') || s.includes('tutor') || s.includes('telefono')) score += 2;
+        if (s === 'no' || s === 'num' || s === '#' || s === 'n°') score += 2;
+        return score;
+      };
+
+      let bestHeaderIdx = overrideHeaderIdx !== undefined ? overrideHeaderIdx : 0;
+      let maxScore = -1;
+
+      if (overrideHeaderIdx === undefined) {
+        const maxSearchLines = Math.min(rawLines.length, 12);
+        for (let idx = 0; idx < maxSearchLines; idx++) {
+          const tokens = parseCSVLine(rawLines[idx], detectedDelim);
+          const lineScore = tokens.reduce((acc, t) => acc + keywordWeight(t), 0);
+          if (lineScore > maxScore) {
+            maxScore = lineScore;
+            bestHeaderIdx = idx;
+          }
+        }
+      }
+
+      setHeaderRowIdx(bestHeaderIdx);
+      const rawHeaders = parseCSVLine(rawLines[bestHeaderIdx], detectedDelim);
+      setDetectedHeaders(rawHeaders);
+
+      const normalizedHeaders = rawHeaders.map((h) =>
+        h.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[\s_.-]+/g, '')
       );
 
-      // Find column indices with broad alias support
-      const findCol = (...aliases: string[]) => {
-        return headerTokens.findIndex((h) =>
+      const findIdx = (...aliases: string[]) => {
+        return normalizedHeaders.findIndex((h) =>
           aliases.some((a) => h === a || h.includes(a))
         );
       };
 
-      const colMatricula = findCol('matricula', 'studentcode', 'codigo', 'clave', 'id');
-      const colNombre = findCol('nombre', 'nombres', 'firstname', 'name');
-      const colPaterno = findCol('apellidopaterno', 'paterno', 'primerapellido', 'lastname');
-      const colMaterno = findCol('apellidomaterno', 'materno', 'segundoapellido');
-      const colGrado = findCol('grado', 'semestre', 'gradelevel', 'semestregrado');
-      const colGrupo = findCol('grupo', 'seccion', 'secciongrupo', 'section');
-      const colCarrera = findCol('carrera', 'licenciatura', 'carreraid', 'carreranombre');
-      const colSede = findCol('sede', 'campus', 'sedeid', 'sedenombre');
-      const colEstado = findCol('estadomatricula', 'estado', 'status');
-      const colTutor = findCol('tutor', 'docentetitular', 'tutorlegal', 'guardian');
-      const colTelefono = findCol('telefono', 'celular', 'tel', 'phone');
-      const colPassword = findCol('password', 'contrasena', 'contrasenia', 'claveacceso');
+      // Compute Mapping (or merge with custom override)
+      const mapping: ColumnMapping = {
+        colMatricula: customMapping?.colMatricula !== undefined ? customMapping.colMatricula : findIdx('matricula', 'studentcode', 'codigo', 'clave', 'nocontrol', 'control', 'nocuenta', 'cuenta', 'expediente', 'boleta', 'folio', 'id'),
+        colAlumnoCompleto: customMapping?.colAlumnoCompleto !== undefined ? customMapping.colAlumnoCompleto : findIdx('alumno', 'estudiante', 'nombrecompleto', 'nombredelalumno', 'nombrealumno', 'nombreestudiante', 'nombresyapellidos', 'apellidosynombres', 'alumnos'),
+        colNombre: customMapping?.colNombre !== undefined ? customMapping.colNombre : findIdx('nombre', 'nombres', 'firstname', 'name'),
+        colPaterno: customMapping?.colPaterno !== undefined ? customMapping.colPaterno : findIdx('apellidopaterno', 'paterno', 'primerapellido', 'apellidos', 'lastname'),
+        colMaterno: customMapping?.colMaterno !== undefined ? customMapping.colMaterno : findIdx('apellidomaterno', 'materno', 'segundoapellido'),
+        colGrado: customMapping?.colGrado !== undefined ? customMapping.colGrado : findIdx('grado', 'semestre', 'gradelevel', 'nivel'),
+        colGrupo: customMapping?.colGrupo !== undefined ? customMapping.colGrupo : findIdx('grupo', 'seccion', 'section'),
+        colCarrera: customMapping?.colCarrera !== undefined ? customMapping.colCarrera : findIdx('carrera', 'licenciatura', 'programa'),
+        colSede: customMapping?.colSede !== undefined ? customMapping.colSede : findIdx('sede', 'campus', 'plantel'),
+        colEstado: customMapping?.colEstado !== undefined ? customMapping.colEstado : findIdx('estadomatricula', 'estado', 'status'),
+        colTutor: customMapping?.colTutor !== undefined ? customMapping.colTutor : findIdx('tutor', 'docentetitular', 'tutorlegal', 'profesor'),
+        colTelefono: customMapping?.colTelefono !== undefined ? customMapping.colTelefono : findIdx('telefono', 'celular', 'tel', 'phone'),
+        colPassword: customMapping?.colPassword !== undefined ? customMapping.colPassword : findIdx('password', 'contrasena', 'contrasenia', 'clave')
+      };
 
-      if (colMatricula === -1 || colNombre === -1 || colPaterno === -1) {
-        showToast(
-          'Encabezados requeridos no encontrados. El CSV debe incluir: matricula, nombre, apellido_paterno.',
-          'error'
-        );
-        setParsedRows([]);
-        return;
+      // Fallback heuristics: If colNombre is -1 and colAlumnoCompleto is -1, inspect columns
+      if (mapping.colNombre === -1 && mapping.colAlumnoCompleto === -1) {
+        // Look for any header that has 'alum' or 'estud' or 'nom'
+        const candidate = normalizedHeaders.findIndex(h => h.includes('alum') || h.includes('estud') || h.includes('nom'));
+        if (candidate !== -1) {
+          mapping.colAlumnoCompleto = candidate;
+        } else if (rawHeaders.length >= 2) {
+          // Default column 1 to name if column 0 looks like number/id
+          mapping.colAlumnoCompleto = 1;
+        } else if (rawHeaders.length === 1) {
+          mapping.colAlumnoCompleto = 0;
+        }
       }
 
+      setColumnMapping(mapping);
+
+      // Now parse data rows
+      const startLine = bestHeaderIdx + 1;
       const rows: ParsedAlumnoRow[] = [];
       const seenMatriculasInFile = new Set<string>();
 
-      for (let i = 1; i < rawLines.length; i++) {
-        const line = rawLines[i];
-        if (!line.trim()) continue;
+      const activeCarreraObj = carreras.find(c => c.id === inferredCarreraId) || carreras[0];
+      const activeSedeObj = sedes.find(s => s.id === defaultSedeId) || sedes[0];
 
-        const values = parseCSVLine(line, delimiter);
-        const matricula = (colMatricula >= 0 ? values[colMatricula] : '').trim();
-        const nombre = (colNombre >= 0 ? values[colNombre] : '').trim();
-        const apellido_paterno = (colPaterno >= 0 ? values[colPaterno] : '').trim();
-        const apellido_materno = (colMaterno >= 0 ? values[colMaterno] : '').trim();
-        const rawGrado = (colGrado >= 0 ? values[colGrado] : '').trim();
-        const rawGrupo = (colGrupo >= 0 ? values[colGrupo] : '').trim();
-        const rawCarrera = (colCarrera >= 0 ? values[colCarrera] : '').trim();
-        const rawSede = (colSede >= 0 ? values[colSede] : '').trim();
-        const rawEstado = (colEstado >= 0 ? values[colEstado] : '').trim().toLowerCase();
-        const rawTutor = (colTutor >= 0 ? values[colTutor] : '').trim();
-        const rawTelefono = (colTelefono >= 0 ? values[colTelefono] : '').trim();
-        const rawPassword = (colPassword >= 0 ? values[colPassword] : '').trim();
+      for (let i = startLine; i < rawLines.length; i++) {
+        const line = rawLines[i].trim();
+        if (!line) continue;
 
-        // Check required fields
-        const missingFields: string[] = [];
-        if (!matricula) missingFields.push('matrícula');
-        if (!nombre) missingFields.push('nombre');
-        if (!apellido_paterno) missingFields.push('apellido paterno');
+        const values = parseCSVLine(line, detectedDelim);
+        if (values.length === 0 || values.every((v) => !v)) continue;
 
-        // Resolve carrera matching
+        // Matricula
+        let rawMatricula = (mapping.colMatricula >= 0 ? values[mapping.colMatricula] : '').trim();
+        let isMatriculaGenerated = false;
+
+        // If matricula is missing, empty, or just sequential row numbers like '1', '2'
+        if (!rawMatricula || /^[0-9]{1,3}$/.test(rawMatricula)) {
+          rawMatricula = `UNRC-2026-${String(existingAlumnos.length + rows.length + 10).padStart(3, '0')}`;
+          isMatriculaGenerated = true;
+        }
+
+        // Names
+        let nombreVal = (mapping.colNombre >= 0 ? values[mapping.colNombre] : '').trim();
+        let paternoVal = (mapping.colPaterno >= 0 ? values[mapping.colPaterno] : '').trim();
+        let maternoVal = (mapping.colMaterno >= 0 ? values[mapping.colMaterno] : '').trim();
+
+        // If single full name column
+        if (mapping.colAlumnoCompleto >= 0 && (!nombreVal || !paternoVal)) {
+          const full = (values[mapping.colAlumnoCompleto] || '').trim();
+          if (full) {
+            const split = splitFullName(full);
+            nombreVal = split.nombre;
+            paternoVal = split.apellido_paterno;
+            maternoVal = split.apellido_materno;
+          }
+        }
+
+        // Degree, Group, Carrera, Sede
+        const rawGrado = (mapping.colGrado >= 0 ? values[mapping.colGrado] : '').trim() || inferredGrado || '2° Semestre';
+        const rawGrupo = (mapping.colGrupo >= 0 ? values[mapping.colGrupo] : '').trim() || inferredGrupo || '201';
+        const rawCarrera = (mapping.colCarrera >= 0 ? values[mapping.colCarrera] : '').trim();
+        const rawSede = (mapping.colSede >= 0 ? values[mapping.colSede] : '').trim();
+        const rawEstado = (mapping.colEstado >= 0 ? values[mapping.colEstado] : '').trim().toLowerCase();
+        const rawTutor = (mapping.colTutor >= 0 ? values[mapping.colTutor] : '').trim();
+        const rawTelefono = (mapping.colTelefono >= 0 ? values[mapping.colTelefono] : '').trim();
+        const rawPassword = (mapping.colPassword >= 0 ? values[mapping.colPassword] : '').trim();
+
+        // Match Carrera
         let resolvedCarrera = carreras.find((c) =>
           c.id === rawCarrera ||
           c.clave?.toLowerCase() === rawCarrera.toLowerCase() ||
           c.nombre?.toLowerCase().includes(rawCarrera.toLowerCase()) ||
           rawCarrera.toLowerCase().includes(c.nombre?.toLowerCase())
-        );
-        if (!resolvedCarrera && carreras.length > 0) {
-          resolvedCarrera = carreras[0];
-        }
+        ) || activeCarreraObj;
 
-        // Resolve sede matching
+        // Match Sede
         let resolvedSede = sedes.find((s) =>
           s.id === rawSede ||
           s.clave?.toLowerCase() === rawSede.toLowerCase() ||
           s.nombre?.toLowerCase().includes(rawSede.toLowerCase()) ||
           rawSede.toLowerCase().includes(s.nombre?.toLowerCase())
-        );
-        if (!resolvedSede && sedes.length > 0) {
-          resolvedSede = sedes[0];
-        }
+        ) || activeSedeObj;
 
-        // Resolve estado
+        // Match Estado
         let resolvedEstado: 'activo' | 'baja_temporal' | 'egresado' | 'aspirante' = 'activo';
         if (rawEstado.includes('baja')) resolvedEstado = 'baja_temporal';
         else if (rawEstado.includes('egres')) resolvedEstado = 'egresado';
         else if (rawEstado.includes('aspir')) resolvedEstado = 'aspirante';
 
-        // Check existence
-        const existsInDb = existingAlumnos.some(
-          (a) => (a.matricula || '').trim().toLowerCase() === matricula.toLowerCase()
-        );
-
+        // Check validation status
         let status: 'valid' | 'exists' | 'error' = 'valid';
         let errorMessage: string | undefined = undefined;
 
-        if (missingFields.length > 0) {
+        if (!nombreVal && !paternoVal) {
           status = 'error';
-          errorMessage = `Campos faltantes: ${missingFields.join(', ')}`;
-        } else if (seenMatriculasInFile.has(matricula.toLowerCase())) {
+          errorMessage = 'Falta nombre del alumno';
+        } else if (!isMatriculaGenerated && seenMatriculasInFile.has(rawMatricula.toLowerCase())) {
           status = 'error';
-          errorMessage = `Matrícula duplicada dentro del mismo archivo CSV: ${matricula}`;
-        } else if (existsInDb) {
+          errorMessage = `Matrícula duplicada en el archivo: ${rawMatricula}`;
+        } else if (existingAlumnos.some(a => (a.matricula || '').trim().toLowerCase() === rawMatricula.toLowerCase())) {
           status = 'exists';
-          errorMessage = 'Matrícula ya registrada en el sistema escolar';
+          errorMessage = 'Matrícula ya registrada en el sistema';
         }
 
-        if (matricula) {
-          seenMatriculasInFile.add(matricula.toLowerCase());
+        if (rawMatricula) {
+          seenMatriculasInFile.add(rawMatricula.toLowerCase());
         }
 
         rows.push({
-          index: i,
-          matricula,
-          nombre,
-          apellido_paterno,
-          apellido_materno,
-          grado: rawGrado || '1° Semestre',
-          grupo: rawGrupo || '101',
+          index: i + 1,
+          matricula: rawMatricula,
+          isMatriculaGenerated,
+          nombre: nombreVal || paternoVal || 'Estudiante',
+          apellido_paterno: paternoVal || nombreVal || 'UNRC',
+          apellido_materno: maternoVal || '',
+          grado: rawGrado,
+          grupo: rawGrupo,
           carrera_id: resolvedCarrera?.id,
-          carrera: resolvedCarrera?.nombre || rawCarrera || 'Licenciatura UNRC',
+          carrera: resolvedCarrera?.nombre || 'Licenciatura en Ciencias de Datos e Inteligencia Artificial',
           sede_id: resolvedSede?.id,
-          sede_nombre: resolvedSede?.nombre || rawSede || 'Campus Magdalena Contreras',
+          sede_nombre: resolvedSede?.nombre || 'Campus Magdalena Contreras',
           estado_matricula: resolvedEstado,
           tutor: rawTutor || 'Dr. Adrian Silva',
           telefono: rawTelefono || '+525500000000',
           password: rawPassword,
-          qr_code: matricula,
+          qr_code: rawMatricula,
           status,
           errorMessage
         });
       }
 
       setParsedRows(rows);
-      showToast(`${rows.length} filas analizadas del archivo CSV.`, 'info');
+      if (rows.length > 0) {
+        showToast(`✅ ${rows.length} alumnos procesados y listos para previsualización.`, 'success');
+      } else {
+        showToast('No se encontraron filas de estudiantes en el archivo.', 'error');
+      }
     } catch (err: any) {
-      console.error('Error procesando archivo CSV:', err);
-      showToast(`Error al procesar el archivo CSV: ${err.message}`, 'error');
-    } finally {
-      setIsProcessingFile(false);
+      console.error('Error procesando CSV:', err);
+      showToast(`Error al procesar archivo CSV: ${err.message}`, 'error');
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = e.target.files?.[0];
-    if (!selected) return;
-
+  const handleFileSelected = (selected: File) => {
     if (!selected.name.toLowerCase().endsWith('.csv') && selected.type !== 'text/csv') {
       showToast('Por favor selecciona un archivo con extensión .csv', 'error');
       return;
@@ -361,50 +562,50 @@ export default function BulkUploadAlumnosModal({
     const reader = new FileReader();
     reader.onload = (event) => {
       const text = event.target?.result as string;
-      processCSV(text);
+      setFileRawContent(text);
+      analyzeAndParseContent(text, selected.name);
     };
     reader.readAsText(selected, 'UTF-8');
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = e.target.files?.[0];
+    if (selected) handleFileSelected(selected);
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-
     const droppedFile = e.dataTransfer.files?.[0];
-    if (!droppedFile) return;
-
-    if (!droppedFile.name.toLowerCase().endsWith('.csv')) {
-      showToast('El archivo debe tener formato .csv', 'error');
-      return;
-    }
-
-    setFile(droppedFile);
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const text = event.target?.result as string;
-      processCSV(text);
-    };
-    reader.readAsText(droppedFile, 'UTF-8');
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
+    if (droppedFile) handleFileSelected(droppedFile);
   };
 
   const handleResetFile = () => {
     setFile(null);
+    setFileRawContent('');
     setParsedRows([]);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+    setDetectedHeaders([]);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  // Re-run parsing if user changes a custom column mapping
+  const handleMappingChange = (field: keyof ColumnMapping, value: number) => {
+    const updated = { ...columnMapping, [field]: value };
+    setColumnMapping(updated);
+    if (fileRawContent && file) {
+      analyzeAndParseContent(fileRawContent, file.name, updated, headerRowIdx);
+    }
+  };
+
+  // Re-run parsing if user changes default carrera or grupo
+  const handleDefaultSettingChange = (carreraId: string, grupo: string, grado: string, sedeId: string) => {
+    setDefaultCarreraId(carreraId);
+    setDefaultGrupo(grupo);
+    setDefaultGrado(grado);
+    setDefaultSedeId(sedeId);
+    if (fileRawContent && file) {
+      analyzeAndParseContent(fileRawContent, file.name, columnMapping, headerRowIdx);
     }
   };
 
@@ -507,17 +708,11 @@ export default function BulkUploadAlumnosModal({
             <div className="md:col-span-2 space-y-1">
               <h4 className="font-semibold text-white flex items-center space-x-1.5 text-xs">
                 <GraduationCap className="w-4 h-4 text-blue-400" />
-                <span>Formato Requerido por la Base de Datos</span>
+                <span>Formato Inteligente y Flexible</span>
               </h4>
               <p className="text-gray-400 text-[11px] leading-relaxed">
-                El archivo debe incluir encabezados: <code className="text-blue-300 font-mono">matricula</code>,{' '}
-                <code className="text-blue-300 font-mono">nombre</code>,{' '}
-                <code className="text-blue-300 font-mono">apellido_paterno</code>,{' '}
-                <code className="text-blue-300 font-mono">grado</code>,{' '}
-                <code className="text-blue-300 font-mono">grupo</code>,{' '}
-                <code className="text-blue-300 font-mono">carrera</code>,{' '}
-                <code className="text-blue-300 font-mono">sede</code>.
-                Si no se especifica contraseña, se asignará automáticamente el formato oficial UNRC (<code className="text-emerald-300 font-mono">Matricula-2026-2</code>).
+                Admite listas de asistencia, actas o expedientes. Detecta nombres completos (ej. <code className="text-blue-300 font-mono">Morales Flores Stephanie</code>), columnas individuales o matrículas automáticas.
+                Si no se especifica contraseña, se asignará el estándar institucional (<code className="text-emerald-300 font-mono">Matricula-2026-2</code>).
               </p>
             </div>
             <div className="flex items-center justify-start md:justify-end">
@@ -536,8 +731,8 @@ export default function BulkUploadAlumnosModal({
           {!file ? (
             <div
               onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
+              onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
+              onDragLeave={() => setDragActive(false)}
               onClick={() => fileInputRef.current?.click()}
               className={`border-2 border-dashed rounded-3xl p-8 text-center cursor-pointer transition-all flex flex-col items-center justify-center space-y-3 ${
                 dragActive
@@ -560,11 +755,11 @@ export default function BulkUploadAlumnosModal({
                   Arrastra y suelta tu archivo <span className="text-blue-400">.CSV</span> aquí
                 </p>
                 <p className="text-xs text-gray-400">
-                  o haz clic para explorar tus documentos desde tu equipo
+                  o haz clic para seleccionar tu lista de alumnos de Excel o Google Sheets
                 </p>
               </div>
               <div className="text-[11px] text-gray-500 font-mono">
-                Soporta separadores por coma (,) y punto y coma (;), codificación UTF-8
+                Soporta separadores por coma (,), punto y coma (;) y tabulaciones
               </div>
             </div>
           ) : (
@@ -578,12 +773,22 @@ export default function BulkUploadAlumnosModal({
                   <div>
                     <p className="font-semibold text-white text-xs">{file.name}</p>
                     <p className="text-[11px] text-gray-400 font-mono">
-                      {(file.size / 1024).toFixed(1)} KB • {totalCount} filas procesadas
+                      {(file.size / 1024).toFixed(1)} KB • {totalCount} alumnos detectados • Delimitador: &quot;{delimiterChar}&quot;
                     </p>
                   </div>
                 </div>
 
                 <div className="flex items-center space-x-2 w-full sm:w-auto justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setShowMappingSettings(!showMappingSettings)}
+                    className="px-3 py-1.5 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 text-xs flex items-center space-x-1.5 transition-all"
+                  >
+                    <SlidersHorizontal className="w-3.5 h-3.5" />
+                    <span>Ajustar Columnas</span>
+                    {showMappingSettings ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                  </button>
+
                   <button
                     type="button"
                     onClick={handleResetFile}
@@ -595,6 +800,81 @@ export default function BulkUploadAlumnosModal({
                 </div>
               </div>
 
+              {/* Collapsible Column & Defaults Mapping Bar */}
+              {showMappingSettings && (
+                <div className="p-4 rounded-2xl bg-[#080d1a] border border-blue-500/20 space-y-3 animate-in fade-in duration-150">
+                  <div className="flex items-center justify-between">
+                    <h5 className="font-bold text-blue-300 text-xs flex items-center space-x-1.5">
+                      <SlidersHorizontal className="w-3.5 h-3.5" />
+                      <span>Configuración de Columnas y Valores por Defecto</span>
+                    </h5>
+                    <span className="text-[11px] text-gray-400">
+                      Encabezados encontrados en fila #{headerRowIdx + 1}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 gap-3 text-xs">
+                    <div>
+                      <label className="text-gray-400 block mb-1 text-[11px]">Columna Matrícula</label>
+                      <select
+                        value={columnMapping.colMatricula}
+                        onChange={(e) => handleMappingChange('colMatricula', Number(e.target.value))}
+                        className="w-full px-2.5 py-1.5 rounded-xl bg-black/40 border border-white/10 text-white text-xs"
+                      >
+                        <option value={-1}>Auto-generar UNRC-2026-xxx</option>
+                        {detectedHeaders.map((h, i) => (
+                          <option key={i} value={i}>
+                            Col {i + 1}: {h || `(vacía)`}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-gray-400 block mb-1 text-[11px]">Columna Nombre / Alumno</label>
+                      <select
+                        value={columnMapping.colAlumnoCompleto >= 0 ? columnMapping.colAlumnoCompleto : columnMapping.colNombre}
+                        onChange={(e) => handleMappingChange('colAlumnoCompleto', Number(e.target.value))}
+                        className="w-full px-2.5 py-1.5 rounded-xl bg-black/40 border border-white/10 text-white text-xs"
+                      >
+                        <option value={-1}>Seleccionar columna...</option>
+                        {detectedHeaders.map((h, i) => (
+                          <option key={i} value={i}>
+                            Col {i + 1}: {h || `(vacía)`}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-gray-400 block mb-1 text-[11px]">Carrera Asignada</label>
+                      <select
+                        value={defaultCarreraId}
+                        onChange={(e) => handleDefaultSettingChange(e.target.value, defaultGrupo, defaultGrado, defaultSedeId)}
+                        className="w-full px-2.5 py-1.5 rounded-xl bg-black/40 border border-white/10 text-white text-xs"
+                      >
+                        {carreras.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.nombre}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-gray-400 block mb-1 text-[11px]">Grupo / Sección</label>
+                      <input
+                        type="text"
+                        value={defaultGrupo}
+                        onChange={(e) => handleDefaultSettingChange(defaultCarreraId, e.target.value, defaultGrado, defaultSedeId)}
+                        placeholder="201-TUR"
+                        className="w-full px-2.5 py-1.5 rounded-xl bg-black/40 border border-white/10 text-white text-xs font-mono"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Statistics & Options bar */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div
@@ -605,7 +885,7 @@ export default function BulkUploadAlumnosModal({
                       : 'bg-black/30 border-white/5 text-gray-400 hover:border-white/20'
                   }`}
                 >
-                  <p className="text-[10px] uppercase tracking-wider font-semibold">Total Filas</p>
+                  <p className="text-[10px] uppercase tracking-wider font-semibold">Total Alumnos</p>
                   <p className="text-lg font-bold text-white mt-0.5">{totalCount}</p>
                 </div>
 
@@ -649,7 +929,7 @@ export default function BulkUploadAlumnosModal({
                 >
                   <p className="text-[10px] uppercase tracking-wider font-semibold text-red-400 flex items-center space-x-1">
                     <AlertCircle className="w-3 h-3" />
-                    <span>Con Errores</span>
+                    <span>Con Alertas</span>
                   </p>
                   <p className="text-lg font-bold text-red-400 mt-0.5">{errorCount}</p>
                 </div>
@@ -675,19 +955,21 @@ export default function BulkUploadAlumnosModal({
               {/* Data Preview Table */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-gray-400">
-                  <span className="font-semibold text-white">Previsualización de Alumnos ({filteredRows.length}):</span>
+                  <span className="font-semibold text-white">
+                    Previsualización de Alumnos ({filteredRows.length} de {totalCount}):
+                  </span>
                   <span className="text-[11px]">
                     Mostrando filtro: <strong className="text-blue-400 uppercase">{filterView}</strong>
                   </span>
                 </div>
 
-                <div className="border border-white/10 rounded-2xl overflow-hidden max-h-64 overflow-y-auto bg-black/40">
+                <div className="border border-white/10 rounded-2xl overflow-hidden max-h-72 overflow-y-auto bg-black/40 shadow-inner">
                   <table className="w-full text-left border-collapse">
                     <thead className="bg-[#111827] sticky top-0 border-b border-white/10 text-gray-400 text-[11px]">
                       <tr>
                         <th className="p-2.5">Estado</th>
                         <th className="p-2.5">Matrícula</th>
-                        <th className="p-2.5">Alumno</th>
+                        <th className="p-2.5">Alumno (Nombre Completo)</th>
                         <th className="p-2.5">Grado / Grupo</th>
                         <th className="p-2.5">Carrera</th>
                         <th className="p-2.5">Sede</th>
@@ -698,7 +980,7 @@ export default function BulkUploadAlumnosModal({
                     <tbody className="divide-y divide-white/5 text-[11px]">
                       {filteredRows.length === 0 ? (
                         <tr>
-                          <td colSpan={8} className="p-6 text-center text-gray-500">
+                          <td colSpan={8} className="p-8 text-center text-gray-500">
                             No hay registros para este filtro.
                           </td>
                         </tr>
@@ -722,36 +1004,51 @@ export default function BulkUploadAlumnosModal({
                                 </span>
                               )}
                               {r.status === 'exists' && (
-                                <span className="inline-flex items-center space-x-1 text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30 text-[10px]" title={r.errorMessage}>
+                                <span
+                                  className="inline-flex items-center space-x-1 text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30 text-[10px]"
+                                  title={r.errorMessage}
+                                >
                                   <AlertTriangle className="w-3 h-3" />
                                   <span>{updateExisting ? 'Actualizará' : 'Omitirá'}</span>
                                 </span>
                               )}
                               {r.status === 'error' && (
-                                <span className="inline-flex items-center space-x-1 text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full border border-red-500/30 text-[10px]" title={r.errorMessage}>
+                                <span
+                                  className="inline-flex items-center space-x-1 text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full border border-red-500/30 text-[10px]"
+                                  title={r.errorMessage}
+                                >
                                   <AlertCircle className="w-3 h-3" />
-                                  <span>Error</span>
+                                  <span>Alerta</span>
                                 </span>
                               )}
                             </td>
-                            <td className="p-2.5 font-mono text-white font-medium">{r.matricula || '-'}</td>
-                            <td className="p-2.5 font-medium text-white">
-                              {r.nombre} {r.apellido_paterno} {r.apellido_materno}
-                              {r.errorMessage && (
-                                <p className="text-[10px] text-red-400 font-normal">{r.errorMessage}</p>
+                            <td className="p-2.5 font-mono text-white font-medium whitespace-nowrap">
+                              <span>{r.matricula}</span>
+                              {r.isMatriculaGenerated && (
+                                <span className="ml-1 text-[9px] text-blue-400 bg-blue-500/10 px-1 py-0.2 rounded border border-blue-500/20">
+                                  auto
+                                </span>
                               )}
                             </td>
-                            <td className="p-2.5 text-gray-300">
-                              {r.grado} • <span className="font-mono text-blue-300">{r.grupo}</span>
+                            <td className="p-2.5 font-medium text-white">
+                              <span>
+                                {r.nombre} {r.apellido_paterno} {r.apellido_materno}
+                              </span>
+                              {r.errorMessage && (
+                                <p className="text-[10px] text-amber-400/90 font-normal">{r.errorMessage}</p>
+                              )}
                             </td>
-                            <td className="p-2.5 text-gray-300 truncate max-w-[160px]" title={r.carrera}>
+                            <td className="p-2.5 text-gray-300 whitespace-nowrap">
+                              {r.grado} • <span className="font-mono text-blue-300 font-semibold">{r.grupo}</span>
+                            </td>
+                            <td className="p-2.5 text-gray-300 truncate max-w-[170px]" title={r.carrera}>
                               {r.carrera}
                             </td>
                             <td className="p-2.5 text-gray-300 truncate max-w-[140px]" title={r.sede_nombre}>
                               {r.sede_nombre}
                             </td>
-                            <td className="p-2.5 text-gray-400">{r.tutor}</td>
-                            <td className="p-2.5 font-mono text-gray-300 text-[10px]">
+                            <td className="p-2.5 text-gray-400 whitespace-nowrap">{r.tutor}</td>
+                            <td className="p-2.5 font-mono text-gray-300 text-[10px] whitespace-nowrap">
                               {r.password?.trim()
                                 ? r.password
                                 : getDefaultUserPassword(r.matricula, '2026-2')}
@@ -772,11 +1069,11 @@ export default function BulkUploadAlumnosModal({
           <div className="text-[11px] text-gray-400">
             {file && (
               <span>
-                Se importarán/actualizarán:{' '}
+                Se importarán / guardarán:{' '}
                 <strong className="text-white">
                   {updateExisting ? validCount + existsCount : validCount}
                 </strong>{' '}
-                expedientes de {totalCount} filas totales.
+                alumnos de {totalCount} filas detectadas.
               </span>
             )}
           </div>
@@ -797,7 +1094,6 @@ export default function BulkUploadAlumnosModal({
               disabled={
                 !file ||
                 isSubmitting ||
-                isProcessingFile ||
                 (validCount === 0 && (!updateExisting || existsCount === 0))
               }
               className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:bg-gray-800 disabled:text-gray-500 disabled:border-transparent text-white text-xs font-bold shadow-lg shadow-emerald-600/20 transition-all flex items-center space-x-2"
