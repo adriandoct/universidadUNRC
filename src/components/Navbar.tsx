@@ -94,7 +94,9 @@ export const Navbar: React.FC = () => {
               >
                 <div className="hidden sm:block">
                   <div className="text-xs font-bold text-white truncate max-w-[140px]">{user.nombre}</div>
-                  <div className="text-[10px] text-amber-300 truncate max-w-[140px]">{user.email}</div>
+                  <div className="text-[10px] text-emerald-400 font-medium truncate max-w-[140px]">
+                    {role === 'administrador' ? 'Administrador' : role === 'docente' ? 'Docente Titular' : 'Estudiante UNRC'}
+                  </div>
                 </div>
 
                 {user.avatar_url ? (

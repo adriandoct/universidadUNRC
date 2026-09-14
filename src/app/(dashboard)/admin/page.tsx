@@ -34,9 +34,17 @@ import {
   UserCheck,
   Layers,
   Award,
-  ChevronRight,
-  Briefcase
+  Briefcase,
+  Globe,
+  FileText,
+  ExternalLink
 } from 'lucide-react';
+import { useAuth } from '@/lib/AuthContext';
+import {
+  generateDocenteHorarioPDF,
+  downloadDocenteICS,
+  createGoogleCalendarUrl
+} from '@/lib/horarioDocenteUtils';
 import {
   db,
   Docente,
@@ -65,7 +73,15 @@ type TabType =
   | 'anuncios';
 
 export default function AdminDashboardPage() {
+  const { user, role, isLoading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('personal');
+
+  // Strict Authentication Guard
+  useEffect(() => {
+    if (!authLoading && (!user || role !== 'administrador')) {
+      window.location.href = '/login?error=admin_required';
+    }
+  }, [user, role, authLoading]);
 
   // Core Data States
   const [sedes, setSedes] = useState<Sede[]>([]);
@@ -195,6 +211,7 @@ export default function AdminDashboardPage() {
     materia: 'Administración de Empresas de Hospedaje',
     grupo: '201-TUR',
     aula: 'Edificio A - Aula Magna 2',
+    es_en_linea: false,
   });
 
   const [alumnoForm, setAlumnoForm] = useState({
@@ -629,6 +646,16 @@ export default function AdminDashboardPage() {
     setAssignedMaterias(doc.materias || []);
     setAssignedHorarios(doc.horarios || []);
     setAssignedSede(doc.sede_nombre || 'Campus Magdalena Contreras');
+    setNewHorarioSlot({
+      dia: 'Miércoles',
+      hora_inicio: '09:00',
+      hora_fin: '11:00',
+      carrera: doc.carreras_asignadas?.[0] || doc.departamento || 'Lic. en Turismo',
+      materia: doc.materias?.[0] || 'Administración de Empresas de Hospedaje',
+      grupo: secciones[0]?.nombre || '201-TUR',
+      aula: 'Edificio A - Aula Magna 2',
+      es_en_linea: false,
+    });
     setModalType('asignar_docente');
   };
 
@@ -654,7 +681,7 @@ export default function AdminDashboardPage() {
       return;
     }
     setAssignedHorarios((prev) => [...prev, { ...newHorarioSlot, id: `h-${Date.now()}` }]);
-    showToast('Bloque de horario añadido');
+    showToast(`Bloque de horario añadido (${newHorarioSlot.es_en_linea ? 'En línea 🌐' : 'Presencial 🏛️'})`);
   };
 
   const handleRemoveHorarioSlot = (index: number) => {
@@ -664,11 +691,11 @@ export default function AdminDashboardPage() {
   const handleSaveAsignacionDocente = async () => {
     if (!selectedDocente) return;
     try {
-      // Build text summary of schedule
+      // Build text summary of schedule with modality indicator
       const summary =
         assignedHorarios.length > 0
           ? assignedHorarios
-              .map((h) => `${h.dia} (${h.hora_inicio} - ${h.hora_fin} hrs • ${h.grupo})`)
+              .map((h) => `${h.dia} (${h.hora_inicio}-${h.hora_fin} hrs • ${h.grupo} • ${h.es_en_linea ? 'En línea' : 'Presencial'})`)
               .join(' | ')
           : 'Sin horario fijado';
 
@@ -1228,7 +1255,7 @@ export default function AdminDashboardPage() {
                     <th className="p-3.5">Carreras / Departamento</th>
                     <th className="p-3.5">Horarios Asignados</th>
                     <th className="p-3.5">Sede</th>
-                    <th className="p-3.5">Contacto / Contraseña</th>
+                    <th className="p-3.5">Contacto</th>
                     <th className="p-3.5 text-right">Acciones</th>
                   </tr>
                 </thead>
@@ -1277,9 +1304,21 @@ export default function AdminDashboardPage() {
                             <span className="text-gray-500 text-[10px]">Por programar</span>
                           )}
                           {doc.horarios && doc.horarios.length > 0 && (
-                            <span className="text-[10px] text-emerald-400 font-semibold block">
-                              {doc.horarios.length} bloque(s) de clase configurados
-                            </span>
+                            <div className="flex items-center gap-1 text-[10px] flex-wrap">
+                              <span className="text-emerald-400 font-semibold">
+                                {doc.horarios.length} bloque(s)
+                              </span>
+                              {doc.horarios.some((h) => h.es_en_linea) && (
+                                <span className="px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/30">
+                                  🌐 En línea
+                                </span>
+                              )}
+                              {doc.horarios.some((h) => !h.es_en_linea) && (
+                                <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
+                                  🏛️ Presencial
+                                </span>
+                              )}
+                            </div>
                           )}
                         </div>
                       </td>
@@ -1292,23 +1331,47 @@ export default function AdminDashboardPage() {
                       <td className="p-3.5 text-gray-400 font-mono text-[11px]">
                         <div>{doc.telefono || 'Sin teléfono'}</div>
                         <div
-                          className="mt-1 flex items-center space-x-1 text-[10px] text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/25 max-w-fit font-mono font-bold"
-                          title="Contraseña institucional oficial activa"
+                          className="mt-1 flex items-center space-x-1 text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/25 max-w-fit font-bold"
+                          title="Acceso institucional protegido"
                         >
-                          <KeyRound className="w-3 h-3 text-amber-400 shrink-0" />
-                          <span>{doc.password || getDefaultUserPassword(doc.num_empleado, '2026-2')}</span>
+                          <KeyRound className="w-3 h-3 text-emerald-400 shrink-0" />
+                          <span>Protegida</span>
                         </div>
                       </td>
                       <td className="p-3.5 text-right">
                         <div className="flex items-center justify-end space-x-1.5">
-                          {/* Botón Asignar Horario & Carreras pedido en audio */}
+                          {/* Botón Asignar Horario & Carreras */}
                           <button
                             onClick={() => handleOpenAsignarDocente(doc)}
                             className="px-2.5 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 font-bold text-[11px] transition-all flex items-center space-x-1"
                             title="Asignar carreras y horarios de clase"
                           >
                             <Clock className="w-3.5 h-3.5" />
-                            <span>Asignar Horario</span>
+                            <span>Horarios</span>
+                          </button>
+
+                          {/* Botón Descargar Horario PDF */}
+                          <button
+                            onClick={() => {
+                              generateDocenteHorarioPDF(doc);
+                              showToast(`Horario en PDF descargado para ${doc.nombre} ${doc.apellido_paterno}`);
+                            }}
+                            className="p-1.5 rounded-xl bg-blue-500/15 hover:bg-blue-500/30 text-blue-300 border border-blue-500/30 transition-all"
+                            title="Descargar horario oficial en PDF para el docente"
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* Botón Sincronizar Google Calendar (.ics) */}
+                          <button
+                            onClick={() => {
+                              downloadDocenteICS(doc);
+                              showToast(`Archivo Google Calendar (.ics) generado para ${doc.nombre}`);
+                            }}
+                            className="p-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 transition-all"
+                            title="Descargar archivo para Google Calendar con recordatorios presencial/en línea"
+                          >
+                            <Calendar className="w-3.5 h-3.5" />
                           </button>
 
                           <button
@@ -1469,7 +1532,7 @@ export default function AdminDashboardPage() {
               <table className="w-full text-left text-xs text-gray-300">
                 <thead className="bg-black/60 text-gray-400 uppercase text-[10px] font-bold">
                   <tr>
-                    <th className="p-3.5">Matrícula / Contraseña</th>
+                    <th className="p-3.5">Matrícula</th>
                     <th className="p-3.5">Nombre Completo</th>
                     <th className="p-3.5">Licenciatura / Programa</th>
                     <th className="p-3.5">Grupo / Semestre</th>
@@ -1486,11 +1549,11 @@ export default function AdminDashboardPage() {
                         <td className="p-3.5 font-mono text-xs">
                           <div className="font-bold text-blue-400">{al.matricula}</div>
                           <div
-                            className="mt-1 flex items-center space-x-1 text-[10px] text-blue-300 bg-blue-500/10 px-2 py-0.5 rounded-md border border-blue-500/25 max-w-fit font-mono font-bold"
-                            title="Contraseña institucional oficial activa"
+                            className="mt-1 flex items-center space-x-1 text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/25 max-w-fit font-bold"
+                            title="Acceso institucional protegido"
                           >
-                            <KeyRound className="w-3 h-3 text-blue-400 shrink-0" />
-                            <span>{al.password || getDefaultUserPassword(al.matricula, '2026-2')}</span>
+                            <KeyRound className="w-3 h-3 text-emerald-400 shrink-0" />
+                            <span>Protegida</span>
                           </div>
                         </td>
                         <td className="p-3.5">
@@ -2446,15 +2509,23 @@ export default function AdminDashboardPage() {
                   </div>
 
                   <div>
-                    <label className="text-gray-400 block text-[10px] mb-1">Aula Asignada</label>
+                    <label className="text-gray-400 block text-[10px] mb-1">
+                      {newHorarioSlot.es_en_linea ? 'Enlace / Espacio Virtual' : 'Aula Asignada en Campus'}
+                    </label>
                     <input
                       type="text"
-                      placeholder="Aula Magna 2"
+                      placeholder={
+                        newHorarioSlot.es_en_linea
+                          ? 'Aula Virtual (Google Meet / Classroom)'
+                          : 'Aula Magna 2 / Edificio A'
+                      }
                       value={newHorarioSlot.aula}
                       onChange={(e) =>
                         setNewHorarioSlot({ ...newHorarioSlot, aula: e.target.value })
                       }
-                      className="w-full px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white"
+                      className={`w-full px-2 py-1.5 rounded-lg bg-white/5 border text-white transition-all ${
+                        newHorarioSlot.es_en_linea ? 'border-cyan-500/50' : 'border-white/10'
+                      }`}
                     />
                   </div>
                 </div>
@@ -2476,10 +2547,55 @@ export default function AdminDashboardPage() {
                   </select>
                 </div>
 
+                {/* CHECKBOX: Identificar si la clase es En Línea o Presencial */}
+                <div className="p-2.5 rounded-xl bg-gradient-to-r from-cyan-950/40 via-blue-950/30 to-slate-900 border border-cyan-500/30 flex items-center justify-between transition-all">
+                  <label className="flex items-center space-x-2.5 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(newHorarioSlot.es_en_linea)}
+                      onChange={(e) => {
+                        const isOnline = e.target.checked;
+                        setNewHorarioSlot({
+                          ...newHorarioSlot,
+                          es_en_linea: isOnline,
+                          aula: isOnline
+                            ? (!newHorarioSlot.aula || newHorarioSlot.aula.includes('Aula Magna')
+                                ? 'Aula Virtual (Google Meet / Classroom)'
+                                : newHorarioSlot.aula)
+                            : (newHorarioSlot.aula === 'Aula Virtual (Google Meet / Classroom)'
+                                ? 'Edificio A - Aula Magna 2'
+                                : newHorarioSlot.aula),
+                        });
+                      }}
+                      className="w-4 h-4 rounded text-cyan-500 bg-black/50 border-white/30 focus:ring-cyan-500 cursor-pointer accent-cyan-500"
+                    />
+                    <div>
+                      <span className="text-white font-bold text-xs flex items-center space-x-1.5">
+                        <Globe className="w-3.5 h-3.5 text-cyan-400" />
+                        <span>Clase En Línea (Virtual / Remota)</span>
+                      </span>
+                      <span className="text-[10px] text-gray-400 block">
+                        {newHorarioSlot.es_en_linea
+                          ? 'Modalidad remota por Google Meet / Classroom (se reflejará en la BD, PDF y Google Calendar)'
+                          : 'Modalidad física presencial en aulas e instalaciones del plantel'}
+                      </span>
+                    </div>
+                  </label>
+                  <span
+                    className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold border shadow-sm ${
+                      newHorarioSlot.es_en_linea
+                        ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/50'
+                        : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50'
+                    }`}
+                  >
+                    {newHorarioSlot.es_en_linea ? '🌐 EN LÍNEA' : '🏛️ PRESENCIAL'}
+                  </span>
+                </div>
+
                 <button
                   type="button"
                   onClick={handleAddHorarioSlot}
-                  className="w-full py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow transition-all flex items-center justify-center space-x-1"
+                  className="w-full py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow transition-all flex items-center justify-center space-x-1.5"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Agregar Bloque de Horario</span>
@@ -2487,8 +2603,8 @@ export default function AdminDashboardPage() {
               </div>
 
               {/* List of current assigned slots */}
-              <div className="space-y-1.5">
-                <span className="text-[11px] font-bold text-gray-400">
+              <div className="space-y-2">
+                <span className="text-[11px] font-bold text-gray-400 block">
                   Horarios configurados para este docente ({assignedHorarios.length}):
                 </span>
                 {assignedHorarios.length === 0 ? (
@@ -2497,44 +2613,125 @@ export default function AdminDashboardPage() {
                   assignedHorarios.map((h, idx) => (
                     <div
                       key={idx}
-                      className="p-2.5 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between text-xs"
+                      className="p-2.5 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between text-xs hover:border-white/20 transition-all"
                     >
-                      <div>
-                        <span className="font-bold text-amber-400 font-mono">
-                          {h.dia} {h.hora_inicio} - {h.hora_fin} hrs
-                        </span>
+                      <div className="space-y-0.5">
+                        <div className="flex items-center space-x-2 flex-wrap">
+                          <span className="font-bold text-amber-400 font-mono">
+                            {h.dia} {h.hora_inicio} - {h.hora_fin} hrs
+                          </span>
+                          {h.es_en_linea ? (
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 flex items-center space-x-1">
+                              <Globe className="w-2.5 h-2.5" />
+                              <span>EN LÍNEA</span>
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center space-x-1">
+                              <Building className="w-2.5 h-2.5" />
+                              <span>PRESENCIAL</span>
+                            </span>
+                          )}
+                        </div>
                         <span className="text-gray-400 block text-[11px]">
-                          Grupo: <strong className="text-white">{h.grupo}</strong> • {h.materia} • Aula: {h.aula}
+                          Grupo: <strong className="text-white">{h.grupo}</strong> • {h.materia} • Espacio:{' '}
+                          <span className={h.es_en_linea ? 'text-cyan-300 font-semibold' : 'text-gray-300'}>
+                            {h.aula || (h.es_en_linea ? 'Aula Virtual' : 'Campus')}
+                          </span>
                         </span>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveHorarioSlot(idx)}
-                        className="text-gray-500 hover:text-rose-400 p-1"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+
+                      <div className="flex items-center space-x-1.5 shrink-0">
+                        {selectedDocente && (
+                          <a
+                            href={createGoogleCalendarUrl(h, selectedDocente)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-2 py-1 rounded-lg bg-blue-500/15 hover:bg-blue-500/30 text-blue-300 border border-blue-500/30 text-[10px] font-bold transition-all flex items-center space-x-1"
+                            title={`Añadir esta clase al Google Calendar de ${selectedDocente.email} con recordatorio de modalidad`}
+                          >
+                            <Calendar className="w-3 h-3 text-blue-400" />
+                            <span className="hidden sm:inline">Google Cal</span>
+                          </a>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveHorarioSlot(idx)}
+                          className="text-gray-500 hover:text-rose-400 p-1.5 rounded-lg hover:bg-white/5 transition-all"
+                          title="Eliminar este bloque"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   ))
                 )}
               </div>
             </div>
 
-            <div className="flex justify-end space-x-3 pt-3 border-t border-white/10">
-              <button
-                type="button"
-                onClick={() => setModalType(null)}
-                className="px-4 py-2 rounded-xl bg-white/5 text-gray-300 font-bold hover:bg-white/10 text-xs"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveAsignacionDocente}
-                className="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold shadow-lg shadow-amber-600/30 text-xs"
-              >
-                Guardar Asignación Docente
-              </button>
+            {/* Footer con opciones de PDF, Google Calendar y Guardar */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-white/10">
+              <div className="flex items-center space-x-2 w-full sm:w-auto">
+                {/* Botón Descargar PDF Oficial */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!selectedDocente) return;
+                    const docToExport: Docente = {
+                      ...selectedDocente,
+                      carreras_asignadas: assignedCarreras,
+                      materias: assignedMaterias,
+                      horarios: assignedHorarios,
+                      sede_nombre: assignedSede,
+                    };
+                    generateDocenteHorarioPDF(docToExport);
+                    showToast('PDF oficial del horario generado exitosamente');
+                  }}
+                  className="flex-1 sm:flex-none px-3 py-2 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/40 text-xs font-bold transition-all flex items-center justify-center space-x-1.5"
+                  title="Descargar documento PDF con el horario del docente"
+                >
+                  <FileText className="w-3.5 h-3.5 text-blue-400" />
+                  <span>Descargar PDF</span>
+                </button>
+
+                {/* Botón Sincronizar Google Calendar (.ics) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!selectedDocente) return;
+                    const docToExport: Docente = {
+                      ...selectedDocente,
+                      carreras_asignadas: assignedCarreras,
+                      materias: assignedMaterias,
+                      horarios: assignedHorarios,
+                      sede_nombre: assignedSede,
+                    };
+                    downloadDocenteICS(docToExport);
+                    showToast('Archivo .ICS descargado para sincronizar con Google Calendar');
+                  }}
+                  className="flex-1 sm:flex-none px-3 py-2 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold transition-all flex items-center justify-center space-x-1.5"
+                  title={`Descargar archivo de Google Calendar con recordatorios configurados para ${selectedDocente?.email}`}
+                >
+                  <Calendar className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Google Cal (.ics)</span>
+                </button>
+              </div>
+
+              <div className="flex items-center space-x-2 w-full sm:w-auto justify-end">
+                <button
+                  type="button"
+                  onClick={() => setModalType(null)}
+                  className="px-4 py-2 rounded-xl bg-white/5 text-gray-300 font-bold hover:bg-white/10 text-xs"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveAsignacionDocente}
+                  className="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold shadow-lg shadow-amber-600/30 text-xs"
+                >
+                  Guardar Asignación Docente
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -2698,13 +2895,13 @@ export default function AdminDashboardPage() {
                     onClick={() => {
                       const defaultPwd = getDefaultUserPassword(personalForm.num_empleado, '2026-2');
                       setPersonalForm({ ...personalForm, password: defaultPwd });
-                      showToast(`Contraseña reestablecida a: ${defaultPwd}`);
+                      showToast('Contraseña restablecida a los valores oficiales.');
                     }}
                     className="text-[11px] text-amber-400 hover:text-amber-300 underline font-medium flex items-center space-x-1"
                     title="Restaurar a Clave + Ciclo Escolar"
                   >
                     <RefreshCw className="w-3 h-3" />
-                    <span>Restablecer (Clave + Ciclo)</span>
+                    <span>Restablecer</span>
                   </button>
                 </div>
                 <div className="relative">
@@ -2715,7 +2912,7 @@ export default function AdminDashboardPage() {
                     onChange={(e) =>
                       setPersonalForm({ ...personalForm, password: e.target.value })
                     }
-                    placeholder="Ej. DOC-UNRC-02-2026-2"
+                    placeholder="••••••••"
                     className="w-full px-3.5 py-2 rounded-xl bg-black/40 border border-amber-500/30 text-white font-mono text-xs pr-10 focus:outline-none focus:border-amber-400"
                   />
                   <button
@@ -2728,7 +2925,7 @@ export default function AdminDashboardPage() {
                   </button>
                 </div>
                 <p className="text-[11px] text-gray-400">
-                  Por defecto se asigna su <strong>Clave de Empleado + Ciclo Escolar</strong> (<code className="text-amber-300">{getDefaultUserPassword(personalForm.num_empleado || 'DOC-UNRC-02', '2026-2')}</code>). Puede actualizarla libremente cuando lo requiera.
+                  Asigne o actualice la contraseña oficial para el acceso del docente.
                 </p>
               </div>
 
@@ -2941,13 +3138,13 @@ export default function AdminDashboardPage() {
                     onClick={() => {
                       const defaultPwd = getDefaultUserPassword(alumnoForm.matricula, '2026-2');
                       setAlumnoForm({ ...alumnoForm, password: defaultPwd });
-                      showToast(`Contraseña reestablecida a: ${defaultPwd}`);
+                      showToast('Contraseña restablecida a los valores oficiales.');
                     }}
                     className="text-[11px] text-blue-400 hover:text-blue-300 underline font-medium flex items-center space-x-1"
                     title="Restaurar a Matrícula + Ciclo Escolar"
                   >
                     <RefreshCw className="w-3 h-3" />
-                    <span>Restablecer (Matrícula + Ciclo)</span>
+                    <span>Restablecer</span>
                   </button>
                 </div>
                 <div className="relative">
@@ -2958,7 +3155,7 @@ export default function AdminDashboardPage() {
                     onChange={(e) =>
                       setAlumnoForm({ ...alumnoForm, password: e.target.value })
                     }
-                    placeholder="Ej. UNRC-2026-005-2026-2"
+                    placeholder="••••••••"
                     className="w-full px-3.5 py-2 rounded-xl bg-black/40 border border-blue-500/30 text-white font-mono text-xs pr-10 focus:outline-none focus:border-blue-400"
                   />
                   <button
@@ -2971,7 +3168,7 @@ export default function AdminDashboardPage() {
                   </button>
                 </div>
                 <p className="text-[11px] text-gray-400">
-                  Por defecto se asigna su <strong>Matrícula + Ciclo Escolar</strong> (<code className="text-blue-300">{getDefaultUserPassword(alumnoForm.matricula || 'UNRC-2026-005', '2026-2')}</code>). Puede actualizarla libremente cuando lo requiera.
+                  Asigne o actualice la contraseña oficial para el acceso del alumno.
                 </p>
               </div>
 

@@ -37,10 +37,11 @@ interface HorarioItemDisplay {
   aula: string;
   sede: string;
   grupo: string;
+  es_en_linea?: boolean;
 }
 
 export default function StudentDashboardPage() {
-  const { user, role, logout } = useAuth();
+  const { user, role, isLoading: authLoading, logout } = useAuth();
   const [student, setStudent] = useState<Alumno | null>(null);
   const [assignedSchedules, setAssignedSchedules] = useState<HorarioItemDisplay[]>([]);
   const [attendances, setAttendances] = useState<Asistencia[]>([]);
@@ -49,9 +50,18 @@ export default function StudentDashboardPage() {
   const [dayFilter, setDayFilter] = useState<string>('todos');
   const [holidayFilter, setHolidayFilter] = useState<'todos' | 'suspension' | 'conmemorativo'>('todos');
 
+  // Strict Authentication Guard
+  useEffect(() => {
+    if (!authLoading && (!user || (role !== 'alumno' && role !== 'administrador'))) {
+      window.location.href = '/login?error=student_required';
+    }
+  }, [user, role, authLoading]);
+
   // Load student, schedule, and attendance data
   useEffect(() => {
-    loadStudentData();
+    if (user) {
+      loadStudentData();
+    }
   }, [user]);
 
   const loadStudentData = async () => {
@@ -78,11 +88,6 @@ export default function StudentDashboardPage() {
         );
       }
 
-      // Default fallback for preview/superadmin testing (Dayanna Gissel Buitimea Garma - Turismo 201-TUR)
-      if (!currentStudent && allAlumnos.length > 0) {
-        currentStudent = allAlumnos[0];
-      }
-
       setStudent(currentStudent || null);
 
       if (currentStudent) {
@@ -106,7 +111,8 @@ export default function StudentDashboardPage() {
                   docente_nombre: `${doc.nombre} ${doc.apellido_paterno} ${doc.apellido_materno || ''}`.trim(),
                   aula: h.aula || doc.sede_nombre || 'Aula Institucional',
                   sede: doc.sede_nombre || currentStudent?.sede_nombre || 'Campus Magdalena Contreras',
-                  grupo: h.grupo
+                  grupo: h.grupo,
+                  es_en_linea: h.es_en_linea
                 });
               }
             });
@@ -378,9 +384,20 @@ export default function StudentDashboardPage() {
                   className="glass-panel p-6 rounded-3xl border border-white/10 hover:border-emerald-500/40 transition-all space-y-4 bg-gradient-to-b from-[#0D1526]/80 to-[#070B14]/90 relative overflow-hidden group"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-[11px] uppercase tracking-wider border border-emerald-500/30">
-                      {item.dia}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-[11px] uppercase tracking-wider border border-emerald-500/30">
+                        {item.dia}
+                      </span>
+                      {item.es_en_linea ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+                          🌐 En Línea
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                          🏛️ Presencial
+                        </span>
+                      )}
+                    </div>
                     <span className="text-xs font-mono text-gray-300 flex items-center gap-1 bg-black/40 px-2.5 py-1 rounded-xl border border-white/10">
                       <Clock className="w-3.5 h-3.5 text-emerald-400" />
                       <span>{item.hora_inicio} - {item.hora_fin} hrs</span>

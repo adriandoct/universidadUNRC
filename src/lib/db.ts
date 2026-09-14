@@ -90,6 +90,7 @@ export interface HorarioDocenteItem {
   materia: string;
   grupo: string;
   aula?: string;
+  es_en_linea?: boolean;
 }
 
 export function getDefaultUserPassword(identifier: string, ciclo = '2026-2'): string {
@@ -453,9 +454,9 @@ const MOCK_DOCENTES: Docente[] = [
     materias: ['Administración de Empresas de Hospedaje', 'Matemáticas para la Administración'],
     horario_resumen: 'Miércoles (09:00 - 11:00 hrs) y Sábados (07:00 - 09:00 hrs)',
     horarios: [
-      { dia: 'Miércoles', hora_inicio: '09:00', hora_fin: '11:00', carrera: 'Lic. en Turismo', materia: 'Administración de Empresas de Hospedaje', grupo: '201-TUR', aula: 'Edificio A - Aula Magna 2' },
-      { dia: 'Sábado', hora_inicio: '07:00', hora_fin: '09:00', carrera: 'Lic. en Turismo', materia: 'Administración de Empresas de Hospedaje', grupo: '201-TUR', aula: 'Edificio A - Aula Magna 2' },
-      { dia: 'Lunes', hora_inicio: '07:00', hora_fin: '09:00', carrera: 'Lic. en Administración', materia: 'Matemáticas para la Administración', grupo: '203-ADM', aula: 'Edificio C - Aula 203' }
+      { dia: 'Miércoles', hora_inicio: '09:00', hora_fin: '11:00', carrera: 'Lic. en Turismo', materia: 'Administración de Empresas de Hospedaje', grupo: '201-TUR', aula: 'Edificio A - Aula Magna 2', es_en_linea: false },
+      { dia: 'Sábado', hora_inicio: '07:00', hora_fin: '09:00', carrera: 'Lic. en Turismo', materia: 'Administración de Empresas de Hospedaje', grupo: '201-TUR', aula: 'Aula Virtual UNRC (Google Meet)', es_en_linea: true },
+      { dia: 'Lunes', hora_inicio: '07:00', hora_fin: '09:00', carrera: 'Lic. en Administración', materia: 'Matemáticas para la Administración', grupo: '203-ADM', aula: 'Edificio C - Aula 203', es_en_linea: false }
     ],
     sede_nombre: 'Campus Magdalena Contreras',
     telefono: '+525511223344',

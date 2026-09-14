@@ -4,6 +4,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { db, Alumno, Asistencia } from '@/lib/db';
+import { useAuth } from '@/lib/AuthContext';
 import { sendWhatsAppNotification } from '@/lib/whatsapp';
 import { 
   Camera, AlertCircle, CheckCircle, RefreshCw, Smartphone, Volume2, ShieldAlert, UserCheck, Play, ArrowRight, UserX
@@ -11,6 +12,14 @@ import {
 import confetti from 'canvas-confetti';
 
 export default function ScannerPage() {
+  const { user, role, isLoading: authLoading } = useAuth();
+
+  // Strict Authentication Guard
+  useEffect(() => {
+    if (!authLoading && (!user || (role !== 'docente' && role !== 'administrador'))) {
+      window.location.href = '/login?error=scanner_auth_required';
+    }
+  }, [user, role, authLoading]);
   const [students, setStudents] = useState<Alumno[]>([]);
   const [scanning, setScanning] = useState(false);
   const [activeTab, setActiveTab] = useState<'entrada' | 'salida' | 'auto'>('auto');

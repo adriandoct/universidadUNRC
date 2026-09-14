@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useAuth } from "../lib/AuthContext";
 
 export default function Home() {
-  const { openAuthModal } = useAuth();
+  const { user, role, openAuthModal } = useAuth();
 
   return (
     <div className="flex-1 flex flex-col justify-center items-center py-8 space-y-16">
@@ -42,7 +42,7 @@ export default function Home() {
           </h1>
           
           <p className="text-gray-300 text-base sm:text-lg max-w-2xl mx-auto leading-relaxed">
-            Plataforma institucional para **Alumnos, Docentes y Administrador**. Autenticación con **Gmail** (`@rcastellanos.cdmx.gob.mx`) y consola para carga de datos en **Base de Datos Institucional**.
+            Plataforma institucional para **Alumnos, Docentes y Administrador**. Autenticación institucional segura con matrícula/clave y contraseña oficial.
           </p>
         </div>
 
@@ -53,7 +53,7 @@ export default function Home() {
             onClick={() => openAuthModal('alumno')}
             className="w-full sm:w-auto px-7 py-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-bold text-sm shadow-xl shadow-emerald-600/25 transition-all flex items-center justify-center space-x-2 active:scale-95"
           >
-            <span>🎓 Acceso Alumnos (Gmail)</span>
+            <span>🎓 Acceso Alumnos</span>
             <span>→</span>
           </button>
 
@@ -61,7 +61,7 @@ export default function Home() {
             onClick={() => openAuthModal('docente')}
             className="w-full sm:w-auto px-7 py-4 rounded-2xl bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold text-sm shadow-xl shadow-blue-600/25 transition-all flex items-center justify-center space-x-2 active:scale-95"
           >
-            <span>👨‍🏫 Acceso Docentes (Gmail)</span>
+            <span>👨‍🏫 Acceso Docentes</span>
           </button>
 
           <button
@@ -86,16 +86,25 @@ export default function Home() {
             </div>
             <h3 className="text-xl font-bold text-white">Rol Alumno</h3>
             <p className="text-gray-400 text-xs leading-relaxed">
-              Credencial digital con código QR institucional dinámico, consulta de historial de asistencias y registro de materias. Autenticación fluida con Gmail <code className="text-emerald-400 font-bold">@rcastellanos.cdmx.gob.mx</code>.
+              Credencial digital con código QR institucional dinámico, consulta de historial de asistencias y registro de materias. Autenticación con matrícula y contraseña institucional.
             </p>
           </div>
 
-          <Link
-            href="/alumno"
-            className="w-full py-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 font-bold text-xs text-center border border-emerald-500/30 transition-all"
-          >
-            Ver Portal Alumno →
-          </Link>
+          {user && role === 'alumno' ? (
+            <Link
+              href="/alumno"
+              className="w-full py-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 font-bold text-xs text-center border border-emerald-500/30 transition-all block"
+            >
+              Ver Portal Alumno →
+            </Link>
+          ) : (
+            <button
+              onClick={() => openAuthModal('alumno')}
+              className="w-full py-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 font-bold text-xs text-center border border-emerald-500/30 transition-all"
+            >
+              Autenticarse como Alumno →
+            </button>
+          )}
         </div>
 
         {/* Role Card 2: Docente */}
@@ -110,12 +119,21 @@ export default function Home() {
             </p>
           </div>
 
-          <Link
-            href="/docente"
-            className="w-full py-3 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 font-bold text-xs text-center border border-blue-500/30 transition-all"
-          >
-            Ver Portal Docente →
-          </Link>
+          {user && role === 'docente' ? (
+            <Link
+              href="/docente"
+              className="w-full py-3 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 font-bold text-xs text-center border border-blue-500/30 transition-all block"
+            >
+              Ver Portal Docente →
+            </Link>
+          ) : (
+            <button
+              onClick={() => openAuthModal('docente')}
+              className="w-full py-3 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 font-bold text-xs text-center border border-blue-500/30 transition-all"
+            >
+              Autenticarse como Docente →
+            </button>
+          )}
         </div>
 
         {/* Role Card 3: Administrador */}
@@ -130,12 +148,21 @@ export default function Home() {
             </p>
           </div>
 
-          <Link
-            href="/admin"
-            className="w-full py-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 font-bold text-xs text-center border border-amber-500/30 transition-all"
-          >
-            Ver Consola Base de Datos →
-          </Link>
+          {user && role === 'administrador' ? (
+            <Link
+              href="/admin"
+              className="w-full py-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 font-bold text-xs text-center border border-amber-500/30 transition-all block"
+            >
+              Ver Consola Base de Datos →
+            </Link>
+          ) : (
+            <button
+              onClick={() => openAuthModal('administrador')}
+              className="w-full py-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 font-bold text-xs text-center border border-amber-500/30 transition-all"
+            >
+              Autenticarse como Administrador →
+            </button>
+          )}
         </div>
 
       </div>

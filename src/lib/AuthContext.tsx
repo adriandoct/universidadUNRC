@@ -15,7 +15,6 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   lastDetectedAccount: UserProfile | null;
-  loginWithGoogle: (role: 'alumno' | 'docente', accountOverride?: Partial<UserProfile>) => Promise<AuthResult>;
   loginAsAdmin: (accessCodeOrEmail: string, passInput?: string) => Promise<AuthResult>;
   loginWithCredentials: (role: UserRole, idOrEmail: string, passwordInput?: string) => Promise<AuthResult>;
   loginWithLastAccount: () => void;
@@ -45,7 +44,7 @@ const LOCKOUT_DURATION_MS = 5 * 60 * 1000; // 5 minutes
 
 function checkLockout(): { isLocked: boolean; remainingSeconds: number } {
   if (typeof window === 'undefined') return { isLocked: false, remainingSeconds: 0 };
-  const lockoutUntil = parseInt(localStorage.getItem('unrc_sec_lockout_until') || '0', 10);
+  const lockoutUntil = parseInt(sessionStorage.getItem('unrc_sec_lockout_until') || '0', 10);
   const now = Date.now();
   if (lockoutUntil && now < lockoutUntil) {
     return { isLocked: true, remainingSeconds: Math.ceil((lockoutUntil - now) / 1000) };
@@ -55,51 +54,47 @@ function checkLockout(): { isLocked: boolean; remainingSeconds: number } {
 
 function recordFailedAttempt(): number {
   if (typeof window === 'undefined') return 0;
-  const current = parseInt(localStorage.getItem('unrc_sec_failed_attempts') || '0', 10) + 1;
-  localStorage.setItem('unrc_sec_failed_attempts', current.toString());
+  const current = parseInt(sessionStorage.getItem('unrc_sec_failed_attempts') || '0', 10) + 1;
+  sessionStorage.setItem('unrc_sec_failed_attempts', current.toString());
   if (current >= MAX_FAILED_ATTEMPTS) {
     const lockUntil = Date.now() + LOCKOUT_DURATION_MS;
-    localStorage.setItem('unrc_sec_lockout_until', lockUntil.toString());
+    sessionStorage.setItem('unrc_sec_lockout_until', lockUntil.toString());
   }
   return current;
 }
 
 function clearFailedAttempts() {
   if (typeof window === 'undefined') return;
-  localStorage.removeItem('unrc_sec_failed_attempts');
-  localStorage.removeItem('unrc_sec_lockout_until');
+  sessionStorage.removeItem('unrc_sec_failed_attempts');
+  sessionStorage.removeItem('unrc_sec_lockout_until');
 }
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [role, setRoleState] = useState<UserRole | null>(null);
-  const [lastDetectedAccount, setLastDetectedAccount] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [activeModalTab, setActiveModalTab] = useState<UserRole>('alumno');
   const [authSecurityMessage, setAuthSecurityMessage] = useState<string | null>(null);
 
-  // Restore authenticated session from localStorage and verify validity
+  // Restore authenticated session strictly from sessionStorage
   useEffect(() => {
     try {
-      const savedUserStr = localStorage.getItem('unrc_auth_user');
-      const savedRole = localStorage.getItem('unrc_auth_role') as UserRole | null;
-      const lastAcc = localStorage.getItem('unrc_last_account');
-
-      if (lastAcc) {
-        try {
-          setLastDetectedAccount(JSON.parse(lastAcc));
-        } catch {
-          console.warn('Could not parse last account');
-        }
+      // Purge any stale legacy localStorage accounts so auth is always required
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('unrc_last_account');
+        localStorage.removeItem('unrc_auth_user');
+        localStorage.removeItem('unrc_auth_role');
       }
+
+      const savedUserStr = sessionStorage.getItem('unrc_auth_user');
+      const savedRole = sessionStorage.getItem('unrc_auth_role') as UserRole | null;
 
       if (savedUserStr && savedRole) {
         const parsed = JSON.parse(savedUserStr);
         setUser(parsed);
         setRoleState(savedRole);
       } else {
-        // No automatic default login! Enforce strict authentication
         setUser(null);
         setRoleState(null);
       }
@@ -115,19 +110,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setRoleState(newRole);
 
     if (newUser && newRole) {
-      localStorage.setItem('unrc_auth_user', JSON.stringify(newUser));
-      localStorage.setItem('unrc_auth_role', newRole);
-      localStorage.setItem('unrc_last_account', JSON.stringify(newUser));
-      setLastDetectedAccount(newUser);
+      sessionStorage.setItem('unrc_auth_user', JSON.stringify(newUser));
+      sessionStorage.setItem('unrc_auth_role', newRole);
 
-      // Sync security cookies for Next.js Middleware
+      // Session cookies (no long max-age, automatically invalidated upon browser session close)
       const cookieRole = newRole === 'administrador' ? 'admin' : newRole === 'docente' ? 'teacher' : 'student';
-      document.cookie = `unrc_role=${cookieRole}; path=/; max-age=86400; SameSite=Lax`;
-      document.cookie = `unrc_demo_session=${cookieRole}; path=/; max-age=86400; SameSite=Lax`;
-      document.cookie = `unrc_user_id=${newUser.id}; path=/; max-age=86400; SameSite=Lax`;
+      document.cookie = `unrc_role=${cookieRole}; path=/; SameSite=Lax`;
+      document.cookie = `unrc_demo_session=${cookieRole}; path=/; SameSite=Lax`;
+      document.cookie = `unrc_user_id=${newUser.id}; path=/; SameSite=Lax`;
     } else {
+      sessionStorage.removeItem('unrc_auth_user');
+      sessionStorage.removeItem('unrc_auth_role');
       localStorage.removeItem('unrc_auth_user');
       localStorage.removeItem('unrc_auth_role');
+      localStorage.removeItem('unrc_last_account');
+      
       // Expire security cookies
       document.cookie = 'unrc_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
       document.cookie = 'unrc_demo_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
@@ -137,10 +134,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const loginWithLastAccount = () => {
-    if (lastDetectedAccount) {
-      saveSession(lastDetectedAccount, lastDetectedAccount.role);
-      setIsAuthModalOpen(false);
-    }
+    // Disabled for security: user must always authenticate with password
   };
 
   // 1. Authenticate Super Admin
@@ -156,8 +150,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const email = accessCodeOrEmail.trim().toLowerCase();
     const pass = (passInput || '').trim();
 
+    if (!pass) {
+      return {
+        success: false,
+        error: 'Debe ingresar la contraseña de Administrador.'
+      };
+    }
+
     const isValidUser = email === 'admin@admin.com' || email === 'admin';
-    const isValidPass = pass === '12345678Rosario' || accessCodeOrEmail.trim() === '12345678Rosario';
+    const isValidPass = pass === '12345678Rosario';
 
     if (isValidUser && isValidPass) {
       clearFailedAttempts();
@@ -203,6 +204,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     const cleanInput = idOrEmail.trim().toLowerCase();
+    const cleanPassword = (passwordInput || '').trim();
+
+    if (!cleanInput) {
+      setIsLoading(false);
+      return {
+        success: false,
+        error: `Por favor ingresa tu ${targetRole === 'alumno' ? 'Matrícula Oficial' : 'Número de Empleado'}.`
+      };
+    }
+
+    if (!cleanPassword) {
+      setIsLoading(false);
+      return {
+        success: false,
+        error: 'Por motivos de seguridad institucional, debe ingresar su contraseña.'
+      };
+    }
 
     try {
       if (targetRole === 'alumno') {
@@ -228,7 +246,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setIsLoading(false);
           return {
             success: false,
-            error: `Acceso Denegado: La matrícula o usuario '${cleanInput}' no está registrado ni validado por el Superadmin.`
+            error: 'Credenciales incorrectas. Verifique su matrícula y contraseña.'
           };
         }
 
@@ -238,37 +256,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           await db.addAuditoria(
             'ACCESO_RESTRINGIDO_ALUMNO_INACTIVO',
             'Seguridad / Autenticación',
-            `Intento de ingreso de alumno inactivo: ${found.matricula} (${found.nombre} ${found.apellido_paterno}) con estatus: ${status}`,
+            `Intento de ingreso de alumno inactivo: ${found.matricula} con estatus: ${status}`,
             'Control Escolar UNRC'
           );
           setIsLoading(false);
           return {
             success: false,
-            error: `Acceso Restringido: El expediente del alumno está en estatus '${status.toUpperCase()}'. Contacte a Rectoría para validar su reingreso.`
+            error: `Acceso Restringido: El expediente del alumno está en estatus '${status.toUpperCase()}'. Contacte a Rectoría.`
           };
         }
 
-        // Check password (assigned matricula + ciclo escolar, or updated password)
-        if (passwordInput !== undefined && passwordInput !== '') {
-          const expectedPass = (found.password || `${found.matricula}-2026-2`).trim().toLowerCase();
-          const givenPass = passwordInput.trim().toLowerCase();
-          const default1 = `${found.matricula.toLowerCase()}-2026-2`;
-          const default2 = `${found.matricula.toLowerCase()}2026-2`;
+        // Check password strictly
+        const expectedPass = (found.password || `${found.matricula}-2026-2`).trim().toLowerCase();
+        const givenPass = cleanPassword.toLowerCase();
+        const default1 = `${found.matricula.toLowerCase()}-2026-2`;
+        const default2 = `${found.matricula.toLowerCase()}2026-2`;
 
-          if (givenPass !== expectedPass && givenPass !== default1 && givenPass !== default2) {
-            const attempts = recordFailedAttempt();
-            await db.addAuditoria(
-              'CONTRASENA_INCORRECTA_ALUMNO',
-              'Seguridad / Autenticación',
-              `Contraseña incorrecta para alumno: ${found.matricula} (${attempts}/${MAX_FAILED_ATTEMPTS})`,
-              'Sistema Anti-Hackeo UNRC'
-            );
-            setIsLoading(false);
-            return {
-              success: false,
-              error: `Contraseña incorrecta para la matrícula ${found.matricula}. La contraseña por defecto es tu Matrícula con el Ciclo Escolar (ej. ${found.matricula}-2026-2).`
-            };
-          }
+        if (givenPass !== expectedPass && givenPass !== default1 && givenPass !== default2) {
+          const attempts = recordFailedAttempt();
+          await db.addAuditoria(
+            'CONTRASENA_INCORRECTA_ALUMNO',
+            'Seguridad / Autenticación',
+            `Contraseña incorrecta para alumno: ${found.matricula} (${attempts}/${MAX_FAILED_ATTEMPTS})`,
+            'Sistema Anti-Hackeo UNRC'
+          );
+          setIsLoading(false);
+          return {
+            success: false,
+            error: 'Credenciales incorrectas. Verifique su matrícula y contraseña.'
+          };
         }
 
         // Student successfully verified
@@ -318,31 +334,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setIsLoading(false);
           return {
             success: false,
-            error: `Acceso Denegado: El número de empleado o correo '${cleanInput}' no ha sido asignado ni validado por el Superadmin.`
+            error: 'Credenciales incorrectas. Verifique su número de empleado y contraseña.'
           };
         }
 
-        // Check password (assigned clave + ciclo escolar, or updated password)
-        if (passwordInput !== undefined && passwordInput !== '') {
-          const expectedPass = (found.password || `${found.num_empleado}-2026-2`).trim().toLowerCase();
-          const givenPass = passwordInput.trim().toLowerCase();
-          const default1 = `${found.num_empleado.toLowerCase()}-2026-2`;
-          const default2 = `${found.num_empleado.toLowerCase()}2026-2`;
+        // Check password strictly
+        const expectedPass = (found.password || `${found.num_empleado}-2026-2`).trim().toLowerCase();
+        const givenPass = cleanPassword.toLowerCase();
+        const default1 = `${found.num_empleado.toLowerCase()}-2026-2`;
+        const default2 = `${found.num_empleado.toLowerCase()}2026-2`;
 
-          if (givenPass !== expectedPass && givenPass !== default1 && givenPass !== default2) {
-            const attempts = recordFailedAttempt();
-            await db.addAuditoria(
-              'CONTRASENA_INCORRECTA_DOCENTE',
-              'Seguridad / Autenticación',
-              `Contraseña incorrecta para docente: ${found.num_empleado} (${attempts}/${MAX_FAILED_ATTEMPTS})`,
-              'Sistema Anti-Hackeo UNRC'
-            );
-            setIsLoading(false);
-            return {
-              success: false,
-              error: `Contraseña incorrecta para la clave ${found.num_empleado}. La contraseña por defecto es tu Clave con el Ciclo Escolar (ej. ${found.num_empleado}-2026-2).`
-            };
-          }
+        if (givenPass !== expectedPass && givenPass !== default1 && givenPass !== default2) {
+          const attempts = recordFailedAttempt();
+          await db.addAuditoria(
+            'CONTRASENA_INCORRECTA_DOCENTE',
+            'Seguridad / Autenticación',
+            `Contraseña incorrecta para docente: ${found.num_empleado} (${attempts}/${MAX_FAILED_ATTEMPTS})`,
+            'Sistema Anti-Hackeo UNRC'
+          );
+          setIsLoading(false);
+          return {
+            success: false,
+            error: 'Credenciales incorrectas. Verifique su número de empleado y contraseña.'
+          };
         }
 
         // Teacher successfully verified
@@ -364,111 +378,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await db.addAuditoria(
           'ACCESO_DOCENTE_VALIDADO',
           'Seguridad / Autenticación',
-          `Ingreso exitoso del docente validado: ${profile.nombre} (${found.num_empleado})`,
-          'Recursos Humanos UNRC'
+          `Ingreso exitoso del docente: ${profile.nombre} (${found.num_empleado})`,
+          'Control Escolar UNRC'
         );
 
         return { success: true, user: profile };
       }
-    } catch (e: any) {
-      console.error('Credential auth error:', e);
+    } catch (err: any) {
       setIsLoading(false);
-      return { success: false, error: `Error de verificación: ${e.message}` };
+      return { success: false, error: err.message || 'Error al validar credenciales.' };
     }
 
     setIsLoading(false);
     return { success: false, error: 'Rol no soportado.' };
-  };
-
-  // 3. Strict Google Auth validation against Superadmin database
-  const loginWithGoogle = async (
-    targetRole: 'alumno' | 'docente',
-    accountOverride?: Partial<UserProfile>
-  ): Promise<AuthResult> => {
-    setIsLoading(true);
-    const emailToVerify = (accountOverride?.email || '').trim().toLowerCase();
-
-    if (!emailToVerify) {
-      setIsLoading(false);
-      return { success: false, error: 'Debe proporcionar una cuenta de correo institucional.' };
-    }
-
-    // Verify against DB
-    if (targetRole === 'alumno') {
-      const alumnos = await db.getAlumnos();
-      const found = alumnos.find(a => 
-        `${a.matricula.toLowerCase()}@rcastellanos.cdmx.gob.mx` === emailToVerify ||
-        a.matricula.toLowerCase() === emailToVerify.split('@')[0]
-      );
-
-      if (!found) {
-        setIsLoading(false);
-        await db.addAuditoria(
-          'ACCESO_GOOGLE_NO_AUTORIZADO',
-          'Seguridad / Autenticación',
-          `Intento de acceso por Google no autorizado para alumno: ${emailToVerify}`,
-          'Sistema Anti-Hackeo'
-        );
-        return {
-          success: false,
-          error: `Acceso Denegado: La cuenta Google institucional '${emailToVerify}' no está vinculada a ningún alumno matriculado por el Superadmin.`
-        };
-      }
-
-      if (found.estado_matricula !== 'activo') {
-        setIsLoading(false);
-        return {
-          success: false,
-          error: `Acceso Restringido: El alumno se encuentra en estado '${found.estado_matricula}'.`
-        };
-      }
-
-      const profile: UserProfile = {
-        id: found.id,
-        email: emailToVerify,
-        nombre: `${found.nombre} ${found.apellido_paterno}`,
-        role: 'alumno',
-        avatar_url: found.foto_url,
-        matricula: found.matricula,
-        carrera_o_depto: found.carrera
-      };
-      saveSession(profile, 'alumno');
-      setIsAuthModalOpen(false);
-      setIsLoading(false);
-      return { success: true, user: profile };
-
-    } else {
-      const docentes = await db.getDocentes();
-      const found = docentes.find(d => d.email.toLowerCase() === emailToVerify);
-
-      if (!found) {
-        setIsLoading(false);
-        await db.addAuditoria(
-          'ACCESO_GOOGLE_NO_AUTORIZADO',
-          'Seguridad / Autenticación',
-          `Intento de acceso por Google no autorizado para docente: ${emailToVerify}`,
-          'Sistema Anti-Hackeo'
-        );
-        return {
-          success: false,
-          error: `Acceso Denegado: El correo docente '${emailToVerify}' no está registrado por el Superadmin.`
-        };
-      }
-
-      const profile: UserProfile = {
-        id: found.id,
-        email: found.email,
-        nombre: `${found.nombre} ${found.apellido_paterno}`,
-        role: 'docente',
-        avatar_url: found.foto_url,
-        num_empleado: found.num_empleado,
-        carrera_o_depto: found.departamento
-      };
-      saveSession(profile, 'docente');
-      setIsAuthModalOpen(false);
-      setIsLoading(false);
-      return { success: true, user: profile };
-    }
   };
 
   const logout = () => {
@@ -478,7 +400,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Safe setRole restricted only to Superadmin for administrative simulation
   const setRole = (newRole: UserRole) => {
     if (user?.role === 'administrador') {
       if (newRole === 'administrador') {
@@ -506,8 +427,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role,
         isAuthenticated: Boolean(user && role),
         isLoading,
-        lastDetectedAccount,
-        loginWithGoogle,
+        lastDetectedAccount: null,
         loginAsAdmin,
         loginWithCredentials,
         loginWithLastAccount,
