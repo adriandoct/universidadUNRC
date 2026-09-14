@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { getTijuanaDateString, getTijuanaTimeString } from './tijuanaTime';
 
 // User Roles
 export type UserRole = 'alumno' | 'docente' | 'administrador';
@@ -1510,8 +1511,8 @@ export const db = {
       throw new Error(`Estudiante con matrícula/QR '${matricula}' no registrado en UNRC.`);
     }
 
-    const todayStr = new Date().toISOString().split('T')[0];
-    const timeStr = new Date().toTimeString().split(' ')[0];
+    const todayStr = getTijuanaDateString();
+    const timeStr = getTijuanaTimeString();
 
     const allAsistencias = await db.getAsistencias();
     const todayLogs = allAsistencias.filter(
@@ -1641,7 +1642,7 @@ export const db = {
       id: `part-${Date.now()}`,
       alumno_id: alumno.id,
       grupo_id: alumno.grupo_id,
-      fecha: new Date().toISOString().split('T')[0],
+      fecha: getTijuanaDateString(),
       tipo,
       puntos,
       observaciones: observaciones || (tipo === 'AP' ? 'Aprobada: Excelente aportación' : 'Requerido: Por mejorar'),
@@ -2038,7 +2039,7 @@ export const db = {
     const newAnuncio: AnuncioInstitucional = {
       ...anuncio,
       id: `anu-${Date.now()}`,
-      fecha: new Date().toISOString().split('T')[0]
+      fecha: getTijuanaDateString()
     };
     list.unshift(newAnuncio);
     localStorage.setItem('unrc_anuncios', JSON.stringify(list));

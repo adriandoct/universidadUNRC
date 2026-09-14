@@ -191,7 +191,7 @@ export function downloadDocenteICS(docente: Docente): void {
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     `X-WR-CALNAME:Horario UNRC - ${docente.nombre} ${docente.apellido_paterno}`,
-    'X-WR-TIMEZONE:America/Mexico_City',
+    'X-WR-TIMEZONE:America/Tijuana',
     eventsIcs,
     'END:VCALENDAR'
   ].join('\r\n');
@@ -260,11 +260,12 @@ export function generateDocenteHorarioPDF(docente: Docente): void {
   doc.setTextColor(100, 116, 139);
   doc.text(
     `Fecha de emisión: ${new Date().toLocaleDateString('es-MX', {
+      timeZone: 'America/Tijuana',
       weekday: 'long',
       year: 'numeric',
       month: 'long',
       day: 'numeric',
-    })} • Folio Oficial: UNRC-ACAD-${docente.num_empleado}`,
+    })} (Tijuana) • Folio Oficial: UNRC-ACAD-${docente.num_empleado}`,
     14,
     currentY
   );

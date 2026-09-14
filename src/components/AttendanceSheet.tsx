@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { CheckCircle2, Clock, XCircle, FileText, Search, Send, Sparkles, RefreshCw, Calendar } from 'lucide-react';
 import { recordBulkAttendance } from '../app/actions/attendance';
 import { db } from '@/lib/db';
+import { getTijuanaDateString } from '@/lib/tijuanaTime';
 
 export type AttendanceStatusType = 'present' | 'absent' | 'late' | 'excused';
 
@@ -29,9 +30,7 @@ export default function AttendanceSheet({
   students,
   onAttendanceSubmitted,
 }: AttendanceSheetProps) {
-  const [selectedDate, setSelectedDate] = useState<string>(
-    new Date().toISOString().split('T')[0]
-  );
+  const [selectedDate, setSelectedDate] = useState<string>(() => getTijuanaDateString());
   const [searchQuery, setSearchQuery] = useState('');
   const [attendanceState, setAttendanceState] = useState<
     Record<string, { status: AttendanceStatusType; notes: string }>
@@ -150,15 +149,20 @@ export default function AttendanceSheet({
           </p>
         </div>
 
-        {/* Date Selector */}
-        <div className="flex items-center space-x-3 bg-black/40 px-4 py-2 rounded-2xl border border-white/10">
-          <Calendar className="w-4 h-4 text-blue-400" />
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="bg-transparent text-white text-xs font-bold focus:outline-none"
-          />
+        {/* Date Selector con Zona Horaria Tijuana */}
+        <div className="flex items-center space-x-3 bg-black/40 px-3.5 py-1.5 rounded-2xl border border-blue-500/30">
+          <Calendar className="w-4 h-4 text-blue-400 shrink-0" />
+          <div className="flex flex-col">
+            <span className="text-[9px] font-extrabold text-blue-300 uppercase tracking-wider">
+              Fecha (Tijuana)
+            </span>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="bg-transparent text-white text-xs font-bold focus:outline-none cursor-pointer"
+            />
+          </div>
         </div>
       </div>
 

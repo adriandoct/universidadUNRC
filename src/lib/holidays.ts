@@ -1,4 +1,5 @@
 // Official Holidays & Festive Days Calendar for UNRC / México (Ciclo 2026 - 2027)
+import { getTijuanaDateString } from './tijuanaTime';
 
 export interface DiaFestivo {
   id: string;
@@ -155,7 +156,7 @@ export function getDiasFestivos(): DiaFestivo[] {
 }
 
 export function getProximoDiaFestivo(): DiaFestivo | null {
-  const hoy = new Date().toISOString().split('T')[0];
+  const hoy = getTijuanaDateString();
   const futuros = DIAS_FESTIVOS_UNRC.filter(d => d.fecha >= hoy).sort(
     (a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime()
   );

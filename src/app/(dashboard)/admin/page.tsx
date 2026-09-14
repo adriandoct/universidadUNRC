@@ -45,6 +45,7 @@ import {
   downloadDocenteICS,
   createGoogleCalendarUrl
 } from '@/lib/horarioDocenteUtils';
+import { getTijuanaDateString } from '@/lib/tijuanaTime';
 import {
   db,
   Docente,
@@ -914,7 +915,7 @@ export default function AdminDashboardPage() {
     downloadAnchor.setAttribute('href', dataStr);
     downloadAnchor.setAttribute(
       'download',
-      `bitacora_auditoria_unrc_${new Date().toISOString().split('T')[0]}.json`
+      `bitacora_auditoria_unrc_${getTijuanaDateString()}.json`
     );
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
