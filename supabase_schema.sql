@@ -80,6 +80,30 @@ CREATE TABLE IF NOT EXISTS public.students (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+-- 2.5.1 ALUMNOS (Registro Detallado de Control Escolar y Expedientes UNRC)
+CREATE TABLE IF NOT EXISTS public.alumnos (
+    id TEXT PRIMARY KEY DEFAULT ('student-' || gen_random_uuid()::text),
+    matricula TEXT UNIQUE NOT NULL, -- Clave escolar e.g. UNRC-2026-051
+    nombre TEXT NOT NULL,
+    apellido_paterno TEXT NOT NULL,
+    apellido_materno TEXT DEFAULT '',
+    grado TEXT NOT NULL, -- e.g. '1° Semestre', '2° Semestre'
+    grupo TEXT NOT NULL, -- e.g. '101', '201-TUR', '203-ADM'
+    carrera TEXT DEFAULT 'Licenciatura UNRC',
+    carrera_id TEXT,
+    grupo_id TEXT,
+    sede_id TEXT,
+    sede_nombre TEXT,
+    ciclo_id TEXT,
+    estado_matricula TEXT DEFAULT 'activo', -- 'activo', 'baja_temporal', 'egresado', 'aspirante'
+    tutor TEXT DEFAULT 'Tutor Registrado',
+    telefono TEXT DEFAULT '+525500000000',
+    foto_url TEXT,
+    qr_code TEXT,
+    password TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
 -- 2.6 TEACHERS (Docentes)
 CREATE TABLE IF NOT EXISTS public.teachers (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -167,6 +191,8 @@ CREATE INDEX IF NOT EXISTS idx_attendances_course_date ON public.attendances(cou
 CREATE INDEX IF NOT EXISTS idx_attendances_student ON public.attendances(student_id);
 CREATE INDEX IF NOT EXISTS idx_grades_evaluation ON public.grades(evaluation_id);
 CREATE INDEX IF NOT EXISTS idx_invoices_student_status ON public.invoices(student_id, status);
+CREATE INDEX IF NOT EXISTS idx_alumnos_matricula ON public.alumnos(matricula);
+CREATE INDEX IF NOT EXISTS idx_alumnos_carrera_grupo ON public.alumnos(carrera_id, grupo);
 
 -- ==========================================
 -- 4. AUTOMATIC USER CREATION TRIGGER
@@ -210,6 +236,7 @@ ALTER TABLE public.evaluations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.grades ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.invoices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.announcements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.alumnos ENABLE ROW LEVEL SECURITY;
 
 -- Helper RLS helper functions
 CREATE OR REPLACE FUNCTION public.get_user_role()
@@ -313,6 +340,15 @@ CREATE POLICY "Student view own invoices" ON public.invoices FOR SELECT USING (
 DROP POLICY IF EXISTS "Public read announcements" ON public.announcements;
 CREATE POLICY "Public read announcements" ON public.announcements FOR SELECT USING (
     public.get_user_role() = 'admin' OR (public.get_user_role() = ANY(target_roles))
+);
+
+-- 5.7 ALUMNOS (Control Escolar y Carga Masiva) Policies
+DROP POLICY IF EXISTS "Public read alumnos" ON public.alumnos;
+CREATE POLICY "Public read alumnos" ON public.alumnos FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Admin manage alumnos" ON public.alumnos;
+CREATE POLICY "Admin manage alumnos" ON public.alumnos FOR ALL USING (
+    public.get_user_role() = 'admin' OR auth.role() = 'authenticated' OR auth.role() = 'anon'
 );
 
 -- ==========================================

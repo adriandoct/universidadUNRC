@@ -46,6 +46,7 @@ import {
   createGoogleCalendarUrl
 } from '@/lib/horarioDocenteUtils';
 import { getTijuanaDateString } from '@/lib/tijuanaTime';
+import BulkUploadAlumnosModal from '@/components/BulkUploadAlumnosModal';
 import {
   db,
   Docente,
@@ -123,11 +124,12 @@ export default function AdminDashboardPage() {
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedAlumnoQr, setSelectedAlumnoQr] = useState<Alumno | null>(null);
+  const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
 
   // Toast Feedback
-  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [toast, setToast] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
 
-  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 4000);
   };
@@ -971,6 +973,8 @@ export default function AdminDashboardPage() {
           className={`fixed top-6 right-6 z-50 px-5 py-3 rounded-2xl shadow-2xl flex items-center space-x-3 text-xs font-bold border transition-all animate-bounce ${
             toast.type === 'success'
               ? 'bg-emerald-600/90 text-white border-emerald-400'
+              : toast.type === 'info'
+              ? 'bg-blue-600/90 text-white border-blue-400'
               : 'bg-rose-600/90 text-white border-rose-400'
           }`}
         >
@@ -1479,6 +1483,16 @@ export default function AdminDashboardPage() {
               </div>
 
               <div className="flex items-center space-x-3 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setIsCsvModalOpen(true)}
+                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/30 transition-all flex items-center space-x-1.5 whitespace-nowrap"
+                  title="Cargar masivamente expedientes de alumnos desde archivo .CSV"
+                >
+                  <FileSpreadsheet className="w-4 h-4" />
+                  <span>Carga Masiva CSV</span>
+                </button>
+
                 <button
                   onClick={() => {
                     const newMat = `UNRC-2026-0${alumnos.length + 10}`;
@@ -4089,6 +4103,20 @@ export default function AdminDashboardPage() {
           </div>
         </div>
       )}
+
+      {/* Modal de Carga Masiva de Alumnos CSV */}
+      <BulkUploadAlumnosModal
+        isOpen={isCsvModalOpen}
+        onClose={() => setIsCsvModalOpen(false)}
+        onSuccess={async () => {
+          await loadData();
+        }}
+        existingAlumnos={alumnos}
+        carreras={carreras}
+        sedes={sedes}
+        activeCiclo={activeCiclo}
+        showToast={showToast}
+      />
     </div>
   );
 }

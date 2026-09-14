@@ -1399,23 +1399,106 @@ export const db = {
     return newAlumno;
   },
 
-  addAlumnosBulk: async (alumnos: Omit<Alumno, 'id' | 'created_at'>[]): Promise<Alumno[]> => {
+  addAlumnosBulk: async (
+    alumnos: (Omit<Alumno, 'id' | 'created_at'> & { id?: string; created_at?: string })[],
+    options: { updateExisting?: boolean } = { updateExisting: true }
+  ): Promise<{ added: number; updated: number; items: Alumno[] }> => {
     initLocalStorage();
     const current = await db.getAlumnos();
-    const newItems: Alumno[] = [];
+    const processedItems: Alumno[] = [];
+    let addedCount = 0;
+    let updatedCount = 0;
 
-    alumnos.forEach((al, idx) => {
-      const item: Alumno = {
-        ...al,
-        id: `student-${Date.now()}-${idx}`,
-        created_at: new Date().toISOString()
-      };
-      newItems.push(item);
-      current.push(item);
-    });
+    for (let idx = 0; idx < alumnos.length; idx++) {
+      const al = alumnos[idx];
+      const matriculaClean = (al.matricula || '').trim();
+      if (!matriculaClean) continue;
+
+      const existingIndex = current.findIndex(
+        (a) => (a.matricula || '').trim().toLowerCase() === matriculaClean.toLowerCase()
+      );
+
+      const resolvedPassword =
+        al.password && al.password.trim()
+          ? al.password.trim()
+          : getDefaultUserPassword(matriculaClean, '2026-2');
+
+      const resolvedQRCode = al.qr_code && al.qr_code.trim() ? al.qr_code.trim() : matriculaClean;
+
+      if (existingIndex >= 0) {
+        if (options.updateExisting !== false) {
+          const existing = current[existingIndex];
+          const updatedItem: Alumno = {
+            ...existing,
+            ...al,
+            id: existing.id,
+            matricula: matriculaClean,
+            password: al.password?.trim() || existing.password || resolvedPassword,
+            qr_code: resolvedQRCode,
+            estado_matricula: al.estado_matricula || existing.estado_matricula || 'activo',
+            created_at: existing.created_at || new Date().toISOString()
+          };
+          current[existingIndex] = updatedItem;
+          processedItems.push(updatedItem);
+          updatedCount++;
+        }
+      } else {
+        const newItem: Alumno = {
+          ...al,
+          id: al.id || `student-${Date.now()}-${idx}-${Math.floor(Math.random() * 1000)}`,
+          matricula: matriculaClean,
+          password: resolvedPassword,
+          qr_code: resolvedQRCode,
+          estado_matricula: al.estado_matricula || 'activo',
+          created_at: al.created_at || new Date().toISOString()
+        };
+        current.push(newItem);
+        processedItems.push(newItem);
+        addedCount++;
+      }
+    }
 
     localStorage.setItem('unrc_alumnos', JSON.stringify(current));
-    return newItems;
+
+    if (supabase && processedItems.length > 0) {
+      try {
+        const supabasePayload = processedItems.map((item) => ({
+          matricula: item.matricula,
+          nombre: item.nombre,
+          apellido_paterno: item.apellido_paterno,
+          apellido_materno: item.apellido_materno || '',
+          grado: item.grado,
+          grupo: item.grupo,
+          carrera: item.carrera || 'Licenciatura UNRC',
+          carrera_id: item.carrera_id,
+          grupo_id: item.grupo_id,
+          sede_id: item.sede_id,
+          sede_nombre: item.sede_nombre,
+          ciclo_id: item.ciclo_id,
+          estado_matricula: item.estado_matricula || 'activo',
+          tutor: item.tutor || 'Tutor Registrado',
+          telefono: item.telefono || '+525500000000',
+          foto_url: item.foto_url,
+          qr_code: item.qr_code || item.matricula,
+          password: item.password
+        }));
+
+        await supabase
+          .from('alumnos')
+          .upsert(supabasePayload, { onConflict: 'matricula' });
+      } catch (e) {
+        console.warn('Supabase bulk upsert notice:', e);
+      }
+    }
+
+    await db.addAuditoria(
+      'CARGA_MASIVA_ALUMNOS',
+      'Servicios Escolares / Matrículas',
+      `Carga masiva procesada: ${addedCount} expedientes nuevos incorporados, ${updatedCount} expedientes actualizados. Total procesados: ${processedItems.length}`,
+      'Control Escolar / Administrador'
+    );
+
+    return { added: addedCount, updated: updatedCount, items: processedItems };
   },
 
   deleteAlumno: async (id: string): Promise<boolean> => {
