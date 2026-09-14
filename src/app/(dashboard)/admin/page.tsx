@@ -201,6 +201,7 @@ export default function AdminDashboardPage() {
   const [assignedMaterias, setAssignedMaterias] = useState<string[]>([]);
   const [assignedHorarios, setAssignedHorarios] = useState<HorarioDocenteItem[]>([]);
   const [assignedSede, setAssignedSede] = useState('');
+  const [editingHorarioIndex, setEditingHorarioIndex] = useState<number | null>(null);
   
   // New Horario Slot sub-form
   const [newHorarioSlot, setNewHorarioSlot] = useState<HorarioDocenteItem>({
@@ -646,6 +647,7 @@ export default function AdminDashboardPage() {
     setAssignedMaterias(doc.materias || []);
     setAssignedHorarios(doc.horarios || []);
     setAssignedSede(doc.sede_nombre || 'Campus Magdalena Contreras');
+    setEditingHorarioIndex(null);
     setNewHorarioSlot({
       dia: 'Miércoles',
       hora_inicio: '09:00',
@@ -675,16 +677,52 @@ export default function AdminDashboardPage() {
     );
   };
 
-  const handleAddHorarioSlot = () => {
+  const handleStartEditHorarioSlot = (index: number) => {
+    setEditingHorarioIndex(index);
+    const targetSlot = assignedHorarios[index];
+    if (targetSlot) {
+      setNewHorarioSlot({ ...targetSlot });
+      showToast(`Editando bloque: ${targetSlot.dia} ${targetSlot.hora_inicio}-${targetSlot.hora_fin} hrs`);
+    }
+  };
+
+  const handleCancelEditHorarioSlot = () => {
+    setEditingHorarioIndex(null);
+    setNewHorarioSlot({
+      dia: 'Miércoles',
+      hora_inicio: '09:00',
+      hora_fin: '11:00',
+      carrera: selectedDocente?.carreras_asignadas?.[0] || selectedDocente?.departamento || 'Lic. en Turismo',
+      materia: selectedDocente?.materias?.[0] || 'Administración de Empresas de Hospedaje',
+      grupo: secciones[0]?.nombre || '201-TUR',
+      aula: 'Edificio A - Aula Magna 2',
+      es_en_linea: false,
+    });
+  };
+
+  const handleSaveHorarioSlot = () => {
     if (!newHorarioSlot.materia || !newHorarioSlot.grupo) {
       showToast('Selecciona materia y grupo para el bloque de horario', 'error');
       return;
     }
-    setAssignedHorarios((prev) => [...prev, { ...newHorarioSlot, id: `h-${Date.now()}` }]);
-    showToast(`Bloque de horario añadido (${newHorarioSlot.es_en_linea ? 'En línea 🌐' : 'Presencial 🏛️'})`);
+    if (editingHorarioIndex !== null) {
+      setAssignedHorarios((prev) => {
+        const updated = [...prev];
+        updated[editingHorarioIndex] = { ...newHorarioSlot };
+        return updated;
+      });
+      setEditingHorarioIndex(null);
+      showToast(`Bloque de horario actualizado (${newHorarioSlot.es_en_linea ? 'En línea 🌐' : 'Presencial 🏛️'})`);
+    } else {
+      setAssignedHorarios((prev) => [...prev, { ...newHorarioSlot, id: `h-${Date.now()}` }]);
+      showToast(`Bloque de horario añadido (${newHorarioSlot.es_en_linea ? 'En línea 🌐' : 'Presencial 🏛️'})`);
+    }
   };
 
   const handleRemoveHorarioSlot = (index: number) => {
+    if (editingHorarioIndex === index) {
+      setEditingHorarioIndex(null);
+    }
     setAssignedHorarios((prev) => prev.filter((_, i) => i !== index));
   };
 
@@ -2442,8 +2480,29 @@ export default function AdminDashboardPage() {
                 3. Programar Horarios de Clase (Días, Horas, Grupo y Aula):
               </label>
 
-              {/* Form to add a slot */}
-              <div className="p-3.5 rounded-2xl bg-black/40 border border-white/10 space-y-3 text-xs">
+              {/* Form to add or edit a slot */}
+              <div className={`p-3.5 rounded-2xl border space-y-3 text-xs transition-all ${
+                editingHorarioIndex !== null
+                  ? 'bg-gradient-to-b from-[#1C1608] to-[#0E1726] border-amber-500/50 shadow-xl shadow-amber-950/30 ring-1 ring-amber-500/20'
+                  : 'bg-black/40 border-white/10'
+              }`}>
+                {/* Editing Header Notice */}
+                {editingHorarioIndex !== null && (
+                  <div className="p-2.5 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-between text-amber-200">
+                    <div className="flex items-center space-x-2 font-bold text-xs">
+                      <Edit className="w-4 h-4 text-amber-400" />
+                      <span>Editando Bloque de Horario #{editingHorarioIndex + 1}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleCancelEditHorarioSlot}
+                      className="text-[11px] text-gray-300 hover:text-white underline font-semibold cursor-pointer"
+                    >
+                      Cancelar edición
+                    </button>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-3 gap-2">
                   <div>
                     <label className="text-gray-400 block text-[10px] mb-1">Día de Clase</label>
@@ -2592,14 +2651,35 @@ export default function AdminDashboardPage() {
                   </span>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handleAddHorarioSlot}
-                  className="w-full py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow transition-all flex items-center justify-center space-x-1.5"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Agregar Bloque de Horario</span>
-                </button>
+                {/* Botón Guardar / Modificar Bloque */}
+                {editingHorarioIndex !== null ? (
+                  <div className="flex items-center space-x-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={handleSaveHorarioSlot}
+                      className="flex-1 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center space-x-1.5 cursor-pointer"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Guardar Cambios del Bloque</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCancelEditHorarioSlot}
+                      className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-gray-300 font-bold text-xs transition-all cursor-pointer"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleSaveHorarioSlot}
+                    className="w-full py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow transition-all flex items-center justify-center space-x-1.5 cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Agregar Bloque de Horario</span>
+                  </button>
+                )}
               </div>
 
               {/* List of current assigned slots */}
@@ -2613,7 +2693,11 @@ export default function AdminDashboardPage() {
                   assignedHorarios.map((h, idx) => (
                     <div
                       key={idx}
-                      className="p-2.5 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between text-xs hover:border-white/20 transition-all"
+                      className={`p-2.5 rounded-xl border flex items-center justify-between text-xs transition-all ${
+                        editingHorarioIndex === idx
+                          ? 'bg-amber-500/15 border-amber-500/60 ring-2 ring-amber-500/40 shadow-lg shadow-amber-950/30'
+                          : 'bg-white/5 border-white/10 hover:border-white/20'
+                      }`}
                     >
                       <div className="space-y-0.5">
                         <div className="flex items-center space-x-2 flex-wrap">
@@ -2631,6 +2715,11 @@ export default function AdminDashboardPage() {
                               <span>PRESENCIAL</span>
                             </span>
                           )}
+                          {editingHorarioIndex === idx && (
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/30 text-amber-200 border border-amber-500/50 animate-pulse">
+                              ✏️ Editando
+                            </span>
+                          )}
                         </div>
                         <span className="text-gray-400 block text-[11px]">
                           Grupo: <strong className="text-white">{h.grupo}</strong> • {h.materia} • Espacio:{' '}
@@ -2641,6 +2730,21 @@ export default function AdminDashboardPage() {
                       </div>
 
                       <div className="flex items-center space-x-1.5 shrink-0">
+                        {/* Botón Editar Horario */}
+                        <button
+                          type="button"
+                          onClick={() => handleStartEditHorarioSlot(idx)}
+                          className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
+                            editingHorarioIndex === idx
+                              ? 'bg-amber-500/30 text-amber-200 border-amber-500/60 ring-2 ring-amber-500/40'
+                              : 'bg-white/5 hover:bg-white/10 text-gray-300 border-white/10 hover:text-amber-300'
+                          }`}
+                          title="Editar este horario (día, horas, grupo, materia, aula o modalidad)"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                        </button>
+
+                        {/* Botón Google Calendar */}
                         {selectedDocente && (
                           <a
                             href={createGoogleCalendarUrl(h, selectedDocente)}
@@ -2653,10 +2757,12 @@ export default function AdminDashboardPage() {
                             <span className="hidden sm:inline">Google Cal</span>
                           </a>
                         )}
+
+                        {/* Botón Eliminar Horario */}
                         <button
                           type="button"
                           onClick={() => handleRemoveHorarioSlot(idx)}
-                          className="text-gray-500 hover:text-rose-400 p-1.5 rounded-lg hover:bg-white/5 transition-all"
+                          className="text-gray-500 hover:text-rose-400 p-1.5 rounded-lg hover:bg-white/5 transition-all cursor-pointer"
                           title="Eliminar este bloque"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
