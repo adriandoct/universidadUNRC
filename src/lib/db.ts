@@ -1293,37 +1293,35 @@ export const db = {
           let hadChanges = false;
           const enriched = parsed.map((a: Alumno) => {
             let item = { ...a };
-            const g = (item.grupo || '').toUpperCase();
             const cName = (item.carrera || '').toLowerCase();
             const cId = (item.carrera_id || '').toLowerCase();
 
-            // Auto-reconcile Turismo
-            if (g.includes('TUR') || cName.includes('turis') || cId === 'c4' || cId.includes('c4')) {
-              if (item.carrera !== 'Licenciatura en Turismo' || item.carrera_id !== 'c4444444-4444-4444-4444-444444444444') {
-                hadChanges = true;
-                item.carrera = 'Licenciatura en Turismo';
-                item.carrera_id = 'c4444444-4444-4444-4444-444444444444';
-                item.tutor = item.tutor || 'Dr. Adrian Silva';
-              }
-            } else if (g.includes('ADM') || cName.includes('admin') || cId === 'c5' || cId.includes('c5')) {
+            // Align known carrera IDs with their official names without overriding user-set careers
+            if (cId === 'c5555555-5555-5555-5555-555555555555' || cName.includes('administra') || cId === 'c5') {
               if (item.carrera !== 'Licenciatura en Administración' || item.carrera_id !== 'c5555555-5555-5555-5555-555555555555') {
                 hadChanges = true;
                 item.carrera = 'Licenciatura en Administración';
                 item.carrera_id = 'c5555555-5555-5555-5555-555555555555';
               }
-            } else if (g === '101' || g === '102' || cName.includes('datos') || cName.includes('inteligencia') || cId === 'c1' || cId.includes('c1')) {
+            } else if (cId === 'c4444444-4444-4444-4444-444444444444' || cName.includes('turis') || cId === 'c4') {
+              if (item.carrera !== 'Licenciatura en Turismo' || item.carrera_id !== 'c4444444-4444-4444-4444-444444444444') {
+                hadChanges = true;
+                item.carrera = 'Licenciatura en Turismo';
+                item.carrera_id = 'c4444444-4444-4444-4444-444444444444';
+              }
+            } else if (cId === 'c1111111-1111-1111-1111-111111111111' || cName.includes('datos') || cName.includes('inteligencia') || cId === 'c1') {
               if (item.carrera !== 'Licenciatura en Ciencias de Datos e Inteligencia Artificial' || item.carrera_id !== 'c1111111-1111-1111-1111-111111111111') {
                 hadChanges = true;
                 item.carrera = 'Licenciatura en Ciencias de Datos e Inteligencia Artificial';
                 item.carrera_id = 'c1111111-1111-1111-1111-111111111111';
               }
-            } else if (g === '201' || g === '301' || cName.includes('tic') || cName.includes('tecnolog') || cId === 'c2' || cId.includes('c2')) {
+            } else if (cId === 'c2222222-2222-2222-2222-222222222222' || cName.includes('tic') || cName.includes('tecnolog') || cId === 'c2') {
               if (item.carrera !== 'Licenciatura en Tecnologías de la Información y Comunicación' || item.carrera_id !== 'c2222222-2222-2222-2222-222222222222') {
                 hadChanges = true;
                 item.carrera = 'Licenciatura en Tecnologías de la Información y Comunicación';
                 item.carrera_id = 'c2222222-2222-2222-2222-222222222222';
               }
-            } else if (g === '501' || cName.includes('ciber') || cId === 'c3' || cId.includes('c3')) {
+            } else if (cId === 'c3333333-3333-3333-3333-333333333333' || cName.includes('ciber') || cId === 'c3') {
               if (item.carrera !== 'Licenciatura en Ciberseguridad' || item.carrera_id !== 'c3333333-3333-3333-3333-333333333333') {
                 hadChanges = true;
                 item.carrera = 'Licenciatura en Ciberseguridad';
@@ -1358,14 +1356,13 @@ export const db = {
         if (!error && data && data.length > 0) {
           const list: Alumno[] = data.map((sa: any) => {
             const mockMatch = MOCK_ALUMNOS.find(m => m.matricula === sa.matricula);
-            const g = (sa.grupo || mockMatch?.grupo || '').toUpperCase();
             const cName = (sa.carrera || mockMatch?.carrera || '').toLowerCase();
             const cId = (sa.carrera_id || mockMatch?.carrera_id || '').toLowerCase();
-            const isTurismo = g.includes('TUR') || g === '201-TUR' || cName.includes('turis') || cId === 'c4' || cId.includes('c4');
-            const isAdm = g.includes('ADM') || g === '203-ADM' || cName.includes('admin') || cId === 'c5' || cId.includes('c5');
-            const isCdIA = g === '101' || g === '102' || cName.includes('datos') || cName.includes('inteligencia') || cId === 'c1' || cId.includes('c1');
-            const isTic = g === '201' || g === '301' || cName.includes('tic') || cName.includes('tecnolog') || cId === 'c2' || cId.includes('c2');
-            const isCib = g === '501' || cName.includes('ciber') || cId === 'c3' || cId.includes('c3');
+            const isTurismo = cName.includes('turis') || cId.includes('c4');
+            const isAdm = cName.includes('admin') || cId.includes('c5');
+            const isCdIA = cName.includes('datos') || cName.includes('inteligencia') || cId.includes('c1');
+            const isTic = cName.includes('tic') || cName.includes('tecnolog') || cId.includes('c2');
+            const isCib = cName.includes('ciber') || cId.includes('c3');
 
             return {
               ...mockMatch,
@@ -1391,11 +1388,11 @@ export const db = {
                 ? 'c2222222-2222-2222-2222-222222222222'
                 : isCib
                 ? 'c3333333-3333-3333-3333-333333333333'
-                : sa.carrera_id || mockMatch?.carrera_id || 'c1111111-1111-1111-1111-111111111111',
+                : sa.carrera_id || mockMatch?.carrera_id || '',
               tutor: isTurismo ? 'Dr. Adrian Silva' : isAdm ? 'Dr. Adrian Silva' : sa.tutor || mockMatch?.tutor || 'Tutor Registrado',
               password: sa.password || mockMatch?.password || getDefaultUserPassword(sa.matricula, '2026-2'),
-              sede_id: sa.sede_id || mockMatch?.sede_id || 'sede-mc',
-              sede_nombre: sa.sede_nombre || mockMatch?.sede_nombre || 'Campus Magdalena Contreras',
+              sede_id: sa.sede_id || mockMatch?.sede_id || '',
+              sede_nombre: sa.sede_nombre || mockMatch?.sede_nombre || '',
               ciclo_id: sa.ciclo_id || mockMatch?.ciclo_id || 'ciclo-2026-2',
               estado_matricula: sa.estado_matricula || mockMatch?.estado_matricula || 'activo',
               grupo_id: sa.grupo_id || mockMatch?.grupo_id || (isTurismo ? 'g201-tur' : isAdm ? 'g203-adm' : 'g101')

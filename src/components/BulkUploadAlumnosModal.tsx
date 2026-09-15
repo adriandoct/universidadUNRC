@@ -29,6 +29,7 @@ interface BulkUploadAlumnosModalProps {
   sedes: Sede[];
   activeCiclo?: CicloEscolar;
   initialCarreraId?: string;
+  initialSedeId?: string;
   showToast: (msg: string, type?: 'success' | 'error' | 'info') => void;
 }
 
@@ -79,6 +80,7 @@ export default function BulkUploadAlumnosModal({
   sedes,
   activeCiclo,
   initialCarreraId,
+  initialSedeId,
   showToast
 }: BulkUploadAlumnosModalProps) {
   const [file, setFile] = useState<File | null>(null);
@@ -118,40 +120,52 @@ export default function BulkUploadAlumnosModal({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Initialize Destination Career based on props or context
+  // Initialize Destination Career & Sede based on props or context
   useEffect(() => {
     if (!isOpen) return;
 
+    let targetCar = targetCarreraId;
     if (initialCarreraId && carreras.some((c) => c.id === initialCarreraId)) {
+      targetCar = initialCarreraId;
       setTargetCarreraId(initialCarreraId);
-      const sel = carreras.find((c) => c.id === initialCarreraId);
-      if (sel?.nombre.toLowerCase().includes('turismo')) {
-        setTargetGrupo('201-TUR');
-        setTargetGrado('2° Semestre');
-      }
     } else if (!targetCarreraId && carreras.length > 0) {
-      // If no initial, prefer Turismo if available, or first
-      const tur = carreras.find((c) => c.clave?.includes('TUR') || c.nombre.toLowerCase().includes('turismo'));
-      if (tur) {
-        setTargetCarreraId(tur.id);
-        setTargetGrupo('201-TUR');
-        setTargetGrado('2° Semestre');
-      } else {
-        setTargetCarreraId(carreras[0].id);
-      }
+      targetCar = carreras[0].id;
+      setTargetCarreraId(targetCar);
     }
 
-    if (!targetSedeId && sedes.length > 0) {
+    // Auto-update group and grade to match the target career
+    const sel = carreras.find((c) => c.id === targetCar);
+    if (sel?.nombre.toLowerCase().includes('turismo') || sel?.clave?.includes('TUR')) {
+      setTargetGrupo('201-TUR');
+      setTargetGrado('2° Semestre');
+    } else if (sel?.nombre.toLowerCase().includes('administración') || sel?.clave?.includes('ADM')) {
+      setTargetGrupo('203-ADM');
+      setTargetGrado('2° Semestre');
+    } else if (sel?.nombre.toLowerCase().includes('datos') || sel?.clave?.includes('CDIA')) {
+      setTargetGrupo('101');
+      setTargetGrado('1° Semestre');
+    } else if (sel?.nombre.toLowerCase().includes('ciberseguridad') || sel?.clave?.includes('CIB')) {
+      setTargetGrupo('501');
+      setTargetGrado('5° Semestre');
+    } else if (sel?.nombre.toLowerCase().includes('tecnologías') || sel?.clave?.includes('TIC')) {
+      setTargetGrupo('201');
+      setTargetGrado('3° Semestre');
+    }
+
+    // Sync Sede with active filter if provided
+    if (initialSedeId && sedes.some((s) => s.id === initialSedeId)) {
+      setTargetSedeId(initialSedeId);
+    } else if (!targetSedeId && sedes.length > 0) {
       setTargetSedeId(sedes[0].id);
     }
-  }, [isOpen, initialCarreraId, carreras, sedes]);
+  }, [isOpen, initialCarreraId, initialSedeId, carreras, sedes]);
 
   if (!isOpen) return null;
 
   // Selected Career Object
   const selectedCarreraObj =
     carreras.find((c) => c.id === targetCarreraId) || carreras[0] || {
-      id: 'c4',
+      id: 'c4444444-4444-4444-4444-444444444444',
       nombre: 'Licenciatura en Turismo',
       clave: 'LIC-TUR'
     };
@@ -221,7 +235,7 @@ export default function BulkUploadAlumnosModal({
         'Buitimea',
         'Garma',
         '2° Semestre',
-        '201-TUR',
+        targetGrupo || '201-TUR',
         `"${currentCarreraName}"`,
         `"${currentSedeName}"`,
         'activo',
@@ -235,7 +249,7 @@ export default function BulkUploadAlumnosModal({
         'Hernandez',
         'Mendoza',
         '2° Semestre',
-        '201-TUR',
+        targetGrupo || '201-TUR',
         `"${currentCarreraName}"`,
         `"${currentSedeName}"`,
         'activo',
@@ -328,36 +342,15 @@ export default function BulkUploadAlumnosModal({
     };
   };
 
-  // Resolve Carrera with Strict Logic
+  // Resolve Carrera with Strict Logic (User Selection is King)
   const resolveCarreraStrict = (
     rawCarrera: string,
     rawGrupo: string,
     activeCarrera: Carrera
   ): Carrera => {
     const cleanCarrera = (rawCarrera || '').trim().toLowerCase();
-    const cleanGrupo = (rawGrupo || '').trim().toUpperCase();
 
-    // Priority 1: Explicit Group Indicators
-    if (cleanGrupo.includes('TUR') || cleanGrupo === '201-TUR') {
-      const tur = carreras.find(
-        (c) => c.clave?.includes('TUR') || c.nombre.toLowerCase().includes('turismo')
-      );
-      if (tur) return tur;
-    }
-    if (cleanGrupo.includes('ADM') || cleanGrupo === '203-ADM') {
-      const adm = carreras.find(
-        (c) => c.clave?.includes('ADM') || c.nombre.toLowerCase().includes('administración')
-      );
-      if (adm) return adm;
-    }
-    if (cleanGrupo.includes('CIB') || cleanGrupo === '501') {
-      const cib = carreras.find(
-        (c) => c.clave?.includes('CIB') || c.nombre.toLowerCase().includes('ciberseguridad')
-      );
-      if (cib) return cib;
-    }
-
-    // Priority 2: Explicit Non-Empty Text in Carrera column
+    // Priority 1: Explicit Non-Empty Text in Carrera column that matches a known career
     if (cleanCarrera.length > 2) {
       if (cleanCarrera.includes('turism') || cleanCarrera.includes('tur')) {
         const tur = carreras.find(
@@ -394,7 +387,7 @@ export default function BulkUploadAlumnosModal({
         if (dat) return dat;
       }
 
-      // Check direct exact match
+      // Check direct exact match by ID or name
       const exactMatch = carreras.find(
         (c) =>
           c.id.toLowerCase() === cleanCarrera ||
@@ -404,8 +397,12 @@ export default function BulkUploadAlumnosModal({
       if (exactMatch) return exactMatch;
     }
 
-    // Priority 3: Strictly the User's Chosen Target Career in the Modal
-    return activeCarrera;
+    // Priority 2: Strictly the User's Chosen Target Career in the Modal
+    if (activeCarrera) {
+      return activeCarrera;
+    }
+
+    return carreras[0];
   };
 
   // 3. Reparse Rows

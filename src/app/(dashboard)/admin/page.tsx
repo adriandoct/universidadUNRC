@@ -925,10 +925,21 @@ export default function AdminDashboardPage() {
     showToast('Bitácora de auditoría exportada correctamente.');
   };
 
+  // Normalizer for career text matching
+  const normCareerText = (str: string = '') =>
+    str
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/^lic(\.|\s+en\s+)?/, 'licenciatura en ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
   // Filtered Alumnos
   const filteredAlumnos = alumnos.filter((a) => {
     const query = searchQuery.toLowerCase();
     const matchesSearch =
+      !query ||
       `${a.nombre} ${a.apellido_paterno} ${a.apellido_materno || ''}`
         .toLowerCase()
         .includes(query) ||
@@ -940,48 +951,32 @@ export default function AdminDashboardPage() {
     );
 
     let matchesCarrera = filterCarrera === 'todos';
-    if (!matchesCarrera) {
-      if (a.carrera_id === filterCarrera || a.carrera === filterCarrera) {
-        matchesCarrera = true;
-      } else if (selectedCarreraObj) {
-        const selName = (selectedCarreraObj.nombre || '').toLowerCase();
-        const selClave = (selectedCarreraObj.clave || '').toUpperCase();
-        const aCarrera = (a.carrera || '').toLowerCase();
-        const aGrupo = (a.grupo || '').toUpperCase();
-        const aCId = (a.carrera_id || '').toLowerCase();
+    if (!matchesCarrera && selectedCarreraObj) {
+      const selId = (selectedCarreraObj.id || '').toLowerCase();
+      const selClave = (selectedCarreraObj.clave || '').toUpperCase();
+      const selNameNorm = normCareerText(selectedCarreraObj.nombre);
 
-        if (a.carrera_id === selectedCarreraObj.id) {
-          matchesCarrera = true;
-        } else if (
-          (selClave.includes('TUR') || selName.includes('turis')) &&
-          (aCId === 'c4' || aCId.includes('c4') || aGrupo.includes('TUR') || aCarrera.includes('turis'))
-        ) {
-          matchesCarrera = true;
-        } else if (
-          (selClave.includes('ADM') || selName.includes('admin')) &&
-          (aCId === 'c5' || aCId.includes('c5') || aGrupo.includes('ADM') || aCarrera.includes('admin'))
-        ) {
-          matchesCarrera = true;
-        } else if (
-          (selClave.includes('CDIA') || selName.includes('datos') || selName.includes('inteligencia')) &&
-          (aCId === 'c1' || aCId.includes('c1') || aCarrera.includes('datos') || aCarrera.includes('inteligencia') || aGrupo === '101' || aGrupo === '102')
-        ) {
-          matchesCarrera = true;
-        } else if (
-          (selClave.includes('TIC') || selName.includes('tecnolog') || selName.includes('información')) &&
-          (aCId === 'c2' || aCId.includes('c2') || aCarrera.includes('tic') || aCarrera.includes('tecnolog') || aGrupo === '201' || aGrupo === '301')
-        ) {
-          matchesCarrera = true;
-        } else if (
-          (selClave.includes('CIB') || selName.includes('ciber')) &&
-          (aCId === 'c3' || aCId.includes('c3') || aCarrera.includes('ciber') || aGrupo === '501')
-        ) {
-          matchesCarrera = true;
-        } else if (
-          aCarrera && (aCarrera === selName || selName.includes(aCarrera) || aCarrera.includes(selName))
-        ) {
-          matchesCarrera = true;
-        }
+      const aCId = (a.carrera_id || '').toLowerCase();
+      const aNameNorm = normCareerText(a.carrera);
+
+      if (
+        aCId === selId ||
+        aCId === filterCarrera.toLowerCase() ||
+        a.carrera === selectedCarreraObj.nombre ||
+        a.carrera === filterCarrera ||
+        (selNameNorm && aNameNorm && (selNameNorm === aNameNorm || selNameNorm.includes(aNameNorm) || aNameNorm.includes(selNameNorm)))
+      ) {
+        matchesCarrera = true;
+      } else if (selClave.includes('ADM') || selNameNorm.includes('administra')) {
+        matchesCarrera = aNameNorm.includes('administra') || aCId.includes('c5');
+      } else if (selClave.includes('TUR') || selNameNorm.includes('turis')) {
+        matchesCarrera = aNameNorm.includes('turis') || aCId.includes('c4');
+      } else if (selClave.includes('CDIA') || selNameNorm.includes('datos') || selNameNorm.includes('inteligencia')) {
+        matchesCarrera = aNameNorm.includes('datos') || aNameNorm.includes('inteligencia') || aCId.includes('c1');
+      } else if (selClave.includes('TIC') || selNameNorm.includes('tecnolog') || selNameNorm.includes('informacion')) {
+        matchesCarrera = aNameNorm.includes('tecnolog') || aNameNorm.includes('tic') || aCId.includes('c2');
+      } else if (selClave.includes('CIB') || selNameNorm.includes('ciber')) {
+        matchesCarrera = aNameNorm.includes('ciber') || aCId.includes('c3');
       }
     }
 
@@ -990,7 +985,10 @@ export default function AdminDashboardPage() {
       filterSede === 'todos' ||
       a.sede_id === filterSede ||
       a.sede_nombre === filterSede ||
-      (selectedSedeObj && (a.sede_id === selectedSedeObj.id || a.sede_nombre === selectedSedeObj.nombre));
+      (selectedSedeObj && (
+        a.sede_id === selectedSedeObj.id ||
+        (a.sede_nombre && a.sede_nombre.toLowerCase() === selectedSedeObj.nombre.toLowerCase())
+      ));
 
     const matchesEstado =
       filterEstadoMatricula === 'todos' ||
@@ -998,6 +996,58 @@ export default function AdminDashboardPage() {
 
     return matchesSearch && matchesCarrera && matchesSede && matchesEstado;
   });
+
+  // Alumnos in the currently selected Carrera regardless of Sede (to help user when sede filter hides them)
+  const alumnosInSelectedCarrera = filterCarrera === 'todos'
+    ? []
+    : alumnos.filter((a) => {
+        const selectedCarreraObj = carreras.find(
+          (c) => c.id === filterCarrera || c.nombre === filterCarrera || c.clave === filterCarrera
+        );
+        if (!selectedCarreraObj) return false;
+        const selId = (selectedCarreraObj.id || '').toLowerCase();
+        const selClave = (selectedCarreraObj.clave || '').toUpperCase();
+        const selNameNorm = normCareerText(selectedCarreraObj.nombre);
+        const aCId = (a.carrera_id || '').toLowerCase();
+        const aNameNorm = normCareerText(a.carrera);
+
+        return (
+          aCId === selId ||
+          aCId === filterCarrera.toLowerCase() ||
+          a.carrera === selectedCarreraObj.nombre ||
+          (selNameNorm && aNameNorm && (selNameNorm === aNameNorm || selNameNorm.includes(aNameNorm) || aNameNorm.includes(selNameNorm))) ||
+          (selClave.includes('ADM') && aNameNorm.includes('administra')) ||
+          (selClave.includes('TUR') && aNameNorm.includes('turis')) ||
+          (selClave.includes('CDIA') && (aNameNorm.includes('datos') || aNameNorm.includes('inteligencia'))) ||
+          (selClave.includes('TIC') && (aNameNorm.includes('tecnolog') || aNameNorm.includes('tic'))) ||
+          (selClave.includes('CIB') && aNameNorm.includes('ciber'))
+        );
+      });
+
+  const sameCarreraOtherSedesCount = filterSede === 'todos'
+    ? 0
+    : alumnosInSelectedCarrera.filter((a) => {
+        const selSede = sedes.find(s => s.id === filterSede || s.nombre === filterSede);
+        return a.sede_id !== filterSede && a.sede_nombre !== selSede?.nombre;
+      }).length;
+
+  const handleMigrateStudentsToCurrentSede = async () => {
+    const targetSedeObj = sedes.find((s) => s.id === filterSede || s.nombre === filterSede);
+    if (!targetSedeObj) return;
+    const toUpdate = alumnosInSelectedCarrera.filter(
+      (a) => a.sede_id !== targetSedeObj.id && a.sede_nombre !== targetSedeObj.nombre
+    );
+    if (toUpdate.length === 0) return;
+
+    for (const al of toUpdate) {
+      await db.updateAlumnoMatricula(al.id, {
+        sede_id: targetSedeObj.id,
+        sede_nombre: targetSedeObj.nombre,
+      });
+    }
+    showToast(`✅ ${toUpdate.length} alumnos reasignados a ${targetSedeObj.nombre}`);
+    await loadData();
+  };
 
   // Filtered Personal
   const filteredPersonal = docentes.filter((d) => {
@@ -1524,7 +1574,7 @@ export default function AdminDashboardPage() {
                 <h3 className="text-lg font-bold text-white flex items-center space-x-2">
                   <span>Control Escolar de Matrículas</span>
                   <span className="text-xs font-normal text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/30">
-                    {alumnos.length} Expedientes
+                    {filteredAlumnos.length} Expedientes {filteredAlumnos.length !== alumnos.length ? `(${alumnos.length} en total)` : ''}
                   </span>
                 </h3>
                 <p className="text-xs text-gray-400">
@@ -1548,18 +1598,36 @@ export default function AdminDashboardPage() {
                   onClick={() => {
                     const newMat = `UNRC-2026-0${alumnos.length + 10}`;
                     setEditingId(null);
+                    const defaultCar = filterCarrera !== 'todos' && carreras.some(c => c.id === filterCarrera)
+                      ? filterCarrera
+                      : carreras[0]?.id || '';
+                    const defaultSede = filterSede !== 'todos' && sedes.some(s => s.id === filterSede)
+                      ? filterSede
+                      : sedes[0]?.id || '';
+                    const selCarObj = carreras.find(c => c.id === defaultCar);
+                    let defaultGrp = '201-TUR';
+                    if (selCarObj?.nombre.toLowerCase().includes('admin') || selCarObj?.clave?.includes('ADM')) {
+                      defaultGrp = '203-ADM';
+                    } else if (selCarObj?.nombre.toLowerCase().includes('datos') || selCarObj?.clave?.includes('CDIA')) {
+                      defaultGrp = '101';
+                    } else if (selCarObj?.nombre.toLowerCase().includes('ciber') || selCarObj?.clave?.includes('CIB')) {
+                      defaultGrp = '501';
+                    } else if (selCarObj?.nombre.toLowerCase().includes('tecnolog') || selCarObj?.clave?.includes('TIC')) {
+                      defaultGrp = '201';
+                    }
+
                     setAlumnoForm({
                       matricula: newMat,
                       nombre: '',
                       apellido_paterno: '',
                       apellido_materno: '',
                       grado: '2° Semestre',
-                      grupo: '201-TUR',
-                      carrera_id: carreras[0]?.id || '',
-                      sede_id: sedes[0]?.id || '',
+                      grupo: defaultGrp,
+                      carrera_id: defaultCar,
+                      sede_id: defaultSede,
                       ciclo_id: activeCiclo?.id || '',
                       estado_matricula: 'activo',
-                      tutor: 'Dr. Adrian Silva',
+                      tutor: defaultGrp.includes('TUR') ? 'Dr. Adrian Silva' : 'Tutor Institucional',
                       telefono: '+525500000000',
                       password: getDefaultUserPassword(newMat, '2026-2'),
                     });
@@ -1646,67 +1714,156 @@ export default function AdminDashboardPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5 bg-black/20">
-                  {filteredAlumnos.map((al) => {
-                    const status = al.estado_matricula || 'activo';
-                    return (
-                      <tr key={al.id} className="hover:bg-white/5 transition-colors">
-                        <td className="p-3.5 font-mono text-xs">
-                          <div className="font-bold text-blue-400">{al.matricula}</div>
-                          <div
-                            className="mt-1 flex items-center space-x-1 text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/25 max-w-fit font-bold"
-                            title="Acceso institucional protegido"
-                          >
-                            <KeyRound className="w-3 h-3 text-emerald-400 shrink-0" />
-                            <span>Protegida</span>
+                  {filteredAlumnos.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="p-8 text-center">
+                        <div className="max-w-lg mx-auto space-y-4">
+                          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mx-auto text-amber-400">
+                            <AlertCircle className="w-6 h-6" />
                           </div>
-                        </td>
-                        <td className="p-3.5">
-                          <div className="font-bold text-white">
-                            {al.nombre} {al.apellido_paterno} {al.apellido_materno || ''}
+                          <div>
+                            <h4 className="text-sm font-bold text-white">
+                              No hay alumnos que coincidan con los filtros seleccionados
+                            </h4>
+                            <p className="text-xs text-gray-400 mt-1">
+                              {filterCarrera !== 'todos' && `Carrera: ${carreras.find(c => c.id === filterCarrera)?.nombre || filterCarrera}`}
+                              {filterSede !== 'todos' && ` • Sede: ${sedes.find(s => s.id === filterSede)?.nombre || filterSede}`}
+                              {filterEstadoMatricula !== 'todos' && ` • Estado: ${filterEstadoMatricula}`}
+                            </p>
                           </div>
-                          <div className="text-[10px] text-gray-400">Tutor: {al.tutor}</div>
-                        </td>
-                        <td className="p-3.5">
-                          <select
-                            value={
-                              carreras.find((c) => c.id === al.carrera_id)?.id ||
-                              carreras.find((c) => c.nombre.toLowerCase() === (al.carrera || '').toLowerCase())?.id ||
-                              (al.grupo?.toUpperCase().includes('TUR')
-                                ? (carreras.find((c) => c.clave?.includes('TUR'))?.id || '')
-                                : '')
-                            }
-                            onChange={async (e) => {
-                              const newCId = e.target.value;
-                              const targetCar = carreras.find((c) => c.id === newCId);
-                              if (targetCar) {
-                                const isTur = targetCar.nombre.toLowerCase().includes('turismo');
-                                await db.updateAlumnoMatricula(al.id, {
-                                  carrera: targetCar.nombre,
-                                  carrera_id: targetCar.id,
-                                  grupo: isTur ? '201-TUR' : al.grupo,
-                                  tutor: isTur ? 'Dr. Adrian Silva' : al.tutor
-                                });
-                                showToast(`Carrera de ${al.nombre} reasignada a: ${targetCar.nombre}`);
-                                await loadData();
+
+                          {/* Quick helper when students exist in this Carrera but in another Sede */}
+                          {sameCarreraOtherSedesCount > 0 && (
+                            <div className="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/30 text-xs text-blue-200 text-left space-y-2">
+                              <p className="font-semibold text-blue-300">
+                                💡 Información: Hay {sameCarreraOtherSedesCount} alumnos asignados a esta carrera en otro plantel.
+                              </p>
+                              <div className="flex flex-wrap items-center gap-2 pt-1">
+                                <button
+                                  type="button"
+                                  onClick={() => setFilterSede('todos')}
+                                  className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition-all shadow-md"
+                                >
+                                  Ver todas las sedes de esta carrera
+                                </button>
+                                {filterSede !== 'todos' && (
+                                  <button
+                                    type="button"
+                                    onClick={handleMigrateStudentsToCurrentSede}
+                                    className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-all shadow-md"
+                                  >
+                                    Reasignar los {sameCarreraOtherSedesCount} alumnos a {sedes.find(s => s.id === filterSede)?.nombre || 'esta sede'}
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="pt-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSearchQuery('');
+                                setFilterCarrera('todos');
+                                setFilterSede('todos');
+                                setFilterEstadoMatricula('todos');
+                              }}
+                              className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs transition-all"
+                            >
+                              Mostrar todos los expedientes ({alumnos.length} alumnos)
+                            </button>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredAlumnos.map((al) => {
+                      const status = al.estado_matricula || 'activo';
+                      return (
+                        <tr key={al.id} className="hover:bg-white/5 transition-colors">
+                          <td className="p-3.5 font-mono text-xs">
+                            <div className="font-bold text-blue-400">{al.matricula}</div>
+                            <div
+                              className="mt-1 flex items-center space-x-1 text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/25 max-w-fit font-bold"
+                              title="Acceso institucional protegido"
+                            >
+                              <KeyRound className="w-3 h-3 text-emerald-400 shrink-0" />
+                              <span>Protegida</span>
+                            </div>
+                          </td>
+                          <td className="p-3.5">
+                            <div className="font-bold text-white">
+                              {al.nombre} {al.apellido_paterno} {al.apellido_materno || ''}
+                            </div>
+                            <div className="text-[10px] text-gray-400">Tutor: {al.tutor}</div>
+                          </td>
+                          <td className="p-3.5">
+                            <select
+                              value={
+                                carreras.find((c) => c.id === al.carrera_id)?.id ||
+                                carreras.find((c) => c.nombre.toLowerCase() === (al.carrera || '').toLowerCase())?.id ||
+                                (al.grupo?.toUpperCase().includes('TUR')
+                                  ? (carreras.find((c) => c.clave?.includes('TUR'))?.id || '')
+                                  : '')
                               }
-                            }}
-                            className="px-2 py-1 rounded-lg bg-black/40 border border-white/10 hover:border-emerald-500/50 text-xs text-white cursor-pointer focus:outline-none focus:border-emerald-500 max-w-[200px] truncate"
-                            title="Cambiar carrera de este estudiante"
-                          >
-                            {carreras.map((c) => (
-                              <option key={c.id} value={c.id} className="bg-[#0c1220] text-white">
-                                {c.nombre}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-                        <td className="p-3.5">
-                          <span className="font-bold text-amber-300 font-mono">{al.grupo}</span>
-                          <span className="text-[10px] text-gray-400 block">{al.grado}</span>
-                        </td>
-                        <td className="p-3.5 text-xs text-gray-300">
-                          {al.sede_nombre || 'Campus Magdalena Contreras'}
-                        </td>
+                              onChange={async (e) => {
+                                const newCId = e.target.value;
+                                const targetCar = carreras.find((c) => c.id === newCId);
+                                if (targetCar) {
+                                  const isTur = targetCar.nombre.toLowerCase().includes('turismo');
+                                  await db.updateAlumnoMatricula(al.id, {
+                                    carrera: targetCar.nombre,
+                                    carrera_id: targetCar.id,
+                                    grupo: isTur ? '201-TUR' : al.grupo,
+                                    tutor: isTur ? 'Dr. Adrian Silva' : al.tutor
+                                  });
+                                  showToast(`Carrera de ${al.nombre} reasignada a: ${targetCar.nombre}`);
+                                  await loadData();
+                                }
+                              }}
+                              className="px-2 py-1 rounded-lg bg-black/40 border border-white/10 hover:border-emerald-500/50 text-xs text-white cursor-pointer focus:outline-none focus:border-emerald-500 max-w-[200px] truncate"
+                              title="Cambiar carrera de este estudiante"
+                            >
+                              {carreras.map((c) => (
+                                <option key={c.id} value={c.id} className="bg-[#0c1220] text-white">
+                                  {c.nombre}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="p-3.5">
+                            <span className="font-bold text-amber-300 font-mono">{al.grupo}</span>
+                            <span className="text-[10px] text-gray-400 block">{al.grado}</span>
+                          </td>
+                          <td className="p-3.5">
+                            <select
+                              value={
+                                sedes.find((s) => s.id === al.sede_id)?.id ||
+                                sedes.find((s) => s.nombre.toLowerCase() === (al.sede_nombre || '').toLowerCase())?.id ||
+                                sedes[0]?.id || ''
+                              }
+                              onChange={async (e) => {
+                                const newSId = e.target.value;
+                                const targetSede = sedes.find((s) => s.id === newSId);
+                                if (targetSede) {
+                                  await db.updateAlumnoMatricula(al.id, {
+                                    sede_id: targetSede.id,
+                                    sede_nombre: targetSede.nombre
+                                  });
+                                  showToast(`Campus de ${al.nombre} reasignado a: ${targetSede.nombre}`);
+                                  await loadData();
+                                }
+                              }}
+                              className="px-2 py-1 rounded-lg bg-black/40 border border-white/10 hover:border-blue-500/50 text-xs text-white cursor-pointer focus:outline-none focus:border-blue-500 max-w-[170px] truncate"
+                              title="Cambiar plantel/sede de este estudiante"
+                            >
+                              {sedes.map((s) => (
+                                <option key={s.id} value={s.id} className="bg-[#0c1220] text-white">
+                                  {s.nombre}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
                         <td className="p-3.5">
                           <select
                             value={status}
@@ -1787,7 +1944,7 @@ export default function AdminDashboardPage() {
                         </td>
                       </tr>
                     );
-                  })}
+                  }))}
                 </tbody>
               </table>
             </div>
@@ -4198,6 +4355,7 @@ export default function AdminDashboardPage() {
         sedes={sedes}
         activeCiclo={activeCiclo}
         initialCarreraId={filterCarrera !== 'todos' ? filterCarrera : undefined}
+        initialSedeId={filterSede !== 'todos' ? filterSede : undefined}
         showToast={showToast}
       />
     </div>
