@@ -88,20 +88,118 @@ export default function StudentDashboardPage() {
         );
       }
 
+// Helper functions for matching student schedule with assigned docentes by grupo, carrera, sede
+function normalizeDay(str: string): string {
+  return (str || '')
+    .toLowerCase()
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+function isGroupMatch(slotGrupo?: string, studentGrupo?: string): boolean {
+  if (!slotGrupo || !studentGrupo) return false;
+  const sg = slotGrupo.trim().toLowerCase();
+  const stg = studentGrupo.trim().toLowerCase();
+  if (sg === stg) return true;
+  
+  // Strip hyphens, spaces, underscores
+  const cleanSg = sg.replace(/[\s-_]/g, '');
+  const cleanStg = stg.replace(/[\s-_]/g, '');
+  if (cleanSg === cleanStg) return true;
+
+  // Compare numeric group code (e.g. 401 in 401-LCDN and 401, 201 in 201-TUR and 201)
+  const sgDigits = sg.match(/\d+/)?.[0];
+  const stgDigits = stg.match(/\d+/)?.[0];
+  if (sgDigits && stgDigits && sgDigits === stgDigits) {
+    return true;
+  }
+
+  return cleanSg.includes(cleanStg) || cleanStg.includes(cleanSg);
+}
+
+function isCarreraMatch(slotCarrera?: string, studentCarrera?: string, teacherCarreras?: string[]): boolean {
+  const checkSingle = (c1?: string, c2?: string): boolean => {
+    if (!c1 || !c2) return false;
+    const a = c1.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const b = c2.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (a === b) return true;
+    if (a.includes(b) || b.includes(a)) return true;
+
+    // Data Science / AI aliases
+    const isA_Data = a.includes('dato') || a.includes('data') || a.includes('lcdn') || a.includes('cdia') || a.includes('inteligencia artificial') || a.includes('ia') || a.includes('negocio');
+    const isB_Data = b.includes('dato') || b.includes('data') || b.includes('lcdn') || b.includes('cdia') || b.includes('inteligencia artificial') || b.includes('ia') || b.includes('negocio');
+    if (isA_Data && isB_Data) return true;
+
+    // Turismo aliases
+    const isA_Tur = a.includes('turis') || a.includes('tur') || a.includes('hospedaje');
+    const isB_Tur = b.includes('turis') || b.includes('tur') || b.includes('hospedaje');
+    if (isA_Tur && isB_Tur) return true;
+
+    // Administración aliases
+    const isA_Adm = a.includes('admin') || a.includes('adm');
+    const isB_Adm = b.includes('admin') || b.includes('adm');
+    if (isA_Adm && isB_Adm) return true;
+
+    // TIC aliases
+    const isA_Tic = a.includes('tic') || a.includes('tecnolog') || a.includes('comput');
+    const isB_Tic = b.includes('tic') || b.includes('tecnolog') || b.includes('comput');
+    if (isA_Tic && isB_Tic) return true;
+
+    // Ciberseguridad aliases
+    const isA_Cib = a.includes('ciber') || a.includes('seguridad') || a.includes('cib');
+    const isB_Cib = b.includes('ciber') || b.includes('seguridad') || b.includes('cib');
+    if (isA_Cib && isB_Cib) return true;
+
+    return false;
+  };
+
+  if (checkSingle(slotCarrera, studentCarrera)) return true;
+  if (teacherCarreras && teacherCarreras.some(tc => checkSingle(tc, studentCarrera))) return true;
+  return false;
+}
+
+function isSedeMatch(slotAula?: string, slotSede?: string, teacherSede?: string, studentSede?: string, isOnline?: boolean): boolean {
+  if (isOnline) return true;
+  if (slotAula && (slotAula.toLowerCase().includes('virtual') || slotAula.toLowerCase().includes('meet') || slotAula.toLowerCase().includes('linea') || slotAula.toLowerCase().includes('línea'))) {
+    return true;
+  }
+  const check = (s1?: string, s2?: string) => {
+    if (!s1 || !s2) return true;
+    const a = s1.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const b = s2.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (a === b || a.includes(b) || b.includes(a)) return true;
+    if (a.includes('tijuana') && b.includes('tijuana')) return true;
+    if (a.includes('magdalena') && b.includes('magdalena')) return true;
+    if (a.includes('justo') && b.includes('justo')) return true;
+    if (a.includes('coyoacan') && b.includes('coyoacan')) return true;
+    return false;
+  };
+
+  if (slotSede && check(slotSede, studentSede)) return true;
+  if (teacherSede && check(teacherSede, studentSede)) return true;
+  return true;
+}
+
       setStudent(currentStudent || null);
 
       if (currentStudent) {
-        // 1. Build Assigned Schedules from Superadmin records
-        const studentGroupClave = currentStudent.grupo;
-        const studentCarreraId = currentStudent.carrera_id;
-
+        // 1. Build Assigned Schedules from Superadmin & Docentes records
         const scheduleList: HorarioItemDisplay[] = [];
 
-        // Check assigned teachers with horarios matching student group
+        // Check assigned teachers with horarios matching student group, carrera and sede
         allDocentes.forEach((doc: Docente) => {
           if (doc.horarios && doc.horarios.length > 0) {
             doc.horarios.forEach((h: HorarioDocenteItem, idx: number) => {
-              if (h.grupo === studentGroupClave || (h.carrera && currentStudent?.carrera && h.carrera.includes(currentStudent.carrera))) {
+              const groupMatches = isGroupMatch(h.grupo, currentStudent.grupo);
+              const carreraMatches = isCarreraMatch(h.carrera, currentStudent.carrera, doc.carreras_asignadas);
+              const sedeMatches = isSedeMatch(h.aula, doc.sede_nombre, doc.sede_nombre, currentStudent.sede_nombre, h.es_en_linea);
+
+              // Priority match:
+              // 1. Group match + Career match
+              // 2. Group match + Sede match
+              // 3. Exact Group match
+              if (groupMatches && (carreraMatches || sedeMatches || !h.carrera)) {
                 scheduleList.push({
                   id: h.id || `sched-${doc.id}-${idx}`,
                   dia: h.dia,
@@ -109,9 +207,9 @@ export default function StudentDashboardPage() {
                   hora_fin: h.hora_fin,
                   materia: h.materia,
                   docente_nombre: `${doc.nombre} ${doc.apellido_paterno} ${doc.apellido_materno || ''}`.trim(),
-                  aula: h.aula || doc.sede_nombre || 'Aula Institucional',
+                  aula: h.aula || (h.es_en_linea ? 'Aula Virtual UNRC (Google Meet)' : doc.sede_nombre) || 'Aula Institucional',
                   sede: doc.sede_nombre || currentStudent?.sede_nombre || 'Campus Magdalena Contreras',
-                  grupo: h.grupo,
+                  grupo: h.grupo || currentStudent.grupo,
                   es_en_linea: h.es_en_linea
                 });
               }
@@ -121,34 +219,64 @@ export default function StudentDashboardPage() {
 
         // Also check grupos configured in superadmin
         allGrupos.forEach((g: Grupo, gIdx: number) => {
-          if (g.clave_grupo === studentGroupClave) {
-            // Check if not already added
-            const exists = scheduleList.some(s => s.grupo === g.clave_grupo && s.materia === (g.materia?.nombre || ''));
-            if (!exists) {
-              const dias = g.dias_clase || ['Miércoles', 'Sábado'];
-              dias.forEach((d, dIdx) => {
+          if (isGroupMatch(g.clave_grupo, currentStudent.grupo)) {
+            const assignedDoc = allDocentes.find(d => 
+              d.id === g.docente_id || 
+              (g.docente_nombre && `${d.nombre} ${d.apellido_paterno}`.toLowerCase().includes(g.docente_nombre.toLowerCase()))
+            );
+            const dias = g.dias_clase && g.dias_clase.length > 0 ? g.dias_clase : ['Lunes', 'Miércoles', 'Viernes'];
+            
+            let horaInicio = '09:00';
+            let horaFin = '12:00';
+            if (g.horario) {
+              const times = g.horario.match(/\d{2}:\d{2}/g);
+              if (times && times.length >= 2) {
+                horaInicio = times[0];
+                horaFin = times[1];
+              }
+            }
+
+            dias.forEach((d, dIdx) => {
+              const alreadyInList = scheduleList.some(s => 
+                normalizeDay(s.dia) === normalizeDay(d) &&
+                (s.materia.toLowerCase() === (g.materia?.nombre || '').toLowerCase() || isGroupMatch(s.grupo, g.clave_grupo))
+              );
+
+              if (!alreadyInList) {
                 scheduleList.push({
                   id: `g-sched-${g.id}-${dIdx}`,
                   dia: d,
-                  hora_inicio: g.horario?.includes('09:00') ? '09:00' : '07:00',
-                  hora_fin: g.horario?.includes('11:00') ? '11:00' : '09:00',
-                  materia: g.materia?.nombre || 'Administración de Empresas de Hospedaje',
-                  docente_nombre: g.docente_nombre || 'Dr. Adrian Silva',
-                  aula: g.aula || 'Edificio A - Aula Magna 2',
-                  sede: g.sede_nombre || 'Campus Magdalena Contreras',
-                  grupo: g.clave_grupo
+                  hora_inicio: horaInicio,
+                  hora_fin: horaFin,
+                  materia: g.materia?.nombre || (currentStudent.carrera?.includes('Datos') ? 'Inteligencia Artificial y Aprendizaje Automático' : 'Materia Curricular Asignada'),
+                  docente_nombre: g.docente_nombre || (assignedDoc ? `${assignedDoc.nombre} ${assignedDoc.apellido_paterno}` : 'Docente Titular Asignado'),
+                  aula: g.aula || 'Aula Asignada en Campus',
+                  sede: g.sede_nombre || currentStudent.sede_nombre || 'Campus Magdalena Contreras',
+                  grupo: g.clave_grupo,
+                  es_en_linea: g.aula?.toLowerCase().includes('virtual') || false
                 });
-              });
-            }
+              }
+            });
+          }
+        });
+
+        // Deduplicate slots with identical day + hora_inicio + materia
+        const uniqueSchedules: HorarioItemDisplay[] = [];
+        const seenKeys = new Set<string>();
+        scheduleList.forEach(item => {
+          const key = `${normalizeDay(item.dia)}-${item.hora_inicio}-${item.materia.toLowerCase().trim()}`;
+          if (!seenKeys.has(key)) {
+            seenKeys.add(key);
+            uniqueSchedules.push(item);
           }
         });
 
         // Sort schedule by day of week
         const dayOrder: Record<string, number> = {
-          'Lunes': 1, 'Martes': 2, 'Miércoles': 3, 'Jueves': 4, 'Viernes': 5, 'Sábado': 6, 'Domingo': 7
+          'lunes': 1, 'martes': 2, 'miercoles': 3, 'jueves': 4, 'viernes': 5, 'sabado': 6, 'domingo': 7
         };
-        scheduleList.sort((a, b) => (dayOrder[a.dia] || 99) - (dayOrder[b.dia] || 99));
-        setAssignedSchedules(scheduleList);
+        uniqueSchedules.sort((a, b) => (dayOrder[normalizeDay(a.dia)] || 99) - (dayOrder[normalizeDay(b.dia)] || 99));
+        setAssignedSchedules(uniqueSchedules);
 
         // 2. Filter ONLY attendances for this student
         const studentLogs = allAsistencias.filter(
@@ -168,7 +296,7 @@ export default function StudentDashboardPage() {
 
   const filteredSchedules = assignedSchedules.filter(s => {
     if (dayFilter === 'todos') return true;
-    return s.dia.toLowerCase() === dayFilter.toLowerCase();
+    return normalizeDay(s.dia) === normalizeDay(dayFilter);
   });
 
   const nextHoliday = getProximoDiaFestivo();

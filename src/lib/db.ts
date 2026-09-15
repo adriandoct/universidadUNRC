@@ -308,6 +308,7 @@ const MOCK_SECCIONES: Seccion[] = [
   { id: 'sec-203-adm', nombre: '203-ADM', grado_id: 'g-sem-2', grado_nombre: '2° Semestre', carrera_id: 'c5555555-5555-5555-5555-555555555555', carrera_nombre: 'Licenciatura en Administración', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', turno: 'Matutino', aula: 'Edificio C - Aula 203', cupo_maximo: 40 },
   { id: 'sec-201', nombre: '201', grado_id: 'g-sem-3', grado_nombre: '3° Semestre', carrera_id: 'c2222222-2222-2222-2222-222222222222', carrera_nombre: 'Licenciatura en Tecnologías de la Información y Comunicación', sede_id: 'sede-js', sede_nombre: 'Sede Justo Sierra', turno: 'Vespertino', aula: 'Laboratorio de Cómputo 1', cupo_maximo: 30 },
   { id: 'sec-301', nombre: '301', grado_id: 'g-sem-3', grado_nombre: '3° Semestre', carrera_id: 'c2222222-2222-2222-2222-222222222222', carrera_nombre: 'Licenciatura en Tecnologías de la Información y Comunicación', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', turno: 'Matutino', aula: 'Laboratorio Redes 2', cupo_maximo: 30 },
+  { id: 'sec-401-lcdn', nombre: '401-LCDN', grado_id: 'g-sem-4', grado_nombre: '4° Semestre', carrera_id: 'c1111111-1111-1111-1111-111111111111', carrera_nombre: 'Licenciatura en Ciencia de Datos para los Negocios', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', turno: 'Matutino', aula: 'Laboratorio de Cómputo e IA', cupo_maximo: 35 },
   { id: 'sec-501', nombre: '501', grado_id: 'g-sem-5', grado_nombre: '5° Semestre', carrera_id: 'c3333333-3333-3333-3333-333333333333', carrera_nombre: 'Licenciatura en Ciberseguridad', sede_id: 'sede-coy', sede_nombre: 'Sede Coyoacán', turno: 'Matutino', aula: 'Laboratorio de Seguridad A', cupo_maximo: 25 }
 ];
 
@@ -336,6 +337,7 @@ const MOCK_GRUPOS: Grupo[] = [
   { id: 'g201-tur', clave_grupo: '201-TUR', carrera_id: 'c4', materia_id: 'm6', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', turno: 'Matutino', periodo: '2026-2', horario: 'Miércoles 09:00 - 11:00 hrs | Sábado 07:00 - 09:00 hrs', dias_clase: ['Miércoles', 'Sábado'], docente_nombre: 'Dr. Adrian Silva', aula: 'Edificio A - Aula Magna 2' },
   { id: 'g203-adm', clave_grupo: '203-ADM', carrera_id: 'c5', materia_id: 'm7', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', turno: 'Matutino', periodo: '2026-2', horario: 'Lunes a Sábado (07:00 - 13:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Dr. Adrian Silva', aula: 'Edificio C - Aula 203' },
   { id: 'g301', clave_grupo: '301', carrera_id: 'c2', materia_id: 'm4', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', turno: 'Matutino', periodo: '2026-2', horario: 'Lunes a Sábado (07:00 - 13:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Lic. Beatriz Sánchez', aula: 'Laboratorio Redes 2' },
+  { id: 'g401-lcdn', clave_grupo: '401-LCDN', carrera_id: 'c1111111-1111-1111-1111-111111111111', materia_id: 'f2222222-2222-2222-2222-222222222222', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', turno: 'Matutino', periodo: '2026-2', horario: 'Miércoles (09:00 - 12:00 hrs) y Lunes (09:00 - 12:00 hrs)', dias_clase: ['Lunes', 'Miércoles', 'Viernes'], docente_nombre: 'Lic. Alejandro Valdez', aula: 'Laboratorio de Cómputo e IA' },
   { id: 'g501', clave_grupo: '501', carrera_id: 'c3', materia_id: 'm5', sede_id: 'sede-coy', sede_nombre: 'Sede Coyoacán', turno: 'Matutino', periodo: '2026-2', horario: 'Lunes a Sábado (07:00 - 13:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Tutor UNRC', aula: 'Laboratorio de Seguridad A' }
 ];
 
@@ -409,12 +411,15 @@ const MOCK_DOCENTES: Docente[] = [
     email: 'alejandro.valdez@rcastellanos.cdmx.gob.mx',
     departamento: 'Lic. en Ciencias de Datos e IA',
     puesto: 'docente',
-    carreras_asignadas: ['Lic. en Ciencias de Datos e Inteligencia Artificial'],
-    materias: ['Programación Web y Bases de Datos', 'Inteligencia Artificial y Aprendizaje Automático'],
+    carreras_asignadas: ['Lic. en Ciencias de Datos e Inteligencia Artificial', 'Licenciatura en Ciencia de Datos para los Negocios'],
+    materias: ['Programación Web y Bases de Datos', 'Inteligencia Artificial y Aprendizaje Automático', 'Minería de Datos y Modelado Predictivo'],
     horario_resumen: 'Lunes a Sábado (07:00 - 13:00 hrs)',
     horarios: [
-      { dia: 'Lunes', hora_inicio: '07:00', hora_fin: '10:00', carrera: 'Lic. en Ciencias de Datos e Inteligencia Artificial', materia: 'Programación Web y Bases de Datos', grupo: '101', aula: 'Edificio B - Aula 101' },
-      { dia: 'Miércoles', hora_inicio: '07:00', hora_fin: '10:00', carrera: 'Lic. en Ciencias de Datos e Inteligencia Artificial', materia: 'Inteligencia Artificial y Aprendizaje Automático', grupo: '102', aula: 'Edificio B - Aula 102' }
+      { dia: 'Lunes', hora_inicio: '07:00', hora_fin: '10:00', carrera: 'Lic. en Ciencias de Datos e Inteligencia Artificial', materia: 'Programación Web y Bases de Datos', grupo: '101', aula: 'Edificio B - Aula 101', es_en_linea: false },
+      { dia: 'Miércoles', hora_inicio: '07:00', hora_fin: '10:00', carrera: 'Lic. en Ciencias de Datos e Inteligencia Artificial', materia: 'Inteligencia Artificial y Aprendizaje Automático', grupo: '102', aula: 'Edificio B - Aula 102', es_en_linea: false },
+      { dia: 'Miércoles', hora_inicio: '09:00', hora_fin: '12:00', carrera: 'Licenciatura en Ciencia de Datos para los Negocios', materia: 'Inteligencia Artificial y Aprendizaje Automático', grupo: '401-LCDN', aula: 'Laboratorio de Cómputo e IA', es_en_linea: false },
+      { dia: 'Lunes', hora_inicio: '09:00', hora_fin: '12:00', carrera: 'Licenciatura en Ciencia de Datos para los Negocios', materia: 'Programación Web y Bases de Datos', grupo: '401-LCDN', aula: 'Laboratorio de Cómputo e IA', es_en_linea: false },
+      { dia: 'Viernes', hora_inicio: '08:00', hora_fin: '11:00', carrera: 'Licenciatura en Ciencia de Datos para los Negocios', materia: 'Minería de Datos y Modelado Predictivo', grupo: '401-LCDN', aula: 'Aula Virtual UNRC (Google Meet)', es_en_linea: true }
     ],
     sede_nombre: 'Campus Magdalena Contreras',
     telefono: '+525599887766',
@@ -830,6 +835,23 @@ export const db = {
       return updatedSec;
     });
 
+    if (!list.some(s => s.nombre === '401-LCDN')) {
+      list.push({
+        id: 'sec-401-lcdn',
+        nombre: '401-LCDN',
+        grado_id: 'g-sem-4',
+        grado_nombre: '4° Semestre',
+        carrera_id: 'c1111111-1111-1111-1111-111111111111',
+        carrera_nombre: 'Licenciatura en Ciencia de Datos para los Negocios',
+        sede_id: 'sede-mc',
+        sede_nombre: 'Campus Magdalena Contreras',
+        turno: 'Matutino',
+        aula: 'Laboratorio de Cómputo e IA',
+        cupo_maximo: 35
+      });
+      modified = true;
+    }
+
     if (modified && typeof window !== 'undefined') {
       localStorage.setItem('unrc_secciones', JSON.stringify(list));
     }
@@ -947,6 +969,22 @@ export const db = {
           grupos[gIdx].docente_id = docentes[index].id;
           grupos[gIdx].horario = `${h.dia} (${h.hora_inicio} - ${h.hora_fin} hrs)`;
           if (h.aula) grupos[gIdx].aula = h.aula;
+        } else if (h.grupo) {
+          grupos.push({
+            id: `g-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+            clave_grupo: h.grupo,
+            carrera_id: 'c1111111-1111-1111-1111-111111111111',
+            materia_id: 'm-auto',
+            sede_id: docentes[index].sede_nombre || 'sede-mc',
+            sede_nombre: docentes[index].sede_nombre || 'Campus Magdalena Contreras',
+            turno: 'Matutino',
+            periodo: '2026-2',
+            horario: `${h.dia} (${h.hora_inicio} - ${h.hora_fin} hrs)`,
+            dias_clase: [h.dia],
+            docente_nombre: `${docentes[index].nombre} ${docentes[index].apellido_paterno}`,
+            docente_id: docentes[index].id,
+            aula: h.aula || 'Aula Asignada'
+          });
         }
       });
       if (typeof window !== 'undefined') {
@@ -1057,7 +1095,27 @@ export const db = {
       }
     }
     const raw = localStorage.getItem('unrc_grupos');
-    return raw ? JSON.parse(raw) : MOCK_GRUPOS;
+    let list: Grupo[] = raw ? JSON.parse(raw) : MOCK_GRUPOS;
+    if (!list.some(g => g.clave_grupo === '401-LCDN')) {
+      list.push({
+        id: 'g401-lcdn',
+        clave_grupo: '401-LCDN',
+        carrera_id: 'c1111111-1111-1111-1111-111111111111',
+        materia_id: 'f2222222-2222-2222-2222-222222222222',
+        sede_id: 'sede-mc',
+        sede_nombre: 'Campus Magdalena Contreras',
+        turno: 'Matutino',
+        periodo: '2026-2',
+        horario: 'Miércoles (09:00 - 12:00 hrs) y Lunes (09:00 - 12:00 hrs)',
+        dias_clase: ['Lunes', 'Miércoles', 'Viernes'],
+        docente_nombre: 'Lic. Alejandro Valdez',
+        aula: 'Laboratorio de Cómputo e IA'
+      });
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('unrc_grupos', JSON.stringify(list));
+      }
+    }
+    return list;
   },
 
   addCarrera: async (carrera: Omit<Carrera, 'id'>): Promise<Carrera> => {
@@ -2045,12 +2103,15 @@ export const db = {
               if (isValdez) {
                 return {
                   ...updated,
-                  carreras_asignadas: (d.carreras_asignadas && d.carreras_asignadas.length > 0) ? d.carreras_asignadas : ['Ciencias de la Computación', 'Lic. en Ciencias de Datos e Inteligencia Artificial'],
-                  materias: (d.materias && d.materias.length > 0) ? d.materias : ['Programación Web y Bases de Datos', 'Inteligencia Artificial y Aprendizaje Automático'],
+                  carreras_asignadas: (d.carreras_asignadas && d.carreras_asignadas.length > 0) ? d.carreras_asignadas : ['Lic. en Ciencias de Datos e Inteligencia Artificial', 'Licenciatura en Ciencia de Datos para los Negocios'],
+                  materias: (d.materias && d.materias.length > 0) ? d.materias : ['Programación Web y Bases de Datos', 'Inteligencia Artificial y Aprendizaje Automático', 'Minería de Datos y Modelado Predictivo'],
                   horario_resumen: 'Lunes a Sábado (07:00 - 13:00 hrs)',
                   horarios: [
-                    { dia: 'Lunes', hora_inicio: '07:00', hora_fin: '10:00', carrera: 'Lic. en Ciencias de Datos e Inteligencia Artificial', materia: 'Programación Web y Bases de Datos', grupo: '101', aula: 'Edificio B - Aula 101' },
-                    { dia: 'Miércoles', hora_inicio: '07:00', hora_fin: '10:00', carrera: 'Lic. en Ciencias de Datos e Inteligencia Artificial', materia: 'Inteligencia Artificial y Aprendizaje Automático', grupo: '102', aula: 'Edificio B - Aula 102' }
+                    { dia: 'Lunes', hora_inicio: '07:00', hora_fin: '10:00', carrera: 'Lic. en Ciencias de Datos e Inteligencia Artificial', materia: 'Programación Web y Bases de Datos', grupo: '101', aula: 'Edificio B - Aula 101', es_en_linea: false },
+                    { dia: 'Miércoles', hora_inicio: '07:00', hora_fin: '10:00', carrera: 'Lic. en Ciencias de Datos e Inteligencia Artificial', materia: 'Inteligencia Artificial y Aprendizaje Automático', grupo: '102', aula: 'Edificio B - Aula 102', es_en_linea: false },
+                    { dia: 'Miércoles', hora_inicio: '09:00', hora_fin: '12:00', carrera: 'Licenciatura en Ciencia de Datos para los Negocios', materia: 'Inteligencia Artificial y Aprendizaje Automático', grupo: '401-LCDN', aula: 'Laboratorio de Cómputo e IA', es_en_linea: false },
+                    { dia: 'Lunes', hora_inicio: '09:00', hora_fin: '12:00', carrera: 'Licenciatura en Ciencia de Datos para los Negocios', materia: 'Programación Web y Bases de Datos', grupo: '401-LCDN', aula: 'Laboratorio de Cómputo e IA', es_en_linea: false },
+                    { dia: 'Viernes', hora_inicio: '08:00', hora_fin: '11:00', carrera: 'Licenciatura en Ciencia de Datos para los Negocios', materia: 'Minería de Datos y Modelado Predictivo', grupo: '401-LCDN', aula: 'Aula Virtual UNRC (Google Meet)', es_en_linea: true }
                   ],
                   sede_nombre: d.sede_nombre || 'Campus Magdalena Contreras'
                 };
@@ -2083,6 +2144,23 @@ export const db = {
                 };
               }
             }
+
+            if (isValdez) {
+              const has401 = updated.horarios?.some((h: HorarioDocenteItem) => h.grupo === '401-LCDN' || h.grupo === '401');
+              if (!has401) {
+                hadChanges = true;
+                const existing = updated.horarios || [];
+                updated.carreras_asignadas = Array.from(new Set([...(updated.carreras_asignadas || []), 'Licenciatura en Ciencia de Datos para los Negocios', 'Lic. en Ciencias de Datos e Inteligencia Artificial']));
+                updated.materias = Array.from(new Set([...(updated.materias || []), 'Inteligencia Artificial y Aprendizaje Automático', 'Programación Web y Bases de Datos', 'Minería de Datos y Modelado Predictivo']));
+                updated.horarios = [
+                  ...existing,
+                  { dia: 'Miércoles', hora_inicio: '09:00', hora_fin: '12:00', carrera: 'Licenciatura en Ciencia de Datos para los Negocios', materia: 'Inteligencia Artificial y Aprendizaje Automático', grupo: '401-LCDN', aula: 'Laboratorio de Cómputo e IA', es_en_linea: false },
+                  { dia: 'Lunes', hora_inicio: '09:00', hora_fin: '12:00', carrera: 'Licenciatura en Ciencia de Datos para los Negocios', materia: 'Programación Web y Bases de Datos', grupo: '401-LCDN', aula: 'Laboratorio de Cómputo e IA', es_en_linea: false },
+                  { dia: 'Viernes', hora_inicio: '08:00', hora_fin: '11:00', carrera: 'Licenciatura en Ciencia de Datos para los Negocios', materia: 'Minería de Datos y Modelado Predictivo', grupo: '401-LCDN', aula: 'Aula Virtual UNRC (Google Meet)', es_en_linea: true }
+                ];
+              }
+            }
+
             return updated;
           });
 

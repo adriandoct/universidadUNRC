@@ -2875,11 +2875,24 @@ export default function AdminDashboardPage() {
                       }
                       className="w-full px-2 py-1.5 rounded-lg bg-[#090E1A] border border-white/10 text-white font-mono"
                     >
-                      {secciones.map((sec) => (
-                        <option key={sec.id} value={sec.nombre}>
-                          {sec.nombre} ({sec.turno})
-                        </option>
-                      ))}
+                      {Array.from(
+                        new Set([
+                          ...secciones.map((s) => s.nombre),
+                          ...alumnos.map((a) => a.grupo),
+                          ...grupos.map((g) => g.clave_grupo),
+                          '401-LCDN'
+                        ])
+                      )
+                        .filter(Boolean)
+                        .sort()
+                        .map((grupoName) => {
+                          const sec = secciones.find((s) => s.nombre === grupoName);
+                          return (
+                            <option key={grupoName} value={grupoName}>
+                              {grupoName} {sec?.turno ? `(${sec.turno})` : ''}
+                            </option>
+                          );
+                        })}
                     </select>
                   </div>
 
