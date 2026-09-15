@@ -1292,14 +1292,22 @@ export const db = {
         if (Array.isArray(parsed) && parsed.length > 0) {
           let hadChanges = false;
           const enriched = parsed.map((a: Alumno) => {
-            if (!a.password) {
-              hadChanges = true;
-              return {
-                ...a,
-                password: getDefaultUserPassword(a.matricula, '2026-2')
-              };
+            let item = { ...a };
+            const g = (item.grupo || '').toUpperCase();
+            // Auto-reconcile Turismo students if misassigned
+            if (g.includes('TUR') || g === '201-TUR') {
+              if (item.carrera !== 'Licenciatura en Turismo' && item.carrera !== 'Lic. en Turismo') {
+                hadChanges = true;
+                item.carrera = 'Licenciatura en Turismo';
+                item.carrera_id = 'c4444444-4444-4444-4444-444444444444';
+                item.tutor = item.tutor || 'Dr. Adrian Silva';
+              }
             }
-            return a;
+            if (!item.password) {
+              hadChanges = true;
+              item.password = getDefaultUserPassword(item.matricula, '2026-2');
+            }
+            return item;
           });
           if (hadChanges) {
             localStorage.setItem('unrc_alumnos', JSON.stringify(enriched));
@@ -1322,16 +1330,29 @@ export const db = {
         if (!error && data && data.length > 0) {
           const list: Alumno[] = data.map((sa: any) => {
             const mockMatch = MOCK_ALUMNOS.find(m => m.matricula === sa.matricula);
+            const g = (sa.grupo || mockMatch?.grupo || '').toUpperCase();
+            const isTurismo = g.includes('TUR') || g === '201-TUR';
+            const isAdm = g.includes('ADM') || g === '203-ADM';
             return {
               ...mockMatch,
               ...sa,
+              carrera: isTurismo
+                ? 'Licenciatura en Turismo'
+                : isAdm
+                ? 'Licenciatura en Administración'
+                : sa.carrera || mockMatch?.carrera || 'Licenciatura UNRC',
+              carrera_id: isTurismo
+                ? 'c4444444-4444-4444-4444-444444444444'
+                : isAdm
+                ? 'c5555555-5555-5555-5555-555555555555'
+                : sa.carrera_id || mockMatch?.carrera_id || 'c1',
+              tutor: isTurismo ? 'Dr. Adrian Silva' : sa.tutor || mockMatch?.tutor || 'Tutor Registrado',
               password: sa.password || mockMatch?.password || getDefaultUserPassword(sa.matricula, '2026-2'),
               sede_id: sa.sede_id || mockMatch?.sede_id || 'sede-mc',
               sede_nombre: sa.sede_nombre || mockMatch?.sede_nombre || 'Campus Magdalena Contreras',
               ciclo_id: sa.ciclo_id || mockMatch?.ciclo_id || 'ciclo-2026-2',
               estado_matricula: sa.estado_matricula || mockMatch?.estado_matricula || 'activo',
-              carrera_id: sa.carrera_id || mockMatch?.carrera_id || 'c1',
-              grupo_id: sa.grupo_id || mockMatch?.grupo_id || 'g101'
+              grupo_id: sa.grupo_id || mockMatch?.grupo_id || (isTurismo ? 'g201-tur' : isAdm ? 'g203-adm' : 'g101')
             };
           });
           localStorage.setItem('unrc_alumnos', JSON.stringify(list));
@@ -1499,6 +1520,52 @@ export const db = {
     );
 
     return { added: addedCount, updated: updatedCount, items: processedItems };
+  },
+
+  reassignAlumnosCarrera: async (matriculas: string[], targetCarreraId: string): Promise<number> => {
+    initLocalStorage();
+    const list = await db.getAlumnos();
+    const targetCarrera = (await db.getCarreras()).find(c => c.id === targetCarreraId);
+    if (!targetCarrera) return 0;
+
+    let count = 0;
+    const matriculaSet = new Set(matriculas.map(m => m.trim().toLowerCase()));
+
+    for (const al of list) {
+      if (matriculaSet.has((al.matricula || '').trim().toLowerCase())) {
+        al.carrera = targetCarrera.nombre;
+        al.carrera_id = targetCarrera.id;
+        if (targetCarrera.nombre.toLowerCase().includes('turismo')) {
+          al.grupo = '201-TUR';
+          al.tutor = 'Dr. Adrian Silva';
+        }
+        count++;
+      }
+    }
+
+    if (count > 0) {
+      localStorage.setItem('unrc_alumnos', JSON.stringify(list));
+      if (supabase) {
+        try {
+          await supabase
+            .from('alumnos')
+            .update({
+              carrera: targetCarrera.nombre,
+              carrera_id: targetCarrera.id
+            })
+            .in('matricula', matriculas);
+        } catch (e) {
+          console.warn('Supabase reassign notice:', e);
+        }
+      }
+      await db.addAuditoria(
+        'REASIGNACION_CARRERA',
+        'Servicios Escolares / Matrículas',
+        `Se reasignaron ${count} alumnos a la carrera: ${targetCarrera.nombre}`,
+        'Control Escolar'
+      );
+    }
+    return count;
   },
 
   deleteAlumno: async (id: string): Promise<boolean> => {

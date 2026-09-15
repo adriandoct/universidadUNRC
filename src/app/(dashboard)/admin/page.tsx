@@ -1615,8 +1615,39 @@ export default function AdminDashboardPage() {
                           </div>
                           <div className="text-[10px] text-gray-400">Tutor: {al.tutor}</div>
                         </td>
-                        <td className="p-3.5 text-gray-300">
-                          {al.carrera || 'Licenciatura UNRC'}
+                        <td className="p-3.5">
+                          <select
+                            value={
+                              carreras.find((c) => c.id === al.carrera_id)?.id ||
+                              carreras.find((c) => c.nombre.toLowerCase() === (al.carrera || '').toLowerCase())?.id ||
+                              (al.grupo?.toUpperCase().includes('TUR')
+                                ? (carreras.find((c) => c.clave?.includes('TUR'))?.id || '')
+                                : '')
+                            }
+                            onChange={async (e) => {
+                              const newCId = e.target.value;
+                              const targetCar = carreras.find((c) => c.id === newCId);
+                              if (targetCar) {
+                                const isTur = targetCar.nombre.toLowerCase().includes('turismo');
+                                await db.updateAlumnoMatricula(al.id, {
+                                  carrera: targetCar.nombre,
+                                  carrera_id: targetCar.id,
+                                  grupo: isTur ? '201-TUR' : al.grupo,
+                                  tutor: isTur ? 'Dr. Adrian Silva' : al.tutor
+                                });
+                                showToast(`Carrera de ${al.nombre} reasignada a: ${targetCar.nombre}`);
+                                await loadData();
+                              }
+                            }}
+                            className="px-2 py-1 rounded-lg bg-black/40 border border-white/10 hover:border-emerald-500/50 text-xs text-white cursor-pointer focus:outline-none focus:border-emerald-500 max-w-[200px] truncate"
+                            title="Cambiar carrera de este estudiante"
+                          >
+                            {carreras.map((c) => (
+                              <option key={c.id} value={c.id} className="bg-[#0c1220] text-white">
+                                {c.nombre}
+                              </option>
+                            ))}
+                          </select>
                         </td>
                         <td className="p-3.5">
                           <span className="font-bold text-amber-300 font-mono">{al.grupo}</span>
@@ -4115,6 +4146,7 @@ export default function AdminDashboardPage() {
         carreras={carreras}
         sedes={sedes}
         activeCiclo={activeCiclo}
+        initialCarreraId={filterCarrera !== 'todos' ? filterCarrera : undefined}
         showToast={showToast}
       />
     </div>
