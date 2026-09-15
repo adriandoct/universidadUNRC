@@ -92,9 +92,10 @@ export default function BulkUploadAlumnosModal({
 
   // Prominent Target Destination Settings
   const [targetCarreraId, setTargetCarreraId] = useState<string>('');
-  const [targetGrupo, setTargetGrupo] = useState<string>('201-TUR');
-  const [targetGrado, setTargetGrado] = useState<string>('2° Semestre');
+  const [targetGrupo, setTargetGrupo] = useState<string>('301');
+  const [targetGrado, setTargetGrado] = useState<string>('3° Semestre');
   const [targetSedeId, setTargetSedeId] = useState<string>('');
+  const [overrideCarreraWithTarget, setOverrideCarreraWithTarget] = useState<boolean>(true);
 
   const [columnMapping, setColumnMapping] = useState<ColumnMapping>({
     colMatricula: -1,
@@ -129,7 +130,13 @@ export default function BulkUploadAlumnosModal({
       targetCar = initialCarreraId;
       setTargetCarreraId(initialCarreraId);
     } else if (!targetCarreraId && carreras.length > 0) {
-      targetCar = carreras[0].id;
+      const datosCar = carreras.find(
+        (c) =>
+          c.clave?.includes('CDIA') ||
+          c.nombre.toLowerCase().includes('datos') ||
+          c.nombre.toLowerCase().includes('negocios')
+      );
+      targetCar = datosCar ? datosCar.id : carreras[0].id;
       setTargetCarreraId(targetCar);
     }
 
@@ -141,9 +148,9 @@ export default function BulkUploadAlumnosModal({
     } else if (sel?.nombre.toLowerCase().includes('administración') || sel?.clave?.includes('ADM')) {
       setTargetGrupo('203-ADM');
       setTargetGrado('2° Semestre');
-    } else if (sel?.nombre.toLowerCase().includes('datos') || sel?.clave?.includes('CDIA')) {
-      setTargetGrupo('101');
-      setTargetGrado('1° Semestre');
+    } else if (sel?.nombre.toLowerCase().includes('datos') || sel?.nombre.toLowerCase().includes('negocios') || sel?.clave?.includes('CDIA')) {
+      setTargetGrupo('301');
+      setTargetGrado('3° Semestre');
     } else if (sel?.nombre.toLowerCase().includes('ciberseguridad') || sel?.clave?.includes('CIB')) {
       setTargetGrupo('501');
       setTargetGrado('5° Semestre');
@@ -156,7 +163,8 @@ export default function BulkUploadAlumnosModal({
     if (initialSedeId && sedes.some((s) => s.id === initialSedeId)) {
       setTargetSedeId(initialSedeId);
     } else if (!targetSedeId && sedes.length > 0) {
-      setTargetSedeId(sedes[0].id);
+      const tijuanaSede = sedes.find(s => s.nombre.toLowerCase().includes('tijuana'));
+      setTargetSedeId(tijuanaSede ? tijuanaSede.id : sedes[0].id);
     }
   }, [isOpen, initialCarreraId, initialSedeId, carreras, sedes]);
 
@@ -164,10 +172,17 @@ export default function BulkUploadAlumnosModal({
 
   // Selected Career Object
   const selectedCarreraObj =
-    carreras.find((c) => c.id === targetCarreraId) || carreras[0] || {
-      id: 'c4444444-4444-4444-4444-444444444444',
-      nombre: 'Licenciatura en Turismo',
-      clave: 'LIC-TUR'
+    carreras.find((c) => c.id === targetCarreraId) ||
+    carreras.find(
+      (c) =>
+        c.clave?.includes('CDIA') ||
+        c.nombre.toLowerCase().includes('datos') ||
+        c.nombre.toLowerCase().includes('negocios')
+    ) ||
+    carreras[0] || {
+      id: 'c1111111-1111-1111-1111-111111111111',
+      nombre: 'Licenciatura en Ciencias de Datos e Inteligencia Artificial',
+      clave: 'LIC-CDIA'
     };
 
   const selectedSedeObj =
@@ -189,9 +204,9 @@ export default function BulkUploadAlumnosModal({
     } else if (sel?.nombre.toLowerCase().includes('administración') || sel?.clave?.includes('ADM')) {
       autoGroup = '203-ADM';
       autoGrado = '2° Semestre';
-    } else if (sel?.nombre.toLowerCase().includes('datos') || sel?.clave?.includes('CDIA')) {
-      autoGroup = '101';
-      autoGrado = '1° Semestre';
+    } else if (sel?.nombre.toLowerCase().includes('datos') || sel?.nombre.toLowerCase().includes('negocios') || sel?.clave?.includes('CDIA')) {
+      autoGroup = '301';
+      autoGrado = '3° Semestre';
     } else if (sel?.nombre.toLowerCase().includes('ciberseguridad') || sel?.clave?.includes('CIB')) {
       autoGroup = '501';
       autoGrado = '5° Semestre';
@@ -204,14 +219,14 @@ export default function BulkUploadAlumnosModal({
     setTargetGrado(autoGrado);
 
     if (fileRawContent && file) {
-      reparseRows(fileRawContent, file.name, newCarreraId, autoGroup, autoGrado, targetSedeId, columnMapping, headerRowIdx);
+      reparseRows(fileRawContent, file.name, newCarreraId, autoGroup, autoGrado, targetSedeId, columnMapping, headerRowIdx, overrideCarreraWithTarget);
     }
   };
 
   // 1. Download official CSV template with UTF-8 BOM
   const handleDownloadTemplate = () => {
-    const currentCarreraName = selectedCarreraObj?.nombre || 'Licenciatura en Turismo';
-    const currentSedeName = selectedSedeObj?.nombre || 'Campus Magdalena Contreras';
+    const currentCarreraName = selectedCarreraObj?.nombre || 'Licenciatura en Ciencias de Datos e Inteligencia Artificial';
+    const currentSedeName = selectedSedeObj?.nombre || 'Campus Tijuana';
 
     const headers = [
       'matricula',
@@ -346,19 +361,41 @@ export default function BulkUploadAlumnosModal({
   const resolveCarreraStrict = (
     rawCarrera: string,
     rawGrupo: string,
-    activeCarrera: Carrera
+    activeCarrera: Carrera,
+    forceTarget: boolean = true
   ): Carrera => {
+    // If overrideCarreraWithTarget is active, user's destination career in modal ALWAYS wins!
+    if (forceTarget && activeCarrera) {
+      return activeCarrera;
+    }
+
     const cleanCarrera = (rawCarrera || '').trim().toLowerCase();
 
     // Priority 1: Explicit Non-Empty Text in Carrera column that matches a known career
     if (cleanCarrera.length > 2) {
-      if (cleanCarrera.includes('turism') || cleanCarrera.includes('tur')) {
+      if (
+        cleanCarrera.includes('ciencia de datos') ||
+        cleanCarrera.includes('inteligencia artificial') ||
+        cleanCarrera.includes('datos') ||
+        cleanCarrera.includes('negocios') ||
+        cleanCarrera.includes('cdia') ||
+        cleanCarrera.includes('lcdn')
+      ) {
+        const dat = carreras.find(
+          (c) =>
+            c.clave?.includes('CDIA') ||
+            c.nombre.toLowerCase().includes('datos') ||
+            c.nombre.toLowerCase().includes('negocios')
+        );
+        if (dat) return dat;
+      }
+      if (cleanCarrera.includes('turismo') || cleanCarrera === 'lic-tur' || cleanCarrera === 'tur') {
         const tur = carreras.find(
           (c) => c.clave?.includes('TUR') || c.nombre.toLowerCase().includes('turismo')
         );
         if (tur) return tur;
       }
-      if (cleanCarrera.includes('admin')) {
+      if (cleanCarrera.includes('administra') || cleanCarrera === 'lic-adm' || cleanCarrera === 'adm') {
         const adm = carreras.find(
           (c) => c.clave?.includes('ADM') || c.nombre.toLowerCase().includes('administración')
         );
@@ -376,16 +413,6 @@ export default function BulkUploadAlumnosModal({
         );
         if (tic) return tic;
       }
-      if (
-        cleanCarrera.includes('ciencia de datos') ||
-        cleanCarrera.includes('inteligencia artificial') ||
-        cleanCarrera.includes('cdia')
-      ) {
-        const dat = carreras.find(
-          (c) => c.clave?.includes('CDIA') || c.nombre.toLowerCase().includes('datos')
-        );
-        if (dat) return dat;
-      }
 
       // Check direct exact match by ID or name
       const exactMatch = carreras.find(
@@ -402,7 +429,10 @@ export default function BulkUploadAlumnosModal({
       return activeCarrera;
     }
 
-    return carreras[0];
+    return (
+      carreras.find((c) => c.clave?.includes('CDIA') || c.nombre.toLowerCase().includes('datos') || c.nombre.toLowerCase().includes('negocios')) ||
+      carreras[0]
+    );
   };
 
   // 3. Reparse Rows
@@ -414,7 +444,8 @@ export default function BulkUploadAlumnosModal({
     currentGrado: string,
     currentSedeId: string,
     customMapping?: ColumnMapping,
-    customHeaderIdx?: number
+    customHeaderIdx?: number,
+    forceTargetOverride?: boolean
   ) => {
     try {
       const cleanContent = content.replace(/^\uFEFF/, '');
@@ -497,9 +528,15 @@ export default function BulkUploadAlumnosModal({
       setColumnMapping(mapping);
 
       // Active target objects
+      const isForceTarget = forceTargetOverride !== undefined ? forceTargetOverride : overrideCarreraWithTarget;
       const activeCarrera =
         carreras.find((c) => c.id === currentCarreraId) ||
-        carreras.find((c) => c.clave?.includes('TUR')) ||
+        carreras.find(
+          (c) =>
+            c.clave?.includes('CDIA') ||
+            c.nombre.toLowerCase().includes('datos') ||
+            c.nombre.toLowerCase().includes('negocios')
+        ) ||
         carreras[0];
 
       const activeSede =
@@ -539,8 +576,8 @@ export default function BulkUploadAlumnosModal({
           }
         }
 
-        const rawGrado = (mapping.colGrado >= 0 ? values[mapping.colGrado] : '').trim() || currentGrado || '2° Semestre';
-        const rawGrupo = (mapping.colGrupo >= 0 ? values[mapping.colGrupo] : '').trim() || currentGrupo || '201-TUR';
+        const rawGrado = (mapping.colGrado >= 0 ? values[mapping.colGrado] : '').trim() || currentGrado || '3° Semestre';
+        const rawGrupo = (mapping.colGrupo >= 0 ? values[mapping.colGrupo] : '').trim() || currentGrupo || '301';
         const rawCarrera = (mapping.colCarrera >= 0 ? values[mapping.colCarrera] : '').trim();
         const rawSede = (mapping.colSede >= 0 ? values[mapping.colSede] : '').trim();
         const rawEstado = (mapping.colEstado >= 0 ? values[mapping.colEstado] : '').trim().toLowerCase();
@@ -549,7 +586,7 @@ export default function BulkUploadAlumnosModal({
         const rawPwd = (mapping.colPassword >= 0 ? values[mapping.colPassword] : '').trim();
 
         // STRICT CARRERA RESOLUTION
-        const resolvedCarrera = resolveCarreraStrict(rawCarrera, rawGrupo, activeCarrera);
+        const resolvedCarrera = resolveCarreraStrict(rawCarrera, rawGrupo, activeCarrera, isForceTarget);
 
         // Resolve Sede
         const resolvedSede =
@@ -635,19 +672,50 @@ export default function BulkUploadAlumnosModal({
       const text = event.target?.result as string;
       setFileRawContent(text);
 
-      // Check if filename indicates a specific carrera (e.g. Turismo vs LCDN)
+      // Only infer from filename if user hasn't explicitly selected targetCarreraId
       let initialCarId = targetCarreraId;
       const upperName = selected.name.toUpperCase();
-      if (upperName.includes('TURISMO') || upperName.includes('TUR')) {
-        const tur = carreras.find((c) => c.clave?.includes('TUR') || c.nombre.toLowerCase().includes('turismo'));
-        if (tur) initialCarId = tur.id;
-      } else if (upperName.includes('ADMINISTRACION') || upperName.includes('ADM')) {
-        const adm = carreras.find((c) => c.clave?.includes('ADM') || c.nombre.toLowerCase().includes('administración'));
-        if (adm) initialCarId = adm.id;
+      if (!initialCarId) {
+        if (
+          upperName.includes('DATOS') ||
+          upperName.includes('NEGOCIOS') ||
+          upperName.includes('LCDN') ||
+          upperName.includes('CDIA')
+        ) {
+          const dat = carreras.find(
+            (c) =>
+              c.clave?.includes('CDIA') ||
+              c.nombre.toLowerCase().includes('datos') ||
+              c.nombre.toLowerCase().includes('negocios')
+          );
+          if (dat) initialCarId = dat.id;
+        } else if (upperName.includes('TURISMO')) {
+          const tur = carreras.find(
+            (c) => c.clave?.includes('TUR') || c.nombre.toLowerCase().includes('turismo')
+          );
+          if (tur) initialCarId = tur.id;
+        } else if (upperName.includes('ADMINISTRACION')) {
+          const adm = carreras.find(
+            (c) => c.clave?.includes('ADM') || c.nombre.toLowerCase().includes('administración')
+          );
+          if (adm) initialCarId = adm.id;
+        }
       }
 
-      setTargetCarreraId(initialCarId);
-      reparseRows(text, selected.name, initialCarId, targetGrupo, targetGrado, targetSedeId);
+      const finalCarId =
+        initialCarId ||
+        targetCarreraId ||
+        carreras.find(
+          (c) =>
+            c.clave?.includes('CDIA') ||
+            c.nombre.toLowerCase().includes('datos') ||
+            c.nombre.toLowerCase().includes('negocios')
+        )?.id ||
+        carreras[0]?.id ||
+        '';
+
+      setTargetCarreraId(finalCarId);
+      reparseRows(text, selected.name, finalCarId, targetGrupo, targetGrado, targetSedeId, columnMapping, headerRowIdx, overrideCarreraWithTarget);
     };
     reader.readAsText(selected, 'UTF-8');
   };
@@ -687,24 +755,31 @@ export default function BulkUploadAlumnosModal({
 
     setIsSubmitting(true);
     try {
-      const alumnosPayload = rowsToImport.map((r) => ({
-        matricula: r.matricula,
-        nombre: r.nombre,
-        apellido_paterno: r.apellido_paterno,
-        apellido_materno: r.apellido_materno,
-        grado: r.grado,
-        grupo: r.grupo,
-        carrera: r.carrera,
-        carrera_id: r.carrera_id,
-        sede_id: r.sede_id,
-        sede_nombre: r.sede_nombre,
-        ciclo_id: activeCiclo?.id || 'ciclo-2026-2',
-        estado_matricula: r.estado_matricula,
-        tutor: r.tutor,
-        telefono: r.telefono,
-        password: r.password?.trim() || getDefaultUserPassword(r.matricula, '2026-2'),
-        qr_code: r.matricula
-      }));
+      const alumnosPayload = rowsToImport.map((r) => {
+        const finalCarreraId = overrideCarreraWithTarget ? selectedCarreraObj.id : (r.carrera_id || selectedCarreraObj.id);
+        const finalCarreraNom = overrideCarreraWithTarget ? selectedCarreraObj.nombre : (r.carrera || selectedCarreraObj.nombre);
+        const isTurismo = finalCarreraNom.toLowerCase().includes('turismo');
+        const finalTutor = isTurismo ? 'Dr. Adrian Silva' : 'Mtro. Fernando Gómez';
+
+        return {
+          matricula: r.matricula,
+          nombre: r.nombre,
+          apellido_paterno: r.apellido_paterno,
+          apellido_materno: r.apellido_materno,
+          grado: r.grado,
+          grupo: r.grupo,
+          carrera: finalCarreraNom,
+          carrera_id: finalCarreraId,
+          sede_id: r.sede_id,
+          sede_nombre: r.sede_nombre,
+          ciclo_id: activeCiclo?.id || 'ciclo-2026-2',
+          estado_matricula: r.estado_matricula,
+          tutor: r.tutor || finalTutor,
+          telefono: r.telefono,
+          password: r.password?.trim() || getDefaultUserPassword(r.matricula, '2026-2'),
+          qr_code: r.matricula
+        };
+      });
 
       const res = await db.addAlumnosBulk(alumnosPayload, { updateExisting });
       showToast(
@@ -789,6 +864,26 @@ export default function BulkUploadAlumnosModal({
                   </option>
                 ))}
               </select>
+            </div>
+
+            {/* Guaranteed Target Career Override Toggle */}
+            <div className="pt-2 flex items-center space-x-2.5 bg-black/30 p-2.5 rounded-xl border border-emerald-500/30">
+              <input
+                type="checkbox"
+                id="forceTargetCarrera"
+                checked={overrideCarreraWithTarget}
+                onChange={(e) => {
+                  const val = e.target.checked;
+                  setOverrideCarreraWithTarget(val);
+                  if (fileRawContent && file) {
+                    reparseRows(fileRawContent, file.name, targetCarreraId, targetGrupo, targetGrado, targetSedeId, columnMapping, headerRowIdx, val);
+                  }
+                }}
+                className="w-4 h-4 rounded text-emerald-500 bg-black/50 border-emerald-500/50 focus:ring-emerald-400 focus:ring-offset-0 cursor-pointer"
+              />
+              <label htmlFor="forceTargetCarrera" className="text-[11px] text-emerald-300 font-medium cursor-pointer">
+                Asignar de forma garantizada a <strong className="text-white underline">{selectedCarreraObj.nombre}</strong> a todos los registros del archivo (evita desvíos accidentales a Turismo u otras carreras)
+              </label>
             </div>
 
             {/* Grupo, Semestre and Sede overrides */}

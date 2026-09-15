@@ -1366,8 +1366,31 @@ export const db = {
             const cName = (item.carrera || '').toLowerCase();
             const cId = (item.carrera_id || '').toLowerCase();
 
-            // Align known carrera IDs with their official names without overriding user-set careers
-            if (cId === 'c5555555-5555-5555-5555-555555555555' || cName.includes('administra') || cId === 'c5') {
+            // Check for students uploaded to Tijuana or with group 301 that belong to Data Science but got misassigned to Turismo
+            const isMisassignedTijuanaDatos =
+              (item.sede_nombre?.toLowerCase().includes('tijuana') || item.sede_id?.toLowerCase().includes('tijuana')) &&
+              (item.grupo === '301' || item.grupo === '201' || item.grupo === '101' || ['UNRC-2026-057', 'UNRC-2026-058', 'UNRC-2026-059', 'UNRC-2026-061'].includes(item.matricula));
+
+            if (isMisassignedTijuanaDatos && item.carrera?.toLowerCase().includes('turismo')) {
+              hadChanges = true;
+              item.carrera = 'Licenciatura en Ciencias de Datos e Inteligencia Artificial';
+              item.carrera_id = 'c1111111-1111-1111-1111-111111111111';
+              item.tutor = 'Mtro. Fernando Gómez';
+            } else if (
+              cId === 'c1111111-1111-1111-1111-111111111111' ||
+              cName.includes('datos') ||
+              cName.includes('negocios') ||
+              cName.includes('lcdn') ||
+              cName.includes('cdia') ||
+              cName.includes('inteligencia') ||
+              cId === 'c1'
+            ) {
+              if (item.carrera !== 'Licenciatura en Ciencias de Datos e Inteligencia Artificial' || item.carrera_id !== 'c1111111-1111-1111-1111-111111111111') {
+                hadChanges = true;
+                item.carrera = 'Licenciatura en Ciencias de Datos e Inteligencia Artificial';
+                item.carrera_id = 'c1111111-1111-1111-1111-111111111111';
+              }
+            } else if (cId === 'c5555555-5555-5555-5555-555555555555' || cName.includes('administra') || cId === 'c5') {
               if (item.carrera !== 'Licenciatura en Administración' || item.carrera_id !== 'c5555555-5555-5555-5555-555555555555') {
                 hadChanges = true;
                 item.carrera = 'Licenciatura en Administración';
@@ -1378,12 +1401,6 @@ export const db = {
                 hadChanges = true;
                 item.carrera = 'Licenciatura en Turismo';
                 item.carrera_id = 'c4444444-4444-4444-4444-444444444444';
-              }
-            } else if (cId === 'c1111111-1111-1111-1111-111111111111' || cName.includes('datos') || cName.includes('inteligencia') || cId === 'c1') {
-              if (item.carrera !== 'Licenciatura en Ciencias de Datos e Inteligencia Artificial' || item.carrera_id !== 'c1111111-1111-1111-1111-111111111111') {
-                hadChanges = true;
-                item.carrera = 'Licenciatura en Ciencias de Datos e Inteligencia Artificial';
-                item.carrera_id = 'c1111111-1111-1111-1111-111111111111';
               }
             } else if (cId === 'c2222222-2222-2222-2222-222222222222' || cName.includes('tic') || cName.includes('tecnolog') || cId === 'c2') {
               if (item.carrera !== 'Licenciatura en Tecnologías de la Información y Comunicación' || item.carrera_id !== 'c2222222-2222-2222-2222-222222222222') {
