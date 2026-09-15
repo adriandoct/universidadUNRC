@@ -337,7 +337,7 @@ const MOCK_GRUPOS: Grupo[] = [
   { id: 'g201-tur', clave_grupo: '201-TUR', carrera_id: 'c4', materia_id: 'm6', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', turno: 'Matutino', periodo: '2026-2', horario: 'Miércoles 09:00 - 11:00 hrs | Sábado 07:00 - 09:00 hrs', dias_clase: ['Miércoles', 'Sábado'], docente_nombre: 'Dr. Adrian Silva', aula: 'Edificio A - Aula Magna 2' },
   { id: 'g203-adm', clave_grupo: '203-ADM', carrera_id: 'c5', materia_id: 'm7', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', turno: 'Matutino', periodo: '2026-2', horario: 'Lunes a Sábado (07:00 - 13:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Dr. Adrian Silva', aula: 'Edificio C - Aula 203' },
   { id: 'g301', clave_grupo: '301', carrera_id: 'c2', materia_id: 'm4', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', turno: 'Matutino', periodo: '2026-2', horario: 'Lunes a Sábado (07:00 - 13:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Lic. Beatriz Sánchez', aula: 'Laboratorio Redes 2' },
-  { id: 'g401-lcdn', clave_grupo: '401-LCDN', carrera_id: 'c1111111-1111-1111-1111-111111111111', materia_id: 'f2222222-2222-2222-2222-222222222222', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', turno: 'Matutino', periodo: '2026-2', horario: 'Miércoles (09:00 - 12:00 hrs) y Lunes (09:00 - 12:00 hrs)', dias_clase: ['Lunes', 'Miércoles', 'Viernes'], docente_nombre: 'Lic. Alejandro Valdez', aula: 'Laboratorio de Cómputo e IA' },
+  { id: 'g401-lcdn', clave_grupo: '401-LCDN', carrera_id: 'c1111111-1111-1111-1111-111111111111', materia_id: 'f2222222-2222-2222-2222-222222222222', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', turno: 'Matutino', periodo: '2026-2', horario: 'Miércoles (09:00 - 11:00 hrs) y Sábados (07:00 - 09:00 hrs)', dias_clase: ['Miércoles', 'Sábado'], docente_nombre: 'Dr. Adrian Silva', docente_id: 'd0000003-0000-0000-0000-000000000003', aula: 'Aula Virtual UNRC (Google Meet)' },
   { id: 'g501', clave_grupo: '501', carrera_id: 'c3', materia_id: 'm5', sede_id: 'sede-coy', sede_nombre: 'Sede Coyoacán', turno: 'Matutino', periodo: '2026-2', horario: 'Lunes a Sábado (07:00 - 13:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Tutor UNRC', aula: 'Laboratorio de Seguridad A' }
 ];
 
@@ -454,15 +454,16 @@ const MOCK_DOCENTES: Docente[] = [
     apellido_paterno: 'Silva',
     apellido_materno: '',
     email: 'adrian.silva@rcastellanos.cdmx.gob.mx',
-    departamento: 'Lic. en Administración / Lic. en Turismo',
+    departamento: 'Lic. en Turismo / Lic. en Administración / Licenciatura en Ciencia de Datos para los Negocios',
     puesto: 'docente',
-    carreras_asignadas: ['Lic. en Turismo', 'Lic. en Administración'],
-    materias: ['Administración de Empresas de Hospedaje', 'Matemáticas para la Administración'],
+    carreras_asignadas: ['Lic. en Turismo', 'Lic. en Administración', 'Licenciatura en Ciencia de Datos para los Negocios'],
+    materias: ['Administración de Empresas de Hospedaje', 'Matemáticas para la Administración', 'Programación para la ciencia de datos', 'Estructura de Datos'],
     horario_resumen: 'Miércoles (09:00 - 11:00 hrs) y Sábados (07:00 - 09:00 hrs)',
     horarios: [
       { dia: 'Miércoles', hora_inicio: '09:00', hora_fin: '11:00', carrera: 'Lic. en Turismo', materia: 'Administración de Empresas de Hospedaje', grupo: '201-TUR', aula: 'Edificio A - Aula Magna 2', es_en_linea: false },
       { dia: 'Sábado', hora_inicio: '07:00', hora_fin: '09:00', carrera: 'Lic. en Turismo', materia: 'Administración de Empresas de Hospedaje', grupo: '201-TUR', aula: 'Aula Virtual UNRC (Google Meet)', es_en_linea: true },
-      { dia: 'Lunes', hora_inicio: '07:00', hora_fin: '09:00', carrera: 'Lic. en Administración', materia: 'Matemáticas para la Administración', grupo: '203-ADM', aula: 'Edificio C - Aula 203', es_en_linea: false }
+      { dia: 'Lunes', hora_inicio: '07:00', hora_fin: '09:00', carrera: 'Lic. en Administración', materia: 'Matemáticas para la Administración', grupo: '203-ADM', aula: 'Edificio C - Aula 203', es_en_linea: false },
+      { dia: 'Miércoles', hora_inicio: '09:00', hora_fin: '11:00', carrera: 'Licenciatura en Ciencia de Datos para los Negocios', materia: 'Programación para la ciencia de datos', grupo: '401-LCDN', aula: 'Aula Virtual UNRC (Google Meet)', es_en_linea: true }
     ],
     sede_nombre: 'Campus Magdalena Contreras',
     telefono: '+525511223344',
@@ -1106,10 +1107,10 @@ export const db = {
         sede_nombre: 'Campus Magdalena Contreras',
         turno: 'Matutino',
         periodo: '2026-2',
-        horario: 'Miércoles (09:00 - 12:00 hrs) y Lunes (09:00 - 12:00 hrs)',
-        dias_clase: ['Lunes', 'Miércoles', 'Viernes'],
-        docente_nombre: 'Lic. Alejandro Valdez',
-        aula: 'Laboratorio de Cómputo e IA'
+        horario: 'Miércoles (09:00 - 11:00 hrs) y Sábados (07:00 - 09:00 hrs)',
+        dias_clase: ['Miércoles', 'Sábado'],
+        docente_nombre: 'Dr. Adrian Silva',
+        aula: 'Aula Virtual UNRC (Google Meet)'
       });
       if (typeof window !== 'undefined') {
         localStorage.setItem('unrc_grupos', JSON.stringify(list));
@@ -2132,33 +2133,51 @@ export const db = {
               if (isSilva) {
                 return {
                   ...updated,
-                  carreras_asignadas: (d.carreras_asignadas && d.carreras_asignadas.length > 0) ? d.carreras_asignadas : ['Licenciatura en Administración', 'Licenciatura en Turismo'],
-                  materias: (d.materias && d.materias.length > 0) ? d.materias : ['Administración de Empresas de Hospedaje', 'Matemáticas para la Administración'],
+                  carreras_asignadas: (d.carreras_asignadas && d.carreras_asignadas.length > 0) ? d.carreras_asignadas : ['Lic. en Turismo', 'Lic. en Administración', 'Licenciatura en Ciencia de Datos para los Negocios'],
+                  materias: (d.materias && d.materias.length > 0) ? d.materias : ['Administración de Empresas de Hospedaje', 'Matemáticas para la Administración', 'Programación para la ciencia de datos', 'Estructura de Datos'],
                   horario_resumen: 'Miércoles (09:00 - 11:00 hrs) y Sábados (07:00 - 09:00 hrs)',
                   horarios: [
-                    { dia: 'Miércoles', hora_inicio: '09:00', hora_fin: '11:00', carrera: 'Licenciatura en Turismo', materia: 'Administración de Empresas de Hospedaje', grupo: '201-TUR', aula: 'Edificio A - Aula Magna 2' },
-                    { dia: 'Sábado', hora_inicio: '07:00', hora_fin: '09:00', carrera: 'Licenciatura en Turismo', materia: 'Administración de Empresas de Hospedaje', grupo: '201-TUR', aula: 'Edificio A - Aula Magna 2' },
-                    { dia: 'Lunes', hora_inicio: '07:00', hora_fin: '09:00', carrera: 'Licenciatura en Administración', materia: 'Matemáticas para la Administración', grupo: '203-ADM', aula: 'Edificio C - Aula 203' }
+                    { dia: 'Miércoles', hora_inicio: '09:00', hora_fin: '11:00', carrera: 'Lic. en Turismo', materia: 'Administración de Empresas de Hospedaje', grupo: '201-TUR', aula: 'Edificio A - Aula Magna 2', es_en_linea: false },
+                    { dia: 'Sábado', hora_inicio: '07:00', hora_fin: '09:00', carrera: 'Lic. en Turismo', materia: 'Administración de Empresas de Hospedaje', grupo: '201-TUR', aula: 'Aula Virtual UNRC (Google Meet)', es_en_linea: true },
+                    { dia: 'Lunes', hora_inicio: '07:00', hora_fin: '09:00', carrera: 'Lic. en Administración', materia: 'Matemáticas para la Administración', grupo: '203-ADM', aula: 'Edificio C - Aula 203', es_en_linea: false },
+                    { dia: 'Miércoles', hora_inicio: '09:00', hora_fin: '11:00', carrera: 'Licenciatura en Ciencia de Datos para los Negocios', materia: 'Programación para la ciencia de datos', grupo: '401-LCDN', aula: 'Aula Virtual UNRC (Google Meet)', es_en_linea: true }
                   ],
                   sede_nombre: d.sede_nombre || 'Campus Magdalena Contreras'
                 };
               }
             }
 
-            if (isValdez) {
+            if (isSilva) {
+              const hasTurismo = updated.horarios?.some((h: HorarioDocenteItem) => h.grupo === '201-TUR' || h.carrera?.includes('Turismo'));
+              const hasAdm = updated.horarios?.some((h: HorarioDocenteItem) => h.grupo === '203-ADM' || h.carrera?.includes('Administración'));
               const has401 = updated.horarios?.some((h: HorarioDocenteItem) => h.grupo === '401-LCDN' || h.grupo === '401');
-              if (!has401) {
-                hadChanges = true;
-                const existing = updated.horarios || [];
-                updated.carreras_asignadas = Array.from(new Set([...(updated.carreras_asignadas || []), 'Licenciatura en Ciencia de Datos para los Negocios', 'Lic. en Ciencias de Datos e Inteligencia Artificial']));
-                updated.materias = Array.from(new Set([...(updated.materias || []), 'Inteligencia Artificial y Aprendizaje Automático', 'Programación Web y Bases de Datos', 'Minería de Datos y Modelado Predictivo']));
-                updated.horarios = [
-                  ...existing,
-                  { dia: 'Miércoles', hora_inicio: '09:00', hora_fin: '12:00', carrera: 'Licenciatura en Ciencia de Datos para los Negocios', materia: 'Inteligencia Artificial y Aprendizaje Automático', grupo: '401-LCDN', aula: 'Laboratorio de Cómputo e IA', es_en_linea: false },
-                  { dia: 'Lunes', hora_inicio: '09:00', hora_fin: '12:00', carrera: 'Licenciatura en Ciencia de Datos para los Negocios', materia: 'Programación Web y Bases de Datos', grupo: '401-LCDN', aula: 'Laboratorio de Cómputo e IA', es_en_linea: false },
-                  { dia: 'Viernes', hora_inicio: '08:00', hora_fin: '11:00', carrera: 'Licenciatura en Ciencia de Datos para los Negocios', materia: 'Minería de Datos y Modelado Predictivo', grupo: '401-LCDN', aula: 'Aula Virtual UNRC (Google Meet)', es_en_linea: true }
-                ];
+
+              const toAdd: HorarioDocenteItem[] = [];
+              if (!hasTurismo) {
+                toAdd.push(
+                  { dia: 'Miércoles', hora_inicio: '09:00', hora_fin: '11:00', carrera: 'Lic. en Turismo', materia: 'Administración de Empresas de Hospedaje', grupo: '201-TUR', aula: 'Edificio A - Aula Magna 2', es_en_linea: false },
+                  { dia: 'Sábado', hora_inicio: '07:00', hora_fin: '09:00', carrera: 'Lic. en Turismo', materia: 'Administración de Empresas de Hospedaje', grupo: '201-TUR', aula: 'Aula Virtual UNRC (Google Meet)', es_en_linea: true }
+                );
               }
+              if (!hasAdm) {
+                toAdd.push(
+                  { dia: 'Lunes', hora_inicio: '07:00', hora_fin: '09:00', carrera: 'Lic. en Administración', materia: 'Matemáticas para la Administración', grupo: '203-ADM', aula: 'Edificio C - Aula 203', es_en_linea: false }
+                );
+              }
+              if (!has401) {
+                toAdd.push(
+                  { dia: 'Miércoles', hora_inicio: '09:00', hora_fin: '11:00', carrera: 'Licenciatura en Ciencia de Datos para los Negocios', materia: 'Programación para la ciencia de datos', grupo: '401-LCDN', aula: 'Aula Virtual UNRC (Google Meet)', es_en_linea: true }
+                );
+              }
+
+              if (toAdd.length > 0) {
+                hadChanges = true;
+                updated.horarios = [...(updated.horarios || []), ...toAdd];
+              }
+
+              updated.horario_resumen = 'Miércoles (09:00 - 11:00 hrs) y Sábados (07:00 - 09:00 hrs)';
+              updated.carreras_asignadas = Array.from(new Set([...(updated.carreras_asignadas || []), 'Lic. en Turismo', 'Lic. en Administración', 'Licenciatura en Ciencia de Datos para los Negocios']));
+              updated.materias = Array.from(new Set([...(updated.materias || []), 'Administración de Empresas de Hospedaje', 'Matemáticas para la Administración', 'Programación para la ciencia de datos', 'Estructura de Datos']));
             }
 
             return updated;
