@@ -302,13 +302,13 @@ const MOCK_GRADOS: Grado[] = [
 ];
 
 const MOCK_SECCIONES: Seccion[] = [
-  { id: 'sec-101', nombre: '101', grado_id: 'g-sem-1', grado_nombre: '1° Semestre', carrera_id: 'c1', carrera_nombre: 'Lic. en Ciencias de Datos e IA', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', turno: 'Matutino', aula: 'Edificio B - Aula 101', cupo_maximo: 35 },
-  { id: 'sec-102', nombre: '102', grado_id: 'g-sem-1', grado_nombre: '1° Semestre', carrera_id: 'c1', carrera_nombre: 'Lic. en Ciencias de Datos e IA', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', turno: 'Matutino', aula: 'Edificio B - Aula 102', cupo_maximo: 35 },
-  { id: 'sec-201-tur', nombre: '201-TUR', grado_id: 'g-sem-2', grado_nombre: '2° Semestre', carrera_id: 'c4', carrera_nombre: 'Lic. en Turismo', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', turno: 'Matutino', aula: 'Edificio A - Aula Magna 2', cupo_maximo: 30 },
-  { id: 'sec-203-adm', nombre: '203-ADM', grado_id: 'g-sem-2', grado_nombre: '2° Semestre', carrera_id: 'c5', carrera_nombre: 'Lic. en Administración', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', turno: 'Matutino', aula: 'Edificio C - Aula 203', cupo_maximo: 40 },
-  { id: 'sec-201', nombre: '201', grado_id: 'g-sem-3', grado_nombre: '3° Semestre', carrera_id: 'c2', carrera_nombre: 'Lic. en TIC', sede_id: 'sede-js', sede_nombre: 'Sede Justo Sierra', turno: 'Vespertino', aula: 'Laboratorio de Cómputo 1', cupo_maximo: 30 },
-  { id: 'sec-301', nombre: '301', grado_id: 'g-sem-3', grado_nombre: '3° Semestre', carrera_id: 'c2', carrera_nombre: 'Lic. en TIC', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', turno: 'Matutino', aula: 'Laboratorio Redes 2', cupo_maximo: 30 },
-  { id: 'sec-501', nombre: '501', grado_id: 'g-sem-5', grado_nombre: '5° Semestre', carrera_id: 'c3', carrera_nombre: 'Lic. en Ciberseguridad', sede_id: 'sede-coy', sede_nombre: 'Sede Coyoacán', turno: 'Matutino', aula: 'Laboratorio de Seguridad A', cupo_maximo: 25 }
+  { id: 'sec-101', nombre: '101', grado_id: 'g-sem-1', grado_nombre: '1° Semestre', carrera_id: 'c1111111-1111-1111-1111-111111111111', carrera_nombre: 'Licenciatura en Ciencias de Datos e Inteligencia Artificial', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', turno: 'Matutino', aula: 'Edificio B - Aula 101', cupo_maximo: 35 },
+  { id: 'sec-102', nombre: '102', grado_id: 'g-sem-1', grado_nombre: '1° Semestre', carrera_id: 'c1111111-1111-1111-1111-111111111111', carrera_nombre: 'Licenciatura en Ciencias de Datos e Inteligencia Artificial', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', turno: 'Matutino', aula: 'Edificio B - Aula 102', cupo_maximo: 35 },
+  { id: 'sec-201-tur', nombre: '201-TUR', grado_id: 'g-sem-2', grado_nombre: '2° Semestre', carrera_id: 'c4444444-4444-4444-4444-444444444444', carrera_nombre: 'Licenciatura en Turismo', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', turno: 'Matutino', aula: 'Edificio A - Aula Magna 2', cupo_maximo: 30 },
+  { id: 'sec-203-adm', nombre: '203-ADM', grado_id: 'g-sem-2', grado_nombre: '2° Semestre', carrera_id: 'c5555555-5555-5555-5555-555555555555', carrera_nombre: 'Licenciatura en Administración', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', turno: 'Matutino', aula: 'Edificio C - Aula 203', cupo_maximo: 40 },
+  { id: 'sec-201', nombre: '201', grado_id: 'g-sem-3', grado_nombre: '3° Semestre', carrera_id: 'c2222222-2222-2222-2222-222222222222', carrera_nombre: 'Licenciatura en Tecnologías de la Información y Comunicación', sede_id: 'sede-js', sede_nombre: 'Sede Justo Sierra', turno: 'Vespertino', aula: 'Laboratorio de Cómputo 1', cupo_maximo: 30 },
+  { id: 'sec-301', nombre: '301', grado_id: 'g-sem-3', grado_nombre: '3° Semestre', carrera_id: 'c2222222-2222-2222-2222-222222222222', carrera_nombre: 'Licenciatura en Tecnologías de la Información y Comunicación', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', turno: 'Matutino', aula: 'Laboratorio Redes 2', cupo_maximo: 30 },
+  { id: 'sec-501', nombre: '501', grado_id: 'g-sem-5', grado_nombre: '5° Semestre', carrera_id: 'c3333333-3333-3333-3333-333333333333', carrera_nombre: 'Licenciatura en Ciberseguridad', sede_id: 'sede-coy', sede_nombre: 'Sede Coyoacán', turno: 'Matutino', aula: 'Laboratorio de Seguridad A', cupo_maximo: 25 }
 ];
 
 const MOCK_CARRERAS: Carrera[] = [
@@ -763,7 +763,77 @@ export const db = {
   getSecciones: async (): Promise<Seccion[]> => {
     initLocalStorage();
     const raw = localStorage.getItem('unrc_secciones');
-    return raw ? JSON.parse(raw) : MOCK_SECCIONES;
+    let list: Seccion[] = raw ? JSON.parse(raw) : MOCK_SECCIONES;
+
+    let modified = false;
+    list = list.map((sec) => {
+      let updatedSec = { ...sec };
+      const cId = (sec.carrera_id || '').toLowerCase();
+      const cNombre = sec.carrera_nombre || '';
+
+      if (
+        cId === 'c1' ||
+        cId === '' ||
+        cId.includes('c1111111') ||
+        cNombre === 'Licenciatura UNRC' ||
+        cNombre === '' ||
+        cNombre.toLowerCase().includes('datos') ||
+        sec.aula?.includes('Edificio B')
+      ) {
+        if (!cId.includes('c2') && !cId.includes('c3') && !cId.includes('c4') && !cId.includes('c5')) {
+          if (
+            updatedSec.carrera_id !== 'c1111111-1111-1111-1111-111111111111' ||
+            updatedSec.carrera_nombre !== 'Licenciatura en Ciencias de Datos e Inteligencia Artificial'
+          ) {
+            updatedSec.carrera_id = 'c1111111-1111-1111-1111-111111111111';
+            updatedSec.carrera_nombre = 'Licenciatura en Ciencias de Datos e Inteligencia Artificial';
+            modified = true;
+          }
+        }
+      } else if (cId === 'c2' || cId.includes('c2222222') || cNombre.toLowerCase().includes('tecnolog')) {
+        if (
+          updatedSec.carrera_id !== 'c2222222-2222-2222-2222-222222222222' ||
+          updatedSec.carrera_nombre !== 'Licenciatura en Tecnologías de la Información y Comunicación'
+        ) {
+          updatedSec.carrera_id = 'c2222222-2222-2222-2222-222222222222';
+          updatedSec.carrera_nombre = 'Licenciatura en Tecnologías de la Información y Comunicación';
+          modified = true;
+        }
+      } else if (cId === 'c3' || cId.includes('c3333333') || cNombre.toLowerCase().includes('ciber')) {
+        if (
+          updatedSec.carrera_id !== 'c3333333-3333-3333-3333-333333333333' ||
+          updatedSec.carrera_nombre !== 'Licenciatura en Ciberseguridad'
+        ) {
+          updatedSec.carrera_id = 'c3333333-3333-3333-3333-333333333333';
+          updatedSec.carrera_nombre = 'Licenciatura en Ciberseguridad';
+          modified = true;
+        }
+      } else if (cId === 'c4' || cId.includes('c4444444') || cNombre.toLowerCase().includes('turis')) {
+        if (
+          updatedSec.carrera_id !== 'c4444444-4444-4444-4444-444444444444' ||
+          updatedSec.carrera_nombre !== 'Licenciatura en Turismo'
+        ) {
+          updatedSec.carrera_id = 'c4444444-4444-4444-4444-444444444444';
+          updatedSec.carrera_nombre = 'Licenciatura en Turismo';
+          modified = true;
+        }
+      } else if (cId === 'c5' || cId.includes('c5555555') || cNombre.toLowerCase().includes('admin')) {
+        if (
+          updatedSec.carrera_id !== 'c5555555-5555-5555-5555-555555555555' ||
+          updatedSec.carrera_nombre !== 'Licenciatura en Administración'
+        ) {
+          updatedSec.carrera_id = 'c5555555-5555-5555-5555-555555555555';
+          updatedSec.carrera_nombre = 'Licenciatura en Administración';
+          modified = true;
+        }
+      }
+      return updatedSec;
+    });
+
+    if (modified && typeof window !== 'undefined') {
+      localStorage.setItem('unrc_secciones', JSON.stringify(list));
+    }
+    return list;
   },
 
   addSeccion: async (sec: Omit<Seccion, 'id'>): Promise<Seccion> => {

@@ -409,26 +409,53 @@ export default function AdminDashboardPage() {
     e.preventDefault();
     try {
       const gObj = grados.find((g) => g.id === seccionForm.grado_id);
-      const cObj = carreras.find((c) => c.id === seccionForm.carrera_id);
-      const sObj = sedes.find((s) => s.id === seccionForm.sede_id);
+      const cObj =
+        carreras.find((c) => c.id === seccionForm.carrera_id) ||
+        carreras.find(
+          (c) =>
+            (seccionForm.carrera_id === 'c1' && (c.id.includes('c1') || c.nombre.toLowerCase().includes('datos'))) ||
+            (seccionForm.carrera_id === 'c2' && (c.id.includes('c2') || c.nombre.toLowerCase().includes('tecnolog'))) ||
+            (seccionForm.carrera_id === 'c3' && (c.id.includes('c3') || c.nombre.toLowerCase().includes('ciber'))) ||
+            (seccionForm.carrera_id === 'c4' && (c.id.includes('c4') || c.nombre.toLowerCase().includes('turis'))) ||
+            (seccionForm.carrera_id === 'c5' && (c.id.includes('c5') || c.nombre.toLowerCase().includes('admin')))
+        ) ||
+        carreras.find((c) => c.nombre.toLowerCase().includes('datos')) ||
+        carreras[0];
+      const sObj = sedes.find((s) => s.id === seccionForm.sede_id) || sedes[0];
+
+      const resolvedCarreraId = cObj?.id || seccionForm.carrera_id || carreras[0]?.id || '';
+      const resolvedCarreraNombre = cObj?.nombre || 'Licenciatura en Ciencias de Datos e Inteligencia Artificial';
 
       if (editingId) {
         const updated = await db.updateSeccion(editingId, {
           ...seccionForm,
+          carrera_id: resolvedCarreraId,
           grado_nombre: gObj?.nombre,
-          carrera_nombre: cObj?.nombre,
+          carrera_nombre: resolvedCarreraNombre,
           sede_nombre: sObj?.nombre,
           cupo_maximo: Number(seccionForm.cupo_maximo),
         });
         setSecciones((prev) =>
-          prev.map((s) => (s.id === editingId ? { ...s, ...(updated || seccionForm) } : s))
+          prev.map((s) =>
+            s.id === editingId
+              ? {
+                  ...s,
+                  ...(updated || seccionForm),
+                  carrera_id: resolvedCarreraId,
+                  carrera_nombre: resolvedCarreraNombre,
+                  grado_nombre: gObj?.nombre || s.grado_nombre,
+                  sede_nombre: sObj?.nombre || s.sede_nombre,
+                }
+              : s
+          )
         );
         showToast('Sección actualizada.');
       } else {
         const newSec = await db.addSeccion({
           ...seccionForm,
+          carrera_id: resolvedCarreraId,
           grado_nombre: gObj?.nombre,
-          carrera_nombre: cObj?.nombre,
+          carrera_nombre: resolvedCarreraNombre,
           sede_nombre: sObj?.nombre,
           cupo_maximo: Number(seccionForm.cupo_maximo),
         });
@@ -2262,7 +2289,18 @@ export default function AdminDashboardPage() {
                         </td>
                         <td className="p-3">{sec.grado_nombre || '2° Semestre'}</td>
                         <td className="p-3 text-white font-medium">
-                          {sec.carrera_nombre || 'Licenciatura UNRC'}
+                          {sec.carrera_nombre && sec.carrera_nombre !== 'Licenciatura UNRC'
+                            ? sec.carrera_nombre
+                            : carreras.find(
+                                (c) =>
+                                  c.id === sec.carrera_id ||
+                                  (sec.carrera_id === 'c1' && (c.id.includes('c1') || c.nombre.toLowerCase().includes('datos'))) ||
+                                  (sec.carrera_id === 'c2' && (c.id.includes('c2') || c.nombre.toLowerCase().includes('tecnolog'))) ||
+                                  (sec.carrera_id === 'c3' && (c.id.includes('c3') || c.nombre.toLowerCase().includes('ciber'))) ||
+                                  (sec.carrera_id === 'c4' && (c.id.includes('c4') || c.nombre.toLowerCase().includes('turis'))) ||
+                                  (sec.carrera_id === 'c5' && (c.id.includes('c5') || c.nombre.toLowerCase().includes('admin'))) ||
+                                  (sec.aula?.includes('Edificio B') && c.nombre.toLowerCase().includes('datos'))
+                              )?.nombre || 'Licenciatura en Ciencias de Datos e Inteligencia Artificial'}
                         </td>
                         <td className="p-3">
                           <span
@@ -2289,11 +2327,25 @@ export default function AdminDashboardPage() {
                             <button
                               onClick={() => {
                                 setEditingId(sec.id);
+                                const matchedCarrera =
+                                  carreras.find((c) => c.id === sec.carrera_id) ||
+                                  carreras.find(
+                                    (c) =>
+                                      (sec.carrera_id === 'c1' && (c.id.includes('c1') || c.nombre.toLowerCase().includes('datos'))) ||
+                                      (sec.carrera_id === 'c2' && (c.id.includes('c2') || c.nombre.toLowerCase().includes('tecnolog'))) ||
+                                      (sec.carrera_id === 'c3' && (c.id.includes('c3') || c.nombre.toLowerCase().includes('ciber'))) ||
+                                      (sec.carrera_id === 'c4' && (c.id.includes('c4') || c.nombre.toLowerCase().includes('turis'))) ||
+                                      (sec.carrera_id === 'c5' && (c.id.includes('c5') || c.nombre.toLowerCase().includes('admin'))) ||
+                                      (sec.carrera_nombre && c.nombre.toLowerCase() === sec.carrera_nombre.toLowerCase()) ||
+                                      (sec.aula?.includes('Edificio B') && c.nombre.toLowerCase().includes('datos'))
+                                  ) ||
+                                  carreras[0];
+
                                 setSeccionForm({
                                   nombre: sec.nombre,
-                                  grado_id: sec.grado_id,
-                                  carrera_id: sec.carrera_id || '',
-                                  sede_id: sec.sede_id || '',
+                                  grado_id: sec.grado_id || grados[0]?.id || '',
+                                  carrera_id: matchedCarrera?.id || sec.carrera_id || carreras[0]?.id || '',
+                                  sede_id: sec.sede_id || sedes[0]?.id || '',
                                   turno: sec.turno,
                                   aula: sec.aula,
                                   cupo_maximo: sec.cupo_maximo,
@@ -2438,7 +2490,17 @@ export default function AdminDashboardPage() {
 
               <div className="space-y-2.5 max-h-[500px] overflow-y-auto pr-1">
                 {materias.map((m) => {
-                  const carObj = carreras.find((c) => c.id === m.carrera_id);
+                  const carObj =
+                    carreras.find((c) => c.id === m.carrera_id) ||
+                    carreras.find(
+                      (c) =>
+                        (m.carrera_id === 'c1' && (c.id.includes('c1') || c.nombre.toLowerCase().includes('datos'))) ||
+                        (m.carrera_id === 'c2' && (c.id.includes('c2') || c.nombre.toLowerCase().includes('tecnolog'))) ||
+                        (m.carrera_id === 'c3' && (c.id.includes('c3') || c.nombre.toLowerCase().includes('ciber'))) ||
+                        (m.carrera_id === 'c4' && (c.id.includes('c4') || c.nombre.toLowerCase().includes('turis'))) ||
+                        (m.carrera_id === 'c5' && (c.id.includes('c5') || c.nombre.toLowerCase().includes('admin')))
+                    ) ||
+                    carreras[0];
                   return (
                     <div
                       key={m.id}
@@ -2458,7 +2520,7 @@ export default function AdminDashboardPage() {
                         </div>
                         <h4 className="text-sm font-bold text-white mt-0.5">{m.nombre}</h4>
                         <p className="text-[10px] text-gray-500">
-                          Programa: {carObj?.nombre || 'Licenciatura UNRC'}
+                          Programa: {carObj?.nombre || 'Licenciatura en Ciencias de Datos e Inteligencia Artificial'}
                         </p>
                       </div>
                       <div className="flex items-center space-x-1">
