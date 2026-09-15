@@ -935,11 +935,62 @@ export default function AdminDashboardPage() {
       a.matricula.toLowerCase().includes(query) ||
       a.grupo.toLowerCase().includes(query);
 
-    const matchesCarrera =
-      filterCarrera === 'todos' || a.carrera_id === filterCarrera || a.carrera === filterCarrera;
+    const selectedCarreraObj = carreras.find(
+      (c) => c.id === filterCarrera || c.nombre === filterCarrera || c.clave === filterCarrera
+    );
 
+    let matchesCarrera = filterCarrera === 'todos';
+    if (!matchesCarrera) {
+      if (a.carrera_id === filterCarrera || a.carrera === filterCarrera) {
+        matchesCarrera = true;
+      } else if (selectedCarreraObj) {
+        const selName = (selectedCarreraObj.nombre || '').toLowerCase();
+        const selClave = (selectedCarreraObj.clave || '').toUpperCase();
+        const aCarrera = (a.carrera || '').toLowerCase();
+        const aGrupo = (a.grupo || '').toUpperCase();
+        const aCId = (a.carrera_id || '').toLowerCase();
+
+        if (a.carrera_id === selectedCarreraObj.id) {
+          matchesCarrera = true;
+        } else if (
+          (selClave.includes('TUR') || selName.includes('turis')) &&
+          (aCId === 'c4' || aCId.includes('c4') || aGrupo.includes('TUR') || aCarrera.includes('turis'))
+        ) {
+          matchesCarrera = true;
+        } else if (
+          (selClave.includes('ADM') || selName.includes('admin')) &&
+          (aCId === 'c5' || aCId.includes('c5') || aGrupo.includes('ADM') || aCarrera.includes('admin'))
+        ) {
+          matchesCarrera = true;
+        } else if (
+          (selClave.includes('CDIA') || selName.includes('datos') || selName.includes('inteligencia')) &&
+          (aCId === 'c1' || aCId.includes('c1') || aCarrera.includes('datos') || aCarrera.includes('inteligencia') || aGrupo === '101' || aGrupo === '102')
+        ) {
+          matchesCarrera = true;
+        } else if (
+          (selClave.includes('TIC') || selName.includes('tecnolog') || selName.includes('información')) &&
+          (aCId === 'c2' || aCId.includes('c2') || aCarrera.includes('tic') || aCarrera.includes('tecnolog') || aGrupo === '201' || aGrupo === '301')
+        ) {
+          matchesCarrera = true;
+        } else if (
+          (selClave.includes('CIB') || selName.includes('ciber')) &&
+          (aCId === 'c3' || aCId.includes('c3') || aCarrera.includes('ciber') || aGrupo === '501')
+        ) {
+          matchesCarrera = true;
+        } else if (
+          aCarrera && (aCarrera === selName || selName.includes(aCarrera) || aCarrera.includes(selName))
+        ) {
+          matchesCarrera = true;
+        }
+      }
+    }
+
+    const selectedSedeObj = sedes.find((s) => s.id === filterSede || s.nombre === filterSede);
     const matchesSede =
-      filterSede === 'todos' || a.sede_id === filterSede || a.sede_nombre === filterSede;
+      filterSede === 'todos' ||
+      a.sede_id === filterSede ||
+      a.sede_nombre === filterSede ||
+      (selectedSedeObj && (a.sede_id === selectedSedeObj.id || a.sede_nombre === selectedSedeObj.nombre));
 
     const matchesEstado =
       filterEstadoMatricula === 'todos' ||
