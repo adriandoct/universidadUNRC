@@ -1937,7 +1937,9 @@ export default function AdminDashboardPage() {
                               value={
                                 carreras.find((c) => c.id === al.carrera_id)?.id ||
                                 carreras.find((c) => c.nombre.toLowerCase() === (al.carrera || '').toLowerCase())?.id ||
-                                (al.grupo?.toUpperCase().includes('TUR')
+                                (al.grupo?.toUpperCase().includes('ADM')
+                                  ? (carreras.find((c) => c.clave?.includes('ADM'))?.id || '')
+                                  : (al.grupo?.toUpperCase().includes('-TUR') || /\bTUR\b/i.test(al.grupo || ''))
                                   ? (carreras.find((c) => c.clave?.includes('TUR'))?.id || '')
                                   : '')
                               }

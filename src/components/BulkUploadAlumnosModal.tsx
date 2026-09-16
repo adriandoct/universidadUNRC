@@ -249,14 +249,35 @@ export default function BulkUploadAlumnosModal({
     const clean = (rawCarrera || '').toLowerCase().trim();
     if (!clean) return null;
 
+    // 1. Licenciatura en Administración (PRIORIDAD y precisión para evitar colisiones)
+    // Códigos UNRC: PHLAC (Plan Híbrido Lic. en Administración y Comercio), LAC, ADM, 203
+    if (
+      clean.includes('administra') ||
+      clean.includes('admon') ||
+      clean.includes('comercio') ||
+      clean.includes('phlac') ||
+      clean.includes('lac-') ||
+      clean.startsWith('lac') ||
+      clean.includes('203') ||
+      /\b(adm|lic-adm|la|lac|phlac|203|203-adm|203-tij)\b/i.test(clean) ||
+      clean === 'adm' ||
+      clean === 'lac' ||
+      clean === 'phlac'
+    ) {
+      const adm = carreras.find(
+        (c) => c.clave?.includes('ADM') || c.nombre.toLowerCase().includes('administra')
+      );
+      if (adm) return adm;
+    }
+
+    // 2. Licenciatura en Ciencias de Datos / Negocios / Inteligencia Artificial
     if (
       clean.includes('ciencia de datos') ||
       clean.includes('ciencias de datos') ||
+      clean.includes('inteligencia artificial') ||
       clean.includes('datos') ||
       clean.includes('negocios') ||
-      clean.includes('cdia') ||
-      clean.includes('lcdn') ||
-      clean.includes('inteligencia artificial')
+      /\b(cdia|lcdn|lic-cdia|data)\b/i.test(clean)
     ) {
       const dat = carreras.find(
         (c) =>
@@ -267,24 +288,29 @@ export default function BulkUploadAlumnosModal({
       if (dat) return dat;
     }
 
-    if (clean.includes('turismo') || clean.includes('tur')) {
-      const tur = carreras.find((c) => c.clave?.includes('TUR') || c.nombre.toLowerCase().includes('turismo'));
-      if (tur) return tur;
-    }
-
-    if (clean.includes('administra') || clean.includes('adm')) {
-      const adm = carreras.find((c) => c.clave?.includes('ADM') || c.nombre.toLowerCase().includes('administración'));
-      if (adm) return adm;
-    }
-
-    if (clean.includes('ciber')) {
+    // 3. Licenciatura en Ciberseguridad
+    if (clean.includes('ciber') || /\b(cib|lic-cib)\b/i.test(clean)) {
       const cib = carreras.find((c) => c.clave?.includes('CIB') || c.nombre.toLowerCase().includes('ciberseguridad'));
       if (cib) return cib;
     }
 
-    if (clean.includes('tic') || clean.includes('tecnolog')) {
+    // 4. Licenciatura en Tecnologías de la Información y Comunicación (TIC)
+    if (clean.includes('tecnolog') || /\b(tic|tics|lic-tic)\b/i.test(clean) || clean.includes('informacion y comunicacion')) {
       const tic = carreras.find((c) => c.clave?.includes('TIC') || c.nombre.toLowerCase().includes('tecnologías'));
       if (tic) return tic;
+    }
+
+    // 5. Licenciatura en Turismo (NUNCA usar includes('tur') porque palabras como 'licenciaTURa', 'esTRUCTURa', 'TURno' contienen 'tur')
+    if (
+      clean.includes('turismo') ||
+      clean.includes('turístic') ||
+      clean.includes('turistic') ||
+      clean.includes('hospedaje') ||
+      /\b(tur|lic-tur)\b/i.test(clean) ||
+      clean === 'tur'
+    ) {
+      const tur = carreras.find((c) => c.clave?.includes('TUR') || c.nombre.toLowerCase().includes('turismo'));
+      if (tur) return tur;
     }
 
     const exact = carreras.find(
@@ -345,7 +371,9 @@ export default function BulkUploadAlumnosModal({
     matrix: any[][],
     customMapping?: ColumnMapping,
     customHeaderIdx?: number,
-    forceRespectFileEntities: boolean = respectFileEntities
+    forceRespectFileEntities: boolean = respectFileEntities,
+    fileContextHint?: { fileName?: string; sheetName?: string },
+    explicitTargetCarreraId?: string
   ) => {
     if (!matrix || matrix.length === 0) {
       setParsedRows([]);
@@ -353,32 +381,135 @@ export default function BulkUploadAlumnosModal({
       return;
     }
 
-    // 1. Extract metadata from the upper block (e.g. rows 0 to 15)
+    // 1. Extract metadata from the upper block (e.g. rows 0 to 20)
     const meta: DetectedMetadata = {};
-    const maxMetaScan = Math.min(matrix.length, 15);
+    const maxMetaScan = Math.min(matrix.length, 20);
     for (let r = 0; r < maxMetaScan; r++) {
       const row = matrix[r] || [];
       for (let c = 0; c < row.length; c++) {
         const val = String(row[c] ?? '').trim();
+        if (!val) continue;
+
+        // Check if cell directly contains a Carrera (e.g. "LICENCIATURA EN ADMINISTRACIÓN")
+        if (!meta.carrera) {
+          if (!/(?:turno|horario|docente|profesor|asistencia|lista|promedio|firma|calificaci)/i.test(val)) {
+            const direct = matchCarreraFromText(val);
+            if (direct) {
+              meta.carrera = direct.nombre;
+            }
+          }
+        }
+
         const nextVal = String(row[c + 1] ?? '').trim();
         const nextVal2 = String(row[c + 2] ?? '').trim();
         const targetVal = nextVal || nextVal2;
 
-        if (/(?:licenciatura|carrera|programa(?:\s+acad[eé]mico)?)\s*[:=]?/i.test(val) && targetVal) {
-          meta.carrera = targetVal;
+        if (/(?:licenciatura|carrera|programa(?:\s+acad[eé]mico)?)\s*[:=]?/i.test(val)) {
+          const afterColon = val.replace(/.*(?:licenciatura|carrera|programa(?:\s+acad[eé]mico)?)\s*[:=]?\s*/i, '').trim();
+          const matchAfter = afterColon ? matchCarreraFromText(afterColon) : null;
+          if (matchAfter) {
+            meta.carrera = matchAfter.nombre;
+          } else if (targetVal) {
+            const matchTarget = matchCarreraFromText(targetVal);
+            if (matchTarget) {
+              meta.carrera = matchTarget.nombre;
+            } else if (!meta.carrera) {
+              meta.carrera = targetVal;
+            }
+          }
         }
-        if (/(?:unidad\s+acad[eé]mica|sede|plantel|campus)\s*[:=]?/i.test(val) && targetVal) {
-          meta.sede = targetVal;
+
+        if (/(?:unidad\s+acad[eé]mica|sede|plantel|campus)\s*[:=]?/i.test(val)) {
+          const afterSede = val.replace(/.*(?:unidad\s+acad[eé]mica|sede|plantel|campus)\s*[:=]?\s*/i, '').trim();
+          const matchSedeAfter = afterSede ? matchSedeFromText(afterSede) : null;
+          if (matchSedeAfter) {
+            meta.sede = matchSedeAfter.nombre;
+          } else if (targetVal) {
+            const matchTargetSede = matchSedeFromText(targetVal);
+            meta.sede = matchTargetSede ? matchTargetSede.nombre : targetVal;
+          }
         }
-        if (/(?:grupo|secci[oó]n)\s*[:=]?/i.test(val) && targetVal) {
-          meta.grupo = targetVal;
+
+        if (/(?:grupo|secci[oó]n)\s*[:=]?/i.test(val)) {
+          const grpMatch = val.match(/(?:grupo|secci[oó]n)\s*[:=]?\s*([A-Za-z0-9\-_]+)/i);
+          if (grpMatch && grpMatch[1] && !/(?:grupo|secci[oó]n)/i.test(grpMatch[1])) {
+            meta.grupo = grpMatch[1].trim();
+          } else if (targetVal && !/(?:grupo|secci[oó]n)/i.test(targetVal)) {
+            meta.grupo = targetVal;
+          }
         }
-        if (/(?:asignatura|uca|materia)\s*[:=]?/i.test(val) && targetVal) {
-          meta.asignatura = targetVal;
+
+        if (/(?:asignatura|uca|materia)\s*[:=]?/i.test(val)) {
+          meta.asignatura = val.replace(/.*(?:asignatura|uca|materia)\s*[:=]?\s*/i, '').trim() || targetVal;
         }
+
         if (/(?:ciclo(?:\s+escolar)?)/i.test(val)) {
           meta.ciclo = val.replace(/.*ciclo\s*escolar\s*:?\s*/i, '').trim() || val;
         }
+      }
+    }
+
+    // Context candidates from file name & sheet name
+    const sheetNameToCheck = fileContextHint?.sheetName || selectedSheet;
+    const fileNameToCheck = fileContextHint?.fileName || file?.name;
+    const nameCandidates = [fileNameToCheck, sheetNameToCheck].filter(Boolean) as string[];
+
+    // 1. Group extraction from candidates (e.g. PHLAC-203-TIJ -> PHLAC-203-TIJ or 203-TIJ)
+    if (!meta.grupo) {
+      for (const cand of nameCandidates) {
+        const unrcFullMatch = cand.match(/\b((?:PHLAC|PHLCDN|PHLTUR|PHLTIC|PHLCIB|LIC|ADM|TUR|TIC|CIB)-[0-9]{3}(?:-[A-Za-z0-9]+)?)\b/i);
+        if (unrcFullMatch && unrcFullMatch[1]) {
+          meta.grupo = unrcFullMatch[1].toUpperCase();
+          break;
+        }
+        const grpMatch = cand.match(/\b([0-9]{3}(?:-[A-Za-z0-9]+)?)\b/);
+        if (grpMatch && grpMatch[1]) {
+          meta.grupo = grpMatch[1].toUpperCase();
+          break;
+        }
+      }
+    }
+
+    // 2. Sede from candidates (e.g. TIJ -> Campus Tijuana)
+    if (!meta.sede) {
+      for (const cand of nameCandidates) {
+        const matchedSede = matchSedeFromText(cand);
+        if (matchedSede) {
+          meta.sede = matchedSede.nombre;
+          break;
+        }
+      }
+    }
+
+    // 3. Career from candidates
+    if (!meta.carrera) {
+      for (const cand of nameCandidates) {
+        const matchedCar = matchCarreraFromText(cand);
+        if (matchedCar) {
+          meta.carrera = matchedCar.nombre;
+          break;
+        }
+      }
+    }
+
+    // 4. Fallback inference from Group code
+    if (!meta.carrera && meta.grupo) {
+      const gUpper = meta.grupo.toUpperCase();
+      if (gUpper.includes('ADM') || gUpper.includes('LAC') || gUpper.includes('PHLAC') || gUpper.includes('203')) {
+        const adm = carreras.find((c) => c.clave?.includes('ADM') || c.nombre.toLowerCase().includes('administra'));
+        if (adm) meta.carrera = adm.nombre;
+      } else if (gUpper.includes('TUR') || gUpper.includes('201')) {
+        const tur = carreras.find((c) => c.clave?.includes('TUR') || c.nombre.toLowerCase().includes('turismo'));
+        if (tur) meta.carrera = tur.nombre;
+      } else if (gUpper.includes('CDIA') || gUpper.includes('LCDN') || gUpper.includes('301') || gUpper.includes('401')) {
+        const dat = carreras.find((c) => c.clave?.includes('CDIA') || c.nombre.toLowerCase().includes('datos') || c.nombre.toLowerCase().includes('negocios'));
+        if (dat) meta.carrera = dat.nombre;
+      } else if (gUpper.includes('CIB') || gUpper.includes('501')) {
+        const cib = carreras.find((c) => c.clave?.includes('CIB') || c.nombre.toLowerCase().includes('ciberseguridad'));
+        if (cib) meta.carrera = cib.nombre;
+      } else if (gUpper.includes('TIC')) {
+        const tic = carreras.find((c) => c.clave?.includes('TIC') || c.nombre.toLowerCase().includes('tecnologías'));
+        if (tic) meta.carrera = tic.nombre;
       }
     }
 
@@ -388,12 +519,27 @@ export default function BulkUploadAlumnosModal({
     setDetectedMetadata(Object.keys(meta).length > 0 ? meta : null);
 
     // Sync destination selectors with detected metadata if available
-    let activeCarreraObj = selectedCarreraObj;
-    if (meta.carrera) {
+    let activeCarreraObj = explicitTargetCarreraId
+      ? carreras.find((c) => c.id === explicitTargetCarreraId) || selectedCarreraObj
+      : selectedCarreraObj;
+
+    if (explicitTargetCarreraId) {
+      setTargetCarreraId(explicitTargetCarreraId);
+    } else if (meta.carrera) {
       const matched = matchCarreraFromText(meta.carrera);
       if (matched) {
         activeCarreraObj = matched;
         setTargetCarreraId(matched.id);
+        if (matched.nombre.toLowerCase().includes('administra')) {
+          setTargetGrupo(meta.grupo || 'PHLAC-203-TIJ');
+          setTargetGrado(meta.grado || '2° Semestre');
+        } else if (matched.nombre.toLowerCase().includes('turis')) {
+          setTargetGrupo(meta.grupo || '201-TUR');
+          setTargetGrado(meta.grado || '2° Semestre');
+        } else if (matched.clave?.includes('CDIA') || matched.nombre.toLowerCase().includes('datos')) {
+          setTargetGrupo(meta.grupo || '301');
+          setTargetGrado(meta.grado || '3° Semestre');
+        }
       }
     }
     if (meta.grupo) {
@@ -610,7 +756,8 @@ export default function BulkUploadAlumnosModal({
 
       // Auto tutor based on Carrera
       const isTurismo = resolvedCarrera.nombre.toLowerCase().includes('turismo');
-      const defaultTutorName = isTurismo ? 'Dr. Adrian Silva' : 'Tutor Registrado UNRC';
+      const isAdm = resolvedCarrera.nombre.toLowerCase().includes('administra');
+      const defaultTutorName = isTurismo || isAdm ? 'Dr. Adrian Silva' : 'Tutor Registrado UNRC';
 
       let status: 'valid' | 'exists' | 'error' = 'valid';
       let errorMessage: string | undefined = undefined;
@@ -668,7 +815,7 @@ export default function BulkUploadAlumnosModal({
     if (sheet) {
       const matrix = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, defval: '' });
       setCurrentMatrix(matrix);
-      processMatrix(matrix, undefined, undefined, respectFileEntities);
+      processMatrix(matrix, undefined, undefined, respectFileEntities, { fileName: file?.name, sheetName });
     }
   };
 
@@ -696,7 +843,13 @@ export default function BulkUploadAlumnosModal({
         let bestSheet = sheets[0] || '';
         const preferred = sheets.find((s) => {
           const lower = s.toLowerCase();
-          return lower.includes('alumn') || lower.includes('calif') || lower.includes('estud') || lower.includes('lista');
+          return (
+            lower.includes('adm') ||
+            lower.includes('alumn') ||
+            lower.includes('calif') ||
+            lower.includes('estud') ||
+            lower.includes('lista')
+          );
         });
         if (preferred) bestSheet = preferred;
 
@@ -710,7 +863,7 @@ export default function BulkUploadAlumnosModal({
 
         const matrix = XLSX.utils.sheet_to_json<any[]>(targetSheetObj, { header: 1, defval: '' });
         setCurrentMatrix(matrix);
-        processMatrix(matrix, undefined, undefined, respectFileEntities);
+        processMatrix(matrix, undefined, undefined, respectFileEntities, { fileName: selected.name, sheetName: bestSheet });
       } catch (err: any) {
         console.error('Error al leer el archivo con XLSX:', err);
         showToast(`Error al procesar archivo: ${err.message}`, 'error');
@@ -844,7 +997,8 @@ export default function BulkUploadAlumnosModal({
           ? r.carrera || selectedCarreraObj.nombre
           : selectedCarreraObj.nombre;
         const isTurismo = finalCarreraNom.toLowerCase().includes('turismo');
-        const finalTutor = isTurismo ? 'Dr. Adrian Silva' : 'Tutor Registrado UNRC';
+        const isAdm = finalCarreraNom.toLowerCase().includes('administra');
+        const finalTutor = isTurismo || isAdm ? 'Dr. Adrian Silva' : 'Tutor Registrado UNRC';
 
         return {
           matricula: r.matricula,
@@ -941,9 +1095,17 @@ export default function BulkUploadAlumnosModal({
               <select
                 value={targetCarreraId}
                 onChange={(e) => {
-                  setTargetCarreraId(e.target.value);
+                  const newCarId = e.target.value;
+                  setTargetCarreraId(newCarId);
                   if (currentMatrix.length > 0) {
-                    processMatrix(currentMatrix, columnMapping, headerRowIdx, respectFileEntities);
+                    processMatrix(
+                      currentMatrix,
+                      columnMapping,
+                      headerRowIdx,
+                      respectFileEntities,
+                      { fileName: file?.name, sheetName: selectedSheet },
+                      newCarId
+                    );
                   }
                 }}
                 className="px-3.5 py-2 rounded-xl bg-[#090E1A] border-2 border-emerald-500/80 text-white font-bold text-xs focus:ring-2 focus:ring-emerald-400 cursor-pointer shadow-lg shadow-emerald-500/10"

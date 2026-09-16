@@ -84,13 +84,13 @@ function isCarreraMatch(slotCarrera?: string, studentCarrera?: string, teacherCa
     if (isA_Data && isB_Data) return true;
 
     // Turismo aliases
-    const isA_Tur = a.includes('turis') || a.includes('tur') || a.includes('hospedaje');
-    const isB_Tur = b.includes('turis') || b.includes('tur') || b.includes('hospedaje');
+    const isA_Tur = a.includes('turis') || /\b(tur|lic-tur)\b/i.test(a) || a.includes('hospedaje');
+    const isB_Tur = b.includes('turis') || /\b(tur|lic-tur)\b/i.test(b) || b.includes('hospedaje');
     if (isA_Tur && isB_Tur) return true;
 
     // Administración aliases
-    const isA_Adm = a.includes('admin') || a.includes('adm');
-    const isB_Adm = b.includes('admin') || b.includes('adm');
+    const isA_Adm = a.includes('administra') || a.includes('admin') || /\b(adm|lic-adm|la)\b/i.test(a);
+    const isB_Adm = b.includes('administra') || b.includes('admin') || /\b(adm|lic-adm|la)\b/i.test(b);
     if (isA_Adm && isB_Adm) return true;
 
     // TIC aliases
