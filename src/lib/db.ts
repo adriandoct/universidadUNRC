@@ -1415,10 +1415,13 @@ export const db = {
   getAlumnos: async (): Promise<Alumno[]> => {
     initLocalStorage();
     const raw = localStorage.getItem('unrc_alumnos');
-    if (raw) {
+    if (raw !== null) {
       try {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
+          if (parsed.length === 0) {
+            return [];
+          }
           let hadChanges = false;
           const enriched = parsed.map((a: Alumno) => {
             let item = { ...a };
@@ -1773,6 +1776,67 @@ export const db = {
       }
     }
     return true;
+  },
+
+  deleteAllAlumnos: async (idsOrMatriculas?: string[]): Promise<number> => {
+    initLocalStorage();
+    let list = await db.getAlumnos();
+    let deletedCount = 0;
+
+    if (idsOrMatriculas && idsOrMatriculas.length > 0) {
+      const toDeleteSet = new Set(idsOrMatriculas.map(id => id.trim().toLowerCase()));
+      const remaining = list.filter(
+        a => !toDeleteSet.has((a.id || '').toLowerCase()) && !toDeleteSet.has((a.matricula || '').toLowerCase())
+      );
+      deletedCount = list.length - remaining.length;
+      list = remaining;
+      localStorage.setItem('unrc_alumnos', JSON.stringify(list));
+
+      if (supabase) {
+        try {
+          await supabase.from('alumnos').delete().in('matricula', idsOrMatriculas);
+        } catch (e) {
+          console.warn('Supabase bulk delete notice:', e);
+        }
+      }
+    } else {
+      deletedCount = list.length;
+      list = [];
+      localStorage.setItem('unrc_alumnos', JSON.stringify([]));
+
+      if (supabase) {
+        try {
+          await supabase.from('alumnos').delete().neq('id', 'all_records_safeguard_never_matches');
+        } catch (e) {
+          console.warn('Supabase delete all notice:', e);
+        }
+      }
+    }
+
+    await db.addAuditoria(
+      'ELIMINACION_MASIVA_ALUMNOS',
+      'Servicios Escolares / Matrículas',
+      `Se eliminaron ${deletedCount} expedientes de alumnos del sistema`,
+      'Control Escolar'
+    );
+
+    return deletedCount;
+  },
+
+  restoreDefaultAlumnos: async (): Promise<Alumno[]> => {
+    const seeded = MOCK_ALUMNOS.map(a => ({
+      ...a,
+      password: a.password || getDefaultUserPassword(a.matricula, '2026-2')
+    }));
+    localStorage.setItem('unrc_alumnos', JSON.stringify(seeded));
+    localStorage.setItem('unrc_alumnos_v4', 'true');
+    await db.addAuditoria(
+      'RESTAURACION_ALUMNOS_DEMO',
+      'Servicios Escolares / Matrículas',
+      `Se restauraron los ${seeded.length} expedientes demo de alumnos`,
+      'Control Escolar'
+    );
+    return seeded;
   },
 
   updateAlumno: async (id: string, updates: Partial<Alumno>): Promise<Alumno | null> => {
