@@ -91,6 +91,7 @@ export interface HorarioDocenteItem {
   materia: string;
   grupo: string;
   aula?: string;
+  sede?: string;
   es_en_linea?: boolean;
 }
 
@@ -307,6 +308,7 @@ const MOCK_SECCIONES: Seccion[] = [
   { id: 'sec-102', nombre: '102', grado_id: 'g-sem-1', grado_nombre: '1° Semestre', carrera_id: 'c1111111-1111-1111-1111-111111111111', carrera_nombre: 'Licenciatura en Ciencias de Datos e Inteligencia Artificial', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', turno: 'Matutino', aula: 'Edificio B - Aula 102', cupo_maximo: 35 },
   { id: 'sec-201-tur', nombre: '201-TUR', grado_id: 'g-sem-2', grado_nombre: '2° Semestre', carrera_id: 'c4444444-4444-4444-4444-444444444444', carrera_nombre: 'Licenciatura en Turismo', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', turno: 'Matutino', aula: 'Edificio A - Aula Magna 2', cupo_maximo: 30 },
   { id: 'sec-203-adm', nombre: '203-ADM', grado_id: 'g-sem-2', grado_nombre: '2° Semestre', carrera_id: 'c5555555-5555-5555-5555-555555555555', carrera_nombre: 'Licenciatura en Administración', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', turno: 'Matutino', aula: 'Edificio C - Aula 203', cupo_maximo: 40 },
+  { id: 'sec-203-tij', nombre: 'PHLAC-203-TIJ', grado_id: 'g-sem-2', grado_nombre: '2° Semestre', carrera_id: 'c5555555-5555-5555-5555-555555555555', carrera_nombre: 'Licenciatura en Administración', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', turno: 'Matutino', aula: 'Campus Tijuana - Aula 203', cupo_maximo: 40 },
   { id: 'sec-201', nombre: '201', grado_id: 'g-sem-3', grado_nombre: '3° Semestre', carrera_id: 'c2222222-2222-2222-2222-222222222222', carrera_nombre: 'Licenciatura en Tecnologías de la Información y Comunicación', sede_id: 'sede-js', sede_nombre: 'Sede Justo Sierra', turno: 'Vespertino', aula: 'Laboratorio de Cómputo 1', cupo_maximo: 30 },
   { id: 'sec-301', nombre: '301', grado_id: 'g-sem-3', grado_nombre: '3° Semestre', carrera_id: 'c2222222-2222-2222-2222-222222222222', carrera_nombre: 'Licenciatura en Tecnologías de la Información y Comunicación', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', turno: 'Matutino', aula: 'Laboratorio Redes 2', cupo_maximo: 30 },
   { id: 'sec-401-lcdn', nombre: '401-LCDN', grado_id: 'g-sem-4', grado_nombre: '4° Semestre', carrera_id: 'c1111111-1111-1111-1111-111111111111', carrera_nombre: 'Licenciatura en Ciencia de Datos para los Negocios', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', turno: 'Matutino', aula: 'Laboratorio de Cómputo e IA', cupo_maximo: 35 },
@@ -337,6 +339,7 @@ const MOCK_GRUPOS: Grupo[] = [
   { id: 'g201', clave_grupo: '201', carrera_id: 'c2', materia_id: 'm3', sede_id: 'sede-js', sede_nombre: 'Sede Justo Sierra', turno: 'Vespertino', periodo: '2026-2', horario: 'Lunes a Sábado (14:00 - 20:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Lic. Beatriz Sánchez', aula: 'Laboratorio de Cómputo 1' },
   { id: 'g201-tur', clave_grupo: '201-TUR', carrera_id: 'c4', materia_id: 'm6', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', turno: 'Matutino', periodo: '2026-2', horario: 'Miércoles 09:00 - 11:00 hrs | Sábado 07:00 - 09:00 hrs', dias_clase: ['Miércoles', 'Sábado'], docente_nombre: 'Dr. Adrian Silva', aula: 'Edificio A - Aula Magna 2' },
   { id: 'g203-adm', clave_grupo: '203-ADM', carrera_id: 'c5', materia_id: 'm7', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', turno: 'Matutino', periodo: '2026-2', horario: 'Lunes a Sábado (07:00 - 13:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Dr. Adrian Silva', aula: 'Edificio C - Aula 203' },
+  { id: 'g203-tij', clave_grupo: 'PHLAC-203-TIJ', carrera_id: 'c5', materia_id: 'f7777777-7777-7777-7777-777777777777', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', turno: 'Matutino', periodo: '2026-2', horario: 'Lunes, Miércoles y Viernes (07:00 - 13:00 hrs)', dias_clase: ['Lunes', 'Miércoles', 'Viernes'], docente_nombre: 'Dr. Adrian Silva', aula: 'Campus Tijuana - Aula 203' },
   { id: 'g301', clave_grupo: '301', carrera_id: 'c2', materia_id: 'm4', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', turno: 'Matutino', periodo: '2026-2', horario: 'Lunes a Sábado (07:00 - 13:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Lic. Beatriz Sánchez', aula: 'Laboratorio Redes 2' },
   { id: 'g401-lcdn', clave_grupo: '401-LCDN', carrera_id: 'c1111111-1111-1111-1111-111111111111', materia_id: 'f2222222-2222-2222-2222-222222222222', sede_id: 'sede-mc', sede_nombre: 'Campus Magdalena Contreras', turno: 'Matutino', periodo: '2026-2', horario: 'Miércoles (09:00 - 11:00 hrs) y Sábados (07:00 - 09:00 hrs)', dias_clase: ['Miércoles', 'Sábado'], docente_nombre: 'Dr. Adrian Silva', docente_id: 'd0000003-0000-0000-0000-000000000003', aula: 'Aula Virtual UNRC (Google Meet)' },
   { id: 'g501', clave_grupo: '501', carrera_id: 'c3', materia_id: 'm5', sede_id: 'sede-coy', sede_nombre: 'Sede Coyoacán', turno: 'Matutino', periodo: '2026-2', horario: 'Lunes a Sábado (07:00 - 13:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Tutor UNRC', aula: 'Laboratorio de Seguridad A' }
@@ -455,19 +458,22 @@ const MOCK_DOCENTES: Docente[] = [
     apellido_paterno: 'Silva',
     apellido_materno: '',
     email: 'adrian.silva@rcastellanos.cdmx.gob.mx',
-    departamento: 'Lic. en Turismo / Lic. en Administración / Licenciatura en Ciencia de Datos para los Negocios',
+    departamento: 'Dirección Campus Tijuana / Lic. en Administración / Lic. en Turismo',
     puesto: 'docente',
-    carreras_asignadas: ['Lic. en Turismo', 'Lic. en Administración', 'Licenciatura en Ciencia de Datos para los Negocios'],
-    materias: ['Administración de Empresas de Hospedaje', 'Matemáticas para la Administración', 'Programación para la ciencia de datos', 'Estructura de Datos'],
-    horario_resumen: 'Miércoles (09:00 - 11:00 hrs) y Sábados (07:00 - 09:00 hrs)',
+    carreras_asignadas: ['Lic. en Administración', 'Lic. en Turismo', 'Licenciatura en Ciencia de Datos para los Negocios'],
+    materias: ['Matemáticas para la Administración', 'Administración y Gestión Estratégica', 'Contabilidad y Finanzas Aplicadas', 'Administración de Empresas de Hospedaje', 'Programación para la ciencia de datos'],
+    horario_resumen: 'Lunes a Viernes (07:00 - 13:00 hrs)',
     horarios: [
-      { dia: 'Miércoles', hora_inicio: '09:00', hora_fin: '11:00', carrera: 'Lic. en Turismo', materia: 'Administración de Empresas de Hospedaje', grupo: '201-TUR', aula: 'Edificio A - Aula Magna 2', es_en_linea: false },
-      { dia: 'Sábado', hora_inicio: '07:00', hora_fin: '09:00', carrera: 'Lic. en Turismo', materia: 'Administración de Empresas de Hospedaje', grupo: '201-TUR', aula: 'Aula Virtual UNRC (Google Meet)', es_en_linea: true },
-      { dia: 'Lunes', hora_inicio: '07:00', hora_fin: '09:00', carrera: 'Lic. en Administración', materia: 'Matemáticas para la Administración', grupo: '203-ADM', aula: 'Edificio C - Aula 203', es_en_linea: false },
-      { dia: 'Miércoles', hora_inicio: '09:00', hora_fin: '11:00', carrera: 'Licenciatura en Ciencia de Datos para los Negocios', materia: 'Programación para la ciencia de datos', grupo: '401-LCDN', aula: 'Aula Virtual UNRC (Google Meet)', es_en_linea: true }
+      { dia: 'Lunes', hora_inicio: '07:00', hora_fin: '09:00', carrera: 'Lic. en Administración', materia: 'Matemáticas para la Administración', grupo: 'PHLAC-203-TIJ', aula: 'Campus Tijuana - Aula 203', sede: 'Campus Tijuana', es_en_linea: false },
+      { dia: 'Miércoles', hora_inicio: '11:00', hora_fin: '13:00', carrera: 'Lic. en Administración', materia: 'Administración y Gestión Estratégica', grupo: 'PHLAC-203-TIJ', aula: 'Campus Tijuana - Aula Magna TIJ', sede: 'Campus Tijuana', es_en_linea: false },
+      { dia: 'Viernes', hora_inicio: '08:00', hora_fin: '10:00', carrera: 'Lic. en Administración', materia: 'Contabilidad y Finanzas Aplicadas', grupo: 'PHLAC-203-TIJ', aula: 'Aula Virtual UNRC (Google Meet)', sede: 'Campus Tijuana', es_en_linea: true },
+      { dia: 'Miércoles', hora_inicio: '09:00', hora_fin: '11:00', carrera: 'Lic. en Turismo', materia: 'Administración de Empresas de Hospedaje', grupo: '201-TUR', aula: 'Edificio A - Aula Magna 2', sede: 'Campus Magdalena Contreras', es_en_linea: false },
+      { dia: 'Sábado', hora_inicio: '07:00', hora_fin: '09:00', carrera: 'Lic. en Turismo', materia: 'Administración de Empresas de Hospedaje', grupo: '201-TUR', aula: 'Aula Virtual UNRC (Google Meet)', sede: 'Campus Magdalena Contreras', es_en_linea: true },
+      { dia: 'Lunes', hora_inicio: '07:00', hora_fin: '09:00', carrera: 'Lic. en Administración', materia: 'Matemáticas para la Administración', grupo: '203-ADM', aula: 'Edificio C - Aula 203', sede: 'Campus Magdalena Contreras', es_en_linea: false },
+      { dia: 'Miércoles', hora_inicio: '09:00', hora_fin: '11:00', carrera: 'Licenciatura en Ciencia de Datos para los Negocios', materia: 'Programación para la ciencia de datos', grupo: '401-LCDN', aula: 'Aula Virtual UNRC (Google Meet)', sede: 'Campus Magdalena Contreras', es_en_linea: true }
     ],
-    sede_nombre: 'Campus Magdalena Contreras',
-    telefono: '+525511223344',
+    sede_nombre: 'Campus Tijuana',
+    telefono: '+526641234567',
     foto_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200&h=200',
     created_at: new Date().toISOString()
   },
@@ -534,16 +540,22 @@ const initLocalStorage = () => {
   if (!localStorage.getItem('unrc_materias')) {
     localStorage.setItem('unrc_materias', JSON.stringify(MOCK_MATERIAS));
   }
-  if (!localStorage.getItem('unrc_grupos')) {
+  if (!localStorage.getItem('unrc_grupos') || !localStorage.getItem('unrc_grupos_v2')) {
     localStorage.setItem('unrc_grupos', JSON.stringify(MOCK_GRUPOS));
+    localStorage.setItem('unrc_grupos_v2', 'true');
+  }
+  if (!localStorage.getItem('unrc_secciones_v2')) {
+    localStorage.setItem('unrc_secciones', JSON.stringify(MOCK_SECCIONES));
+    localStorage.setItem('unrc_secciones_v2', 'true');
   }
   
-  if (!localStorage.getItem('unrc_docentes_v2')) {
+  if (!localStorage.getItem('unrc_docentes') || !localStorage.getItem('unrc_docentes_v3')) {
     localStorage.setItem('unrc_docentes', JSON.stringify(MOCK_DOCENTES));
-    localStorage.setItem('unrc_docentes_v2', 'true');
+    localStorage.setItem('unrc_docentes_v3', 'true');
   }
 
-  if (!localStorage.getItem('unrc_alumnos_v4')) {
+  // Preserve all uploaded alumno records: ONLY seed if unrc_alumnos is completely absent
+  if (!localStorage.getItem('unrc_alumnos')) {
     localStorage.setItem('unrc_alumnos', JSON.stringify(MOCK_ALUMNOS));
     localStorage.setItem('unrc_alumnos_v4', 'true');
   }
@@ -1433,11 +1445,43 @@ export const db = {
             let item = { ...a };
             const cName = (item.carrera || '').toLowerCase();
             const cId = (item.carrera_id || '').toLowerCase();
+            const grp = (item.grupo || '').toLowerCase();
+
+            // Sede respect & inference: if group is Tijuana, ensure Campus Tijuana is assigned
+            if (grp.includes('tij') || grp.includes('tijuana')) {
+              if (item.sede_nombre !== 'Campus Tijuana' || item.sede_id !== 'sede-tij') {
+                item.sede_nombre = 'Campus Tijuana';
+                item.sede_id = 'sede-tij';
+                hadChanges = true;
+              }
+            } else if (!item.sede_nombre) {
+              if (grp.includes('mc') || grp === '101' || grp === '102' || grp === '201-tur' || grp === '203-adm' || grp === '401-lcdn') {
+                item.sede_nombre = 'Campus Magdalena Contreras';
+                item.sede_id = 'sede-mc';
+                hadChanges = true;
+              } else if (grp.includes('js') || grp === '201' || grp === '301') {
+                item.sede_nombre = 'Sede Justo Sierra';
+                item.sede_id = 'sede-js';
+                hadChanges = true;
+              } else if (grp.includes('coy') || grp === '501') {
+                item.sede_nombre = 'Sede Coyoacán';
+                item.sede_id = 'sede-coy';
+                hadChanges = true;
+              }
+            }
+
+            // Career respect:
+            const isPHLAC = grp.includes('phlac') || grp.includes('lac');
+            if (isPHLAC && !cName.includes('administra')) {
+              hadChanges = true;
+              item.carrera = 'Licenciatura en Administración';
+              item.carrera_id = 'c5555555-5555-5555-5555-555555555555';
+            }
 
             // Check for students uploaded to Tijuana or with group 301 that belong to Data Science but got misassigned to Turismo
             const isMisassignedTijuanaDatos =
               (item.sede_nombre?.toLowerCase().includes('tijuana') || item.sede_id?.toLowerCase().includes('tijuana')) &&
-              (item.grupo === '301' || item.grupo === '201' || item.grupo === '101' || ['UNRC-2026-057', 'UNRC-2026-058', 'UNRC-2026-059', 'UNRC-2026-061'].includes(item.matricula));
+              (item.grupo === '301' || ['UNRC-2026-057', 'UNRC-2026-058', 'UNRC-2026-059', 'UNRC-2026-061'].includes(item.matricula));
 
             if (isMisassignedTijuanaDatos && item.carrera?.toLowerCase().includes('turismo')) {
               hadChanges = true;
@@ -1458,7 +1502,7 @@ export const db = {
                 item.carrera = 'Licenciatura en Ciencias de Datos e Inteligencia Artificial';
                 item.carrera_id = 'c1111111-1111-1111-1111-111111111111';
               }
-            } else if (cId === 'c5555555-5555-5555-5555-555555555555' || cName.includes('administra') || cId === 'c5') {
+            } else if (cId === 'c5555555-5555-5555-5555-555555555555' || cName.includes('administra') || cId === 'c5' || isPHLAC) {
               if (item.carrera !== 'Licenciatura en Administración' || item.carrera_id !== 'c5555555-5555-5555-5555-555555555555') {
                 hadChanges = true;
                 item.carrera = 'Licenciatura en Administración';
@@ -1513,11 +1557,31 @@ export const db = {
             const mockMatch = MOCK_ALUMNOS.find(m => m.matricula === sa.matricula);
             const cName = (sa.carrera || mockMatch?.carrera || '').toLowerCase();
             const cId = (sa.carrera_id || mockMatch?.carrera_id || '').toLowerCase();
+            const grp = (sa.grupo || mockMatch?.grupo || '').toLowerCase();
             const isTurismo = cName.includes('turis') || cId.includes('c4');
-            const isAdm = cName.includes('admin') || cId.includes('c5');
+            const isAdm = cName.includes('admin') || cId.includes('c5') || grp.includes('phlac') || grp.includes('lac');
             const isCdIA = cName.includes('datos') || cName.includes('inteligencia') || cId.includes('c1');
             const isTic = cName.includes('tic') || cName.includes('tecnolog') || cId.includes('c2');
             const isCib = cName.includes('ciber') || cId.includes('c3');
+
+            // Infer sede if missing from Supabase row
+            let resolvedSedeId = sa.sede_id || mockMatch?.sede_id || '';
+            let resolvedSedeNombre = sa.sede_nombre || mockMatch?.sede_nombre || '';
+            if (grp.includes('tij') || grp.includes('tijuana')) {
+              resolvedSedeNombre = 'Campus Tijuana';
+              resolvedSedeId = 'sede-tij';
+            } else if (!resolvedSedeNombre) {
+              if (grp.includes('mc') || grp === '101' || grp === '102' || grp === '201-tur' || grp === '203-adm' || grp === '401-lcdn') {
+                resolvedSedeNombre = 'Campus Magdalena Contreras';
+                resolvedSedeId = 'sede-mc';
+              } else if (grp.includes('js') || grp === '201' || grp === '301') {
+                resolvedSedeNombre = 'Sede Justo Sierra';
+                resolvedSedeId = 'sede-js';
+              } else if (grp.includes('coy') || grp === '501') {
+                resolvedSedeNombre = 'Sede Coyoacán';
+                resolvedSedeId = 'sede-coy';
+              }
+            }
 
             return {
               ...mockMatch,
@@ -1546,11 +1610,11 @@ export const db = {
                 : sa.carrera_id || mockMatch?.carrera_id || '',
               tutor: isTurismo ? 'Dr. Adrian Silva' : isAdm ? 'Dr. Adrian Silva' : sa.tutor || mockMatch?.tutor || 'Tutor Registrado',
               password: sa.password || mockMatch?.password || getDefaultUserPassword(sa.matricula, '2026-2'),
-              sede_id: sa.sede_id || mockMatch?.sede_id || '',
-              sede_nombre: sa.sede_nombre || mockMatch?.sede_nombre || '',
+              sede_id: resolvedSedeId,
+              sede_nombre: resolvedSedeNombre,
               ciclo_id: sa.ciclo_id || mockMatch?.ciclo_id || 'ciclo-2026-2',
               estado_matricula: sa.estado_matricula || mockMatch?.estado_matricula || 'activo',
-              grupo_id: sa.grupo_id || mockMatch?.grupo_id || (isTurismo ? 'g201-tur' : isAdm ? 'g203-adm' : 'g101')
+              grupo_id: sa.grupo_id || mockMatch?.grupo_id || (isTurismo ? 'g201-tur' : isAdm ? 'g203-tij' : 'g101')
             };
           });
           localStorage.setItem('unrc_alumnos', JSON.stringify(list));
@@ -1702,9 +1766,32 @@ export const db = {
           password: item.password
         }));
 
-        await supabase
+        const { error: upsertErr } = await supabase
           .from('alumnos')
           .upsert(supabasePayload, { onConflict: 'matricula' });
+
+        if (upsertErr) {
+          console.warn('Full upsert notice, trying base schema:', upsertErr.message);
+          // Fallback to base columns that exist on live Supabase
+          const basePayload = processedItems.map((item) => ({
+            matricula: item.matricula,
+            nombre: item.nombre,
+            apellido_paterno: item.apellido_paterno,
+            apellido_materno: item.apellido_materno || '',
+            grado: item.grado,
+            grupo: item.grupo,
+            carrera: item.carrera || 'Licenciatura UNRC',
+            carrera_id: item.carrera_id || null,
+            grupo_id: item.grupo_id || null,
+            tutor: item.tutor || 'Tutor Registrado',
+            telefono: item.telefono || '+525500000000',
+            foto_url: item.foto_url || null,
+            qr_code: item.qr_code || item.matricula
+          }));
+          await supabase
+            .from('alumnos')
+            .upsert(basePayload, { onConflict: 'matricula' });
+        }
       } catch (e) {
         console.warn('Supabase bulk upsert notice:', e);
       }

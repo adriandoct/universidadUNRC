@@ -104,6 +104,13 @@ CREATE TABLE IF NOT EXISTS public.alumnos (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+-- Garantizar que las columnas institucionales existan en bases de datos existentes sin borrar datos:
+ALTER TABLE public.alumnos ADD COLUMN IF NOT EXISTS sede_id TEXT;
+ALTER TABLE public.alumnos ADD COLUMN IF NOT EXISTS sede_nombre TEXT;
+ALTER TABLE public.alumnos ADD COLUMN IF NOT EXISTS ciclo_id TEXT;
+ALTER TABLE public.alumnos ADD COLUMN IF NOT EXISTS estado_matricula TEXT DEFAULT 'activo';
+ALTER TABLE public.alumnos ADD COLUMN IF NOT EXISTS password TEXT;
+
 -- 2.6 TEACHERS (Docentes)
 CREATE TABLE IF NOT EXISTS public.teachers (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
