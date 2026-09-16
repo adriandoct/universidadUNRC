@@ -365,3 +365,96 @@ INSERT INTO public.grades_sections (id, grade_level, section_name, academic_year
     ('e2010000-0000-0000-0000-000000000201', '2° Semestre', '201-TUR', 'a1111111-1111-1111-1111-111111111111'),
     ('e2030000-0000-0000-0000-000000000203', '2° Semestre', '203-ADM', 'a1111111-1111-1111-1111-111111111111')
 ON CONFLICT DO NOTHING;
+
+-- ==========================================
+-- 7. TIMETABLE & SCHEDULE SYSTEM (HORARIOS ESCOLARES)
+-- ==========================================
+CREATE EXTENSION IF NOT EXISTS "btree_gist";
+
+DO $$ BEGIN
+    CREATE TYPE day_of_week_enum AS ENUM (
+        'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+-- 7.1 SUBJECTS / ASIGNATURAS DETALLADAS
+CREATE TABLE IF NOT EXISTS public.subjects (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    code VARCHAR(30) UNIQUE NOT NULL,
+    name VARCHAR(150) NOT NULL,
+    color_hex VARCHAR(7) DEFAULT '#3B82F6',
+    credits INT DEFAULT 8 NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 7.2 SECTIONS / GRUPOS DETALLADOS (Compatible con grades_sections)
+CREATE TABLE IF NOT EXISTS public.sections (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    code VARCHAR(30) UNIQUE NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    grade_level VARCHAR(50) NOT NULL,
+    academic_year_id UUID REFERENCES public.academic_years(id) ON DELETE CASCADE,
+    is_active BOOLEAN DEFAULT true NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 7.3 BLOQUES DE HORARIO (TIMETABLE ENTRIES)
+CREATE TABLE IF NOT EXISTS public.timetable_entries (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    section_id UUID NOT NULL REFERENCES public.sections(id) ON DELETE CASCADE,
+    subject_id UUID NOT NULL REFERENCES public.subjects(id) ON DELETE CASCADE,
+    teacher_id UUID NOT NULL REFERENCES public.teachers(id) ON DELETE RESTRICT,
+    day_of_week day_of_week_enum NOT NULL,
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL,
+    classroom VARCHAR(50) DEFAULT 'Aula por asignar',
+    is_online BOOLEAN DEFAULT false NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+
+    CONSTRAINT check_valid_time_interval CHECK (end_time > start_time),
+
+    -- INTEGRIDAD 1: Evitar solapamiento para un mismo docente
+    CONSTRAINT no_teacher_schedule_overlap EXCLUDE USING gist (
+        teacher_id WITH =,
+        day_of_week WITH =,
+        tsrange(
+            ('2000-01-01 ' || start_time)::timestamp,
+            ('2000-01-01 ' || end_time)::timestamp
+        ) WITH &&
+    ),
+
+    -- INTEGRIDAD 2: Evitar solapamiento para un mismo grupo/sección
+    CONSTRAINT no_section_schedule_overlap EXCLUDE USING gist (
+        section_id WITH =,
+        day_of_week WITH =,
+        tsrange(
+            ('2000-01-01 ' || start_time)::timestamp,
+            ('2000-01-01 ' || end_time)::timestamp
+        ) WITH &&
+    )
+);
+
+CREATE INDEX IF NOT EXISTS idx_timetable_section_day_time ON public.timetable_entries(section_id, day_of_week, start_time);
+CREATE INDEX IF NOT EXISTS idx_timetable_teacher_day_time ON public.timetable_entries(teacher_id, day_of_week, start_time);
+
+-- 7.4 RLS POLICIES PARA HORARIOS
+ALTER TABLE public.subjects ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.sections ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.timetable_entries ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public read subjects" ON public.subjects;
+CREATE POLICY "Public read subjects" ON public.subjects FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Public read sections" ON public.sections;
+CREATE POLICY "Public read sections" ON public.sections FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Public read timetable_entries" ON public.timetable_entries;
+CREATE POLICY "Public read timetable_entries" ON public.timetable_entries FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Admin manage timetable" ON public.timetable_entries;
+CREATE POLICY "Admin manage timetable" ON public.timetable_entries FOR ALL USING (
+    public.get_user_role() = 'admin'
+);
+
