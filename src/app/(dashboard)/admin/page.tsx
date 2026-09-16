@@ -1670,10 +1670,10 @@ export default function AdminDashboardPage() {
                   type="button"
                   onClick={() => setIsCsvModalOpen(true)}
                   className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/30 transition-all flex items-center space-x-1.5 whitespace-nowrap"
-                  title="Cargar masivamente expedientes de alumnos desde archivo .CSV"
+                  title="Cargar masivamente expedientes de alumnos desde archivo Excel (.xls, .xlsx) o CSV"
                 >
                   <FileSpreadsheet className="w-4 h-4" />
-                  <span>Carga Masiva CSV</span>
+                  <span>Carga Masiva Excel / CSV</span>
                 </button>
 
                 <button
@@ -1835,7 +1835,7 @@ export default function AdminDashboardPage() {
                               className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/30 transition-all flex items-center space-x-1.5"
                             >
                               <FileSpreadsheet className="w-4 h-4" />
-                              <span>Carga Masiva CSV</span>
+                              <span>Carga Masiva Excel / CSV</span>
                             </button>
                             <button
                               type="button"

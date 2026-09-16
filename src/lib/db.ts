@@ -278,6 +278,7 @@ export const supabase = isSupabaseConfigured
 
 // Initial Mock Seed Data for UNRC
 const MOCK_SEDES: Sede[] = [
+  { id: 'sede-tij', clave: 'UNRC-TIJ', nombre: 'Campus Tijuana', direccion: 'Blvd. Bellas Artes, Otay, Tijuana, B.C.', director: 'Dr. Adrian Silva', telefono: '+526641234567', capacidad: 1500, activa: true },
   { id: 'sede-mc', clave: 'UNRC-MC', nombre: 'Campus Magdalena Contreras', direccion: 'Av. Álvaro Obregón 151, Santa Teresa, La Magdalena Contreras, CDMX', director: 'Dra. María Elena Sandoval', telefono: '+525556830100', capacidad: 1200, activa: true },
   { id: 'sede-js', clave: 'UNRC-JS', nombre: 'Sede Justo Sierra', direccion: 'Calle Justo Sierra 42, Centro Histórico, Cuauhtémoc, CDMX', director: 'Dr. Roberto Mendoza', telefono: '+525555220033', capacidad: 850, activa: true },
   { id: 'sede-coy', clave: 'UNRC-COY', nombre: 'Sede Coyoacán', direccion: 'Calz. de Tlalpan 1890, Country Club, Coyoacán, CDMX', director: 'Mtra. Carmen Trejo', telefono: '+525556891122', capacidad: 950, activa: true },
@@ -642,7 +643,12 @@ export const db = {
   getSedes: async (): Promise<Sede[]> => {
     initLocalStorage();
     const raw = localStorage.getItem('unrc_sedes');
-    return raw ? JSON.parse(raw) : MOCK_SEDES;
+    let list: Sede[] = raw ? JSON.parse(raw) : [...MOCK_SEDES];
+    if (!list.some((s) => s.id === 'sede-tij' || s.nombre.toLowerCase().includes('tijuana'))) {
+      list.unshift({ id: 'sede-tij', clave: 'UNRC-TIJ', nombre: 'Campus Tijuana', direccion: 'Blvd. Bellas Artes, Otay, Tijuana, B.C.', director: 'Dr. Adrian Silva', telefono: '+526641234567', capacidad: 1500, activa: true });
+      localStorage.setItem('unrc_sedes', JSON.stringify(list));
+    }
+    return list;
   },
 
   addSede: async (sede: Omit<Sede, 'id'>): Promise<Sede> => {
