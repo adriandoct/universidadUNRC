@@ -40,54 +40,6 @@ interface HorarioItemDisplay {
   es_en_linea?: boolean;
 }
 
-export default function StudentDashboardPage() {
-  const { user, role, isLoading: authLoading, logout } = useAuth();
-  const [student, setStudent] = useState<Alumno | null>(null);
-  const [assignedSchedules, setAssignedSchedules] = useState<HorarioItemDisplay[]>([]);
-  const [attendances, setAttendances] = useState<Asistencia[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'horarios' | 'asistencias' | 'festivos' | 'credencial'>('horarios');
-  const [dayFilter, setDayFilter] = useState<string>('todos');
-  const [holidayFilter, setHolidayFilter] = useState<'todos' | 'suspension' | 'conmemorativo'>('todos');
-
-  // Strict Authentication Guard
-  useEffect(() => {
-    if (!authLoading && (!user || (role !== 'alumno' && role !== 'administrador'))) {
-      window.location.href = '/login?error=student_required';
-    }
-  }, [user, role, authLoading]);
-
-  // Load student, schedule, and attendance data
-  useEffect(() => {
-    if (user) {
-      loadStudentData();
-    }
-  }, [user]);
-
-  const loadStudentData = async () => {
-    setLoading(true);
-    try {
-      const allAlumnos = await db.getAlumnos();
-      const allDocentes = await db.getDocentes();
-      const allGrupos = await db.getGrupos();
-      const allAsistencias = await db.getAsistencias();
-
-      // Find current student by session identity
-      let currentStudent: Alumno | undefined;
-      if (user?.matricula) {
-        currentStudent = allAlumnos.find(a => a.matricula.toLowerCase() === user.matricula?.toLowerCase());
-      }
-      if (!currentStudent && user?.id) {
-        currentStudent = allAlumnos.find(a => a.id === user.id);
-      }
-      if (!currentStudent && user?.email) {
-        const cleanUserEmail = user.email.toLowerCase();
-        currentStudent = allAlumnos.find(a => 
-          `${a.matricula.toLowerCase()}@rcastellanos.cdmx.gob.mx` === cleanUserEmail ||
-          a.matricula.toLowerCase() === cleanUserEmail.split('@')[0]
-        );
-      }
-
 // Helper functions for matching student schedule with assigned docentes by grupo, carrera, sede
 function normalizeDay(str: string): string {
   return (str || '')
@@ -180,6 +132,54 @@ function isSedeMatch(slotAula?: string, slotSede?: string, teacherSede?: string,
   if (teacherSede && check(teacherSede, studentSede)) return true;
   return true;
 }
+
+export default function StudentDashboardPage() {
+  const { user, role, isLoading: authLoading, logout } = useAuth();
+  const [student, setStudent] = useState<Alumno | null>(null);
+  const [assignedSchedules, setAssignedSchedules] = useState<HorarioItemDisplay[]>([]);
+  const [attendances, setAttendances] = useState<Asistencia[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'horarios' | 'asistencias' | 'festivos' | 'credencial'>('horarios');
+  const [dayFilter, setDayFilter] = useState<string>('todos');
+  const [holidayFilter, setHolidayFilter] = useState<'todos' | 'suspension' | 'conmemorativo'>('todos');
+
+  // Strict Authentication Guard
+  useEffect(() => {
+    if (!authLoading && (!user || (role !== 'alumno' && role !== 'administrador'))) {
+      window.location.href = '/login?error=student_required';
+    }
+  }, [user, role, authLoading]);
+
+  // Load student, schedule, and attendance data
+  useEffect(() => {
+    if (user) {
+      loadStudentData();
+    }
+  }, [user]);
+
+  const loadStudentData = async () => {
+    setLoading(true);
+    try {
+      const allAlumnos = await db.getAlumnos();
+      const allDocentes = await db.getDocentes();
+      const allGrupos = await db.getGrupos();
+      const allAsistencias = await db.getAsistencias();
+
+      // Find current student by session identity
+      let currentStudent: Alumno | undefined;
+      if (user?.matricula) {
+        currentStudent = allAlumnos.find(a => a.matricula.toLowerCase() === user.matricula?.toLowerCase());
+      }
+      if (!currentStudent && user?.id) {
+        currentStudent = allAlumnos.find(a => a.id === user.id);
+      }
+      if (!currentStudent && user?.email) {
+        const cleanUserEmail = user.email.toLowerCase();
+        currentStudent = allAlumnos.find(a => 
+          `${a.matricula.toLowerCase()}@rcastellanos.cdmx.gob.mx` === cleanUserEmail ||
+          a.matricula.toLowerCase() === cleanUserEmail.split('@')[0]
+        );
+      }
 
       setStudent(currentStudent || null);
 
