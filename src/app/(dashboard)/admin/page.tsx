@@ -1473,153 +1473,116 @@ export default function AdminDashboardPage() {
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
             {/* 1. TOP KPI CARDS WITH VIBRANT GRADIENTS & CURVED ACCENTS */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Card 1: Total Teachers */}
-              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#FF6584] via-[#FF758F] to-[#FF8E71] p-6 text-white shadow-xl shadow-[#FF6584]/20 transition-all hover:-translate-y-0.5">
-                {/* Decorative overlapping translucent vector circles */}
-                <div className="pointer-events-none absolute -bottom-10 -right-10 h-36 w-36 rounded-full bg-white/20 blur-[0.5px]" />
-                <div className="pointer-events-none absolute -bottom-14 right-14 h-28 w-28 rounded-full bg-white/15" />
-                <div className="pointer-events-none absolute top-[-20px] right-24 h-16 w-16 rounded-full bg-white/10" />
+              <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-[#FF7A8A] via-[#FF8595] to-[#FFA07A] p-6 text-white shadow-sm transition-transform hover:-translate-y-0.5">
+                <div className="pointer-events-none absolute -bottom-10 -right-10 h-40 w-40 rounded-full bg-white/20" />
+                <div className="pointer-events-none absolute -bottom-16 right-16 h-32 w-32 rounded-full bg-white/15" />
 
-                <div className="relative z-10 flex flex-col justify-between h-full space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold tracking-wide text-white/95">Total Teachers</span>
-                    <span className="p-2 rounded-xl bg-white/20 backdrop-blur-md">
-                      <School className="w-5 h-5 text-white" />
-                    </span>
-                  </div>
+                <div className="relative z-10 flex flex-col justify-between h-32">
+                  <span className="text-sm font-medium tracking-wide text-white/95">Total Teachers</span>
                   <div>
                     <div className="text-4xl sm:text-5xl font-extrabold tracking-tight">
                       {docentes.length > 0 ? docentes.length : 9}
                     </div>
-                    <p className="text-xs text-white/85 mt-1.5 font-medium">Claustro Académico Asignado</p>
                   </div>
                 </div>
               </div>
 
               {/* Card 2: Total Students */}
-              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#0284C7] via-[#0EA5E9] to-[#38BDF8] p-6 text-white shadow-xl shadow-[#0284C7]/20 transition-all hover:-translate-y-0.5">
-                {/* Decorative overlapping translucent vector circles */}
-                <div className="pointer-events-none absolute -bottom-10 -right-10 h-36 w-36 rounded-full bg-white/20 blur-[0.5px]" />
-                <div className="pointer-events-none absolute -bottom-14 right-14 h-28 w-28 rounded-full bg-white/15" />
-                <div className="pointer-events-none absolute top-[-20px] right-24 h-16 w-16 rounded-full bg-white/10" />
+              <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-[#3BA9F5] via-[#4AB5F9] to-[#60C3FF] p-6 text-white shadow-sm transition-transform hover:-translate-y-0.5">
+                <div className="pointer-events-none absolute -bottom-10 -right-10 h-40 w-40 rounded-full bg-white/20" />
+                <div className="pointer-events-none absolute -bottom-16 right-16 h-32 w-32 rounded-full bg-white/15" />
 
-                <div className="relative z-10 flex flex-col justify-between h-full space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold tracking-wide text-white/95">Total Students</span>
-                    <span className="p-2 rounded-xl bg-white/20 backdrop-blur-md">
-                      <Users className="w-5 h-5 text-white" />
-                    </span>
-                  </div>
+                <div className="relative z-10 flex flex-col justify-between h-32">
+                  <span className="text-sm font-medium tracking-wide text-white/95">Total Students</span>
                   <div>
                     <div className="text-4xl sm:text-5xl font-extrabold tracking-tight">
                       {alumnos.length > 0 ? alumnos.length : 26}
                     </div>
-                    <p className="text-xs text-white/85 mt-1.5 font-medium">Matrícula Activa Campus Tijuana</p>
                   </div>
                 </div>
               </div>
 
-              {/* Card 3: Total Parents / Grupos */}
-              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#0D9488] via-[#14B8A6] to-[#2DD4BF] p-6 text-white shadow-xl shadow-[#0D9488]/20 transition-all hover:-translate-y-0.5 sm:col-span-2 lg:col-span-1">
-                {/* Decorative overlapping translucent vector circles */}
-                <div className="pointer-events-none absolute -bottom-10 -right-10 h-36 w-36 rounded-full bg-white/20 blur-[0.5px]" />
-                <div className="pointer-events-none absolute -bottom-14 right-14 h-28 w-28 rounded-full bg-white/15" />
-                <div className="pointer-events-none absolute top-[-20px] right-24 h-16 w-16 rounded-full bg-white/10" />
+              {/* Card 3: Total Parents */}
+              <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-[#20CBA5] via-[#2ED9B4] to-[#45E4C2] p-6 text-white shadow-sm transition-transform hover:-translate-y-0.5">
+                <div className="pointer-events-none absolute -bottom-10 -right-10 h-40 w-40 rounded-full bg-white/20" />
+                <div className="pointer-events-none absolute -bottom-16 right-16 h-32 w-32 rounded-full bg-white/15" />
 
-                <div className="relative z-10 flex flex-col justify-between h-full space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold tracking-wide text-white/95">Total Parents</span>
-                    <span className="p-2 rounded-xl bg-white/20 backdrop-blur-md">
-                      <Layers className="w-5 h-5 text-white" />
-                    </span>
-                  </div>
+                <div className="relative z-10 flex flex-col justify-between h-32">
+                  <span className="text-sm font-medium tracking-wide text-white/95">Total Parents</span>
                   <div>
                     <div className="text-4xl sm:text-5xl font-extrabold tracking-tight">
                       {grupos.length + secciones.length > 0 ? grupos.length + secciones.length : 30}
                     </div>
-                    <p className="text-xs text-white/85 mt-1.5 font-medium">Tutores y Grupos Vinculados</p>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* 2. MIDDLE ROW: TOP RANKERS 🏆 & ATTENDANCE BAR CHART */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-              {/* Left: Top Rankers 🏆 */}
-              <div className="lg:col-span-7 bg-[#0A1020]/90 backdrop-blur-md border border-white/10 rounded-2xl p-6 shadow-xl flex flex-col justify-between">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {/* Left: Top Rankers 🏆 in White Card */}
+              <div className="lg:col-span-7 bg-white rounded-xl p-6 shadow-xs border border-gray-200/70 flex flex-col justify-between min-h-[340px]">
                 <div>
                   <div className="flex items-center justify-between mb-5">
-                    <h3 className="text-base font-bold text-white flex items-center space-x-2">
+                    <h3 className="text-base font-bold text-gray-800 flex items-center space-x-2">
                       <span>Top Rankers</span>
-                      <span className="text-lg animate-bounce">🏆</span>
+                      <span className="text-lg">🏆</span>
                     </h3>
-                    <span className="text-[11px] font-semibold text-amber-400 bg-amber-400/10 border border-amber-400/30 px-3 py-1 rounded-full">
-                      Campus Tijuana • {activeCiclo?.nombre || '2026-2'}
-                    </span>
                   </div>
 
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs text-gray-300">
+                    <table className="w-full text-left text-xs text-gray-600">
                       <thead>
-                        <tr className="border-b border-white/10 text-[11px] text-gray-400 font-bold uppercase tracking-wider">
-                          <th className="pb-3 w-12 text-center">No.</th>
-                          <th className="pb-3 px-3">Class Name</th>
-                          <th className="pb-3 px-3">Student Name</th>
+                        <tr className="border-b border-gray-100 text-[11px] text-gray-400 font-semibold">
+                          <th className="pb-3 w-12 text-left">No.</th>
+                          <th className="pb-3 px-3 text-left">Class Name</th>
+                          <th className="pb-3 px-3 text-left">Student Name</th>
                           <th className="pb-3 text-right">Percentage</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-white/5">
-                        <tr className="hover:bg-white/5 transition-colors group">
-                          <td className="py-3 text-center font-bold text-amber-400">1</td>
-                          <td className="py-3 px-3 font-medium text-gray-300">201Maestria - 201 Español</td>
-                          <td className="py-3 px-3 font-semibold text-white group-hover:text-amber-300 transition-colors">
-                            Carlos Alonso Cano Ramirez
-                          </td>
-                          <td className="py-3 text-right font-bold text-emerald-400">96 %</td>
+                      <tbody className="divide-y divide-gray-100">
+                        <tr className="hover:bg-gray-50/80 transition-colors">
+                          <td className="py-3.5 font-bold text-gray-700">1</td>
+                          <td className="py-3.5 px-3 text-gray-700">201Maestria - 201 Español</td>
+                          <td className="py-3.5 px-3 font-semibold text-gray-900">Carlos Alonso Cano Ramirez</td>
+                          <td className="py-3.5 text-right font-semibold text-gray-800">96 %</td>
                         </tr>
-                        <tr className="hover:bg-white/5 transition-colors group">
-                          <td className="py-3 text-center font-bold text-gray-400">2</td>
-                          <td className="py-3 px-3 font-medium text-gray-300">201-TUR - Hospedaje</td>
-                          <td className="py-3 px-3 font-semibold text-white group-hover:text-amber-300 transition-colors">
+                        <tr className="hover:bg-gray-50/80 transition-colors">
+                          <td className="py-3.5 font-bold text-gray-700">2</td>
+                          <td className="py-3.5 px-3 text-gray-700">201-TUR - Hospedaje</td>
+                          <td className="py-3.5 px-3 font-semibold text-gray-900">
                             {alumnos[0] ? `${alumnos[0].nombre} ${alumnos[0].apellido_paterno} ${alumnos[0].apellido_materno || ''}`.trim() : 'Angélica Altamirano Solórzano'}
                           </td>
-                          <td className="py-3 text-right font-bold text-emerald-400">95 %</td>
+                          <td className="py-3.5 text-right font-semibold text-gray-800">95 %</td>
                         </tr>
-                        <tr className="hover:bg-white/5 transition-colors group">
-                          <td className="py-3 text-center font-bold text-gray-400">3</td>
-                          <td className="py-3 px-3 font-medium text-gray-300">203-ADM - Matemáticas</td>
-                          <td className="py-3 px-3 font-semibold text-white group-hover:text-amber-300 transition-colors">
+                        <tr className="hover:bg-gray-50/80 transition-colors">
+                          <td className="py-3.5 font-bold text-gray-700">3</td>
+                          <td className="py-3.5 px-3 text-gray-700">203-ADM - Matemáticas</td>
+                          <td className="py-3.5 px-3 font-semibold text-gray-900">
                             {alumnos[1] ? `${alumnos[1].nombre} ${alumnos[1].apellido_paterno} ${alumnos[1].apellido_materno || ''}`.trim() : 'Dayanna Gissel Buitimea Garma'}
                           </td>
-                          <td className="py-3 text-right font-bold text-emerald-400">94 %</td>
+                          <td className="py-3.5 text-right font-semibold text-gray-800">94 %</td>
                         </tr>
-                        <tr className="hover:bg-white/5 transition-colors group">
-                          <td className="py-3 text-center font-bold text-gray-400">4</td>
-                          <td className="py-3 px-3 font-medium text-gray-300">101 - Ciencia de Datos</td>
-                          <td className="py-3 px-3 font-semibold text-white group-hover:text-amber-300 transition-colors">
+                        <tr className="hover:bg-gray-50/80 transition-colors">
+                          <td className="py-3.5 font-bold text-gray-700">4</td>
+                          <td className="py-3.5 px-3 text-gray-700">101 - Ciencia de Datos</td>
+                          <td className="py-3.5 px-3 font-semibold text-gray-900">
                             {alumnos[2] ? `${alumnos[2].nombre} ${alumnos[2].apellido_paterno} ${alumnos[2].apellido_materno || ''}`.trim() : 'Emili Janeht Armenta Mancinas'}
                           </td>
-                          <td className="py-3 text-right font-bold text-emerald-400">92 %</td>
-                        </tr>
-                        <tr className="hover:bg-white/5 transition-colors group">
-                          <td className="py-3 text-center font-bold text-gray-400">5</td>
-                          <td className="py-3 px-3 font-medium text-gray-300">201 - Tecnologías TIC</td>
-                          <td className="py-3 px-3 font-semibold text-white group-hover:text-amber-300 transition-colors">
-                            {alumnos[3] ? `${alumnos[3].nombre} ${alumnos[3].apellido_paterno} ${alumnos[3].apellido_materno || ''}`.trim() : 'Gabriela Erandi Capilla Manuel'}
-                          </td>
-                          <td className="py-3 text-right font-bold text-emerald-400">91 %</td>
+                          <td className="py-3.5 text-right font-semibold text-gray-800">92 %</td>
                         </tr>
                       </tbody>
                     </table>
                   </div>
                 </div>
 
-                <div className="pt-4 border-t border-white/5 flex items-center justify-between text-[11px] text-gray-400">
-                  <span>Evaluación continua y récord de asistencias</span>
+                <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-400">
+                  <span>Récord académico verificado • Campus Tijuana</span>
                   <button
                     onClick={() => setActiveTab('matriculas')}
-                    className="text-amber-400 hover:text-amber-300 font-semibold transition-colors flex items-center space-x-1"
+                    className="text-[#5B142F] hover:text-[#851D44] font-bold text-xs flex items-center space-x-1"
                   >
                     <span>Ver expediente completo</span>
                     <span>→</span>
@@ -1627,234 +1590,177 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
 
-              {/* Right: Attendance Bar Chart */}
-              <div className="lg:col-span-5 bg-[#0A1020]/90 backdrop-blur-md border border-white/10 rounded-2xl p-6 shadow-xl flex flex-col justify-between">
+              {/* Right: Attendance Bar Chart in White Card */}
+              <div className="lg:col-span-5 bg-white rounded-xl p-6 shadow-xs border border-gray-200/70 flex flex-col justify-between min-h-[340px]">
                 <div>
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-base font-bold text-white flex items-center space-x-2">
-                      <BarChart3 className="w-4 h-4 text-sky-400" />
-                      <span>Attendance</span>
-                    </h3>
-                    <span className="text-[10px] uppercase font-bold text-gray-400">Escala %</span>
+                    <h3 className="text-base font-bold text-gray-800">Attendance</h3>
                   </div>
 
-                  {/* Visual Chart with Y axis and Vertical Bars */}
-                  <div className="relative pt-4 pb-2">
+                  {/* Vertical Bar Chart matching Image 2 */}
+                  <div className="relative pt-6 pb-2">
                     <div className="flex">
-                      {/* Y-axis Labels */}
-                      <div className="flex flex-col justify-between text-[9px] font-mono text-gray-500 pr-2 select-none h-44 text-right w-8">
+                      {/* Y-axis Labels (100 to 0) */}
+                      <div className="flex flex-col justify-between text-[10px] font-medium text-gray-400 pr-3 select-none h-44 text-right w-8">
                         <span>100</span>
+                        <span>90</span>
                         <span>80</span>
+                        <span>70</span>
                         <span>60</span>
+                        <span>50</span>
                         <span>40</span>
+                        <span>30</span>
                         <span>20</span>
+                        <span>10</span>
                         <span>0</span>
                       </div>
 
                       {/* Bars Container */}
-                      <div className="flex-1 h-44 border-b border-l border-white/15 flex items-end justify-around px-4 relative">
-                        {/* Subtle Horizontal gridlines */}
-                        <div className="absolute inset-x-0 top-0 border-t border-white/5"></div>
-                        <div className="absolute inset-x-0 top-1/4 border-t border-white/5"></div>
-                        <div className="absolute inset-x-0 top-2/4 border-t border-white/5"></div>
-                        <div className="absolute inset-x-0 top-3/4 border-t border-white/5"></div>
-
-                        {/* Bar 1: 201Maestria - 201 Español (Coral/Pink) */}
+                      <div className="flex-1 h-44 border-b border-l border-gray-200 flex items-end justify-around px-6 relative">
+                        {/* Bar 1: Pink/Coral 98% (201Maestria - 201 Español) */}
                         <div className="flex flex-col items-center group relative z-10 w-16">
-                          <span className="text-[10px] font-bold text-[#FF6584] mb-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            98%
-                          </span>
                           <div
                             style={{ height: '98%' }}
-                            className="w-12 bg-gradient-to-t from-[#FF6584] to-[#FF8E9E] rounded-t-lg shadow-lg shadow-[#FF6584]/30 transition-all group-hover:scale-105"
+                            className="w-12 bg-[#FF6584] rounded-t-sm shadow-xs transition-transform group-hover:scale-105 cursor-pointer"
                           ></div>
                         </div>
 
-                        {/* Bar 2: 101Maestria - 101 Español (Sky Blue) */}
+                        {/* Bar 2: Blue 72% (101Maestria - 101 Español) */}
                         <div className="flex flex-col items-center group relative z-10 w-16">
-                          <span className="text-[10px] font-bold text-[#0284C7] mb-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            72%
-                          </span>
                           <div
                             style={{ height: '72%' }}
-                            className="w-12 bg-gradient-to-t from-[#0284C7] to-[#38BDF8] rounded-t-lg shadow-lg shadow-[#0284C7]/30 transition-all group-hover:scale-105"
+                            className="w-12 bg-[#0080E6] rounded-t-sm shadow-xs transition-transform group-hover:scale-105 cursor-pointer"
                           ></div>
                         </div>
                       </div>
                     </div>
 
-                    {/* X-axis Labels matching image */}
-                    <div className="flex justify-around pl-8 pt-2 text-[10px] text-gray-400 font-medium">
-                      <span className="w-24 text-center truncate">201Maestria - 201 Español</span>
-                      <span className="w-24 text-center truncate">101Maestria - 101 Español</span>
+                    {/* X-axis Labels */}
+                    <div className="flex justify-around pl-8 pt-2.5 text-[9.5px] text-gray-500 font-medium">
+                      <span className="w-28 text-center truncate">201Maestria - 201 Español</span>
+                      <span className="w-28 text-center truncate">101Maestria - 101 Español</span>
                     </div>
                   </div>
                 </div>
 
-                <p className="text-[11px] text-center text-gray-400 mt-2 font-medium tracking-wide">
+                <p className="text-[11px] text-center text-gray-400 mt-2 font-medium">
                   Attendance Percentage by Class Section
                 </p>
               </div>
             </div>
 
-            {/* 3. BOTTOM ROW: TEACHER & GENDER */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-              {/* Left: Teacher List */}
-              <div className="lg:col-span-7 bg-[#0A1020]/90 backdrop-blur-md border border-white/10 rounded-2xl p-6 shadow-xl flex flex-col justify-between">
+            {/* 3. BOTTOM ROW: TEACHER & GENDER (EXACT IMAGE 2)          */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {/* Left: Teacher List in White Card */}
+              <div className="lg:col-span-7 bg-white rounded-xl p-6 shadow-xs border border-gray-200/70 flex flex-col justify-between min-h-[260px]">
                 <div>
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-base font-bold text-white flex items-center space-x-2">
-                      <span>Teacher</span>
-                    </h3>
-                    <span className="text-xs text-emerald-400 font-bold bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/30 flex items-center space-x-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                      <span>Claustro en Turno</span>
-                    </span>
+                    <h3 className="text-base font-bold text-gray-800">Teacher</h3>
                   </div>
 
-                  <div className="space-y-3.5">
-                    {/* Teacher Item 1 */}
-                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/5 border border-white/5 hover:border-white/10 transition-all">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#5B142F] to-[#851D44] border border-amber-400/40 flex items-center justify-center text-amber-300 font-bold text-xs shadow-md">
-                          DP
+                  <div className="space-y-4">
+                    {/* Teacher 1: Diego Alberto Pineda Gonzalez */}
+                    <div className="flex items-center justify-between py-1">
+                      <div className="flex items-center space-x-3.5">
+                        <div className="w-10 h-10 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-500 text-sm shadow-2xs">
+                          👨‍🏫
                         </div>
                         <div>
-                          <p className="text-xs font-bold text-white leading-snug">
+                          <p className="text-xs font-bold text-gray-800 leading-snug">
                             Diego Alberto Pineda Gonzalez
                           </p>
                           <p className="text-[11px] text-gray-400">Excelente</p>
                         </div>
                       </div>
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/80 mr-2"></span>
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-xs mr-3"></span>
                     </div>
 
-                    {/* Teacher Item 2 */}
-                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/5 border border-white/5 hover:border-white/10 transition-all">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-sky-800 to-sky-600 border border-sky-400/40 flex items-center justify-center text-sky-200 font-bold text-xs shadow-md">
-                          SP
+                    {/* Teacher 2: Scandy Michelle patron palma */}
+                    <div className="flex items-center justify-between py-1">
+                      <div className="flex items-center space-x-3.5">
+                        <div className="w-10 h-10 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-500 text-sm shadow-2xs">
+                          👩‍🏫
                         </div>
                         <div>
-                          <p className="text-xs font-bold text-white leading-snug">
+                          <p className="text-xs font-bold text-gray-800 leading-snug">
                             Scandy Michelle patron palma
                           </p>
                           <p className="text-[11px] text-gray-400">excelente</p>
                         </div>
                       </div>
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/80 mr-2"></span>
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-xs mr-3"></span>
                     </div>
 
-                    {/* Teacher Item 3 (Dr. Adrian Silva) */}
-                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/5 border border-white/5 hover:border-white/10 transition-all">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-amber-800 to-amber-600 border border-amber-400/40 flex items-center justify-center text-amber-200 font-bold text-xs shadow-md">
+                    {/* Teacher 3: Dr. Adrian Silva */}
+                    <div className="flex items-center justify-between py-1">
+                      <div className="flex items-center space-x-3.5">
+                        <div className="w-10 h-10 rounded-full bg-[#5B142F]/10 border border-[#5B142F]/30 flex items-center justify-center text-[#5B142F] font-bold text-xs shadow-2xs">
                           AS
                         </div>
                         <div>
-                          <p className="text-xs font-bold text-white leading-snug">
+                          <p className="text-xs font-bold text-gray-800 leading-snug">
                             {docentes[2] ? `${docentes[2].nombre} ${docentes[2].apellido_paterno}` : 'Dr. Adrian Silva'}
                           </p>
-                          <p className="text-[11px] text-gray-400">Excelente • Campus Tijuana</p>
+                          <p className="text-[11px] text-gray-400">Excelente • Dirección Campus Tijuana</p>
                         </div>
                       </div>
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/80 mr-2"></span>
-                    </div>
-
-                    {/* Teacher Item 4 (Beatriz Sánchez) */}
-                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/5 border border-white/5 hover:border-white/10 transition-all">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-rose-800 to-rose-600 border border-rose-400/40 flex items-center justify-center text-rose-200 font-bold text-xs shadow-md">
-                          BS
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold text-white leading-snug">
-                            {docentes[1] ? `${docentes[1].nombre} ${docentes[1].apellido_paterno}` : 'Beatriz Sánchez Pineda'}
-                          </p>
-                          <p className="text-[11px] text-gray-400">Excelente • Tecnologías TIC</p>
-                        </div>
-                      </div>
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/80 mr-2"></span>
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-xs mr-3"></span>
                     </div>
                   </div>
                 </div>
 
-                <div className="pt-3.5 mt-2 border-t border-white/5 flex items-center justify-between text-[11px]">
-                  <span className="text-gray-400">Total claustro activo: {docentes.length}</span>
+                <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-400">
+                  <span>Claustro académico activo ({docentes.length || 9})</span>
                   <button
                     onClick={() => setActiveTab('personal')}
-                    className="text-amber-400 hover:text-amber-300 font-semibold transition-colors flex items-center space-x-1"
+                    className="text-[#5B142F] hover:text-[#851D44] font-semibold"
                   >
-                    <span>Gestionar horarios</span>
-                    <span>→</span>
+                    Acceso Docente →
                   </button>
                 </div>
               </div>
 
-              {/* Right: Gender / Demografía */}
-              <div className="lg:col-span-5 bg-[#0A1020]/90 backdrop-blur-md border border-white/10 rounded-2xl p-6 shadow-xl flex flex-col justify-between">
+              {/* Right: Gender Donut Chart in White Card */}
+              <div className="lg:col-span-5 bg-white rounded-xl p-6 shadow-xs border border-gray-200/70 flex flex-col justify-between min-h-[260px]">
                 <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-base font-bold text-white flex items-center space-x-2">
-                      <PieChart className="w-4 h-4 text-rose-400" />
-                      <span>Gender</span>
-                    </h3>
-                    <span className="text-[10px] uppercase font-bold text-gray-400">Distribución</span>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-base font-bold text-gray-800">Gender</h3>
                   </div>
 
-                  {/* Semi-donut / Pie Chart Visual */}
+                  {/* Semicircle Donut Chart matching Image 2 */}
                   <div className="relative flex flex-col items-center justify-center pt-2">
-                    <svg viewBox="0 0 160 90" className="w-52 h-28 overflow-visible">
-                      <defs>
-                        <linearGradient id="pinkGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                          <stop offset="0%" stopColor="#FF6584" />
-                          <stop offset="100%" stopColor="#FF8E9E" />
-                        </linearGradient>
-                        <linearGradient id="blueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                          <stop offset="0%" stopColor="#38BDF8" />
-                          <stop offset="100%" stopColor="#0284C7" />
-                        </linearGradient>
-                      </defs>
-
-                      {/* Female Arc (Left half ~58%) */}
+                    <svg viewBox="0 0 160 85" className="w-56 h-28 overflow-visible">
+                      {/* Left Arc: Pink / Coral (58%) */}
                       <path
                         d="M 20 80 A 60 60 0 0 1 80 20 L 80 45 A 35 35 0 0 0 45 80 Z"
-                        fill="url(#pinkGrad)"
+                        fill="#FF6584"
                         className="hover:opacity-90 transition-opacity cursor-pointer"
                       />
 
-                      {/* Male Arc (Right half ~42%) */}
+                      {/* Right Arc: Blue (42%) */}
                       <path
                         d="M 80 20 A 60 60 0 0 1 140 80 L 115 80 A 35 35 0 0 0 80 45 Z"
-                        fill="url(#blueGrad)"
+                        fill="#38BDF8"
                         className="hover:opacity-90 transition-opacity cursor-pointer"
                       />
                     </svg>
-
-                    <div className="text-center mt-1">
-                      <span className="text-xs font-extrabold text-white tracking-wider uppercase">
-                        {alumnos.length > 0 ? `${alumnos.length} Alumnos` : 'UNRC Tijuana'}
-                      </span>
-                    </div>
                   </div>
 
                   {/* Legend */}
-                  <div className="grid grid-cols-2 gap-3 mt-4 pt-3 border-t border-white/5 text-xs">
+                  <div className="grid grid-cols-2 gap-3 mt-4 pt-3 border-t border-gray-100 text-xs">
                     <div className="flex items-center space-x-2">
-                      <span className="w-3 h-3 rounded-full bg-[#FF6584] shadow-sm shadow-[#FF6584]/50"></span>
-                      <span className="text-gray-300 font-medium">Femenino (58%)</span>
+                      <span className="w-3 h-3 rounded-full bg-[#FF6584]"></span>
+                      <span className="text-gray-700 font-medium">Femenino (58%)</span>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <span className="w-3 h-3 rounded-full bg-[#0284C7] shadow-sm shadow-[#0284C7]/50"></span>
-                      <span className="text-gray-300 font-medium">Masculino (42%)</span>
+                      <span className="w-3 h-3 rounded-full bg-[#38BDF8]"></span>
+                      <span className="text-gray-700 font-medium">Masculino (42%)</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="pt-3 mt-3 border-t border-white/5 text-center">
-                  <p className="text-[10px] text-gray-500">
-                    Datos institucionales auditados • Campus Tijuana
-                  </p>
+                <div className="pt-2 text-center text-[10px] text-gray-400">
+                  Distribución estudiantil UNRC • Campus Tijuana
                 </div>
               </div>
             </div>

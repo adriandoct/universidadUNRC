@@ -167,28 +167,31 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#070B14] text-white flex flex-col justify-center items-center p-4 sm:p-6 relative overflow-hidden">
+    <div className="min-h-screen bg-[#F3F2F8] text-[#1E293B] flex flex-col justify-center items-center p-4 sm:p-6 relative overflow-hidden">
       
       {/* Background Decorator Gradients */}
-      <div className="absolute -top-40 -left-40 w-96 h-96 bg-blue-600/20 rounded-full blur-[128px] pointer-events-none" />
-      <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-emerald-600/20 rounded-full blur-[128px] pointer-events-none" />
+      <div className="absolute -top-40 -left-40 w-96 h-96 bg-blue-500/10 rounded-full blur-[128px] pointer-events-none" />
+      <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-rose-500/10 rounded-full blur-[128px] pointer-events-none" />
 
-      <div className="w-full max-w-md bg-[#0D1527]/95 backdrop-blur-2xl border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6 relative z-10">
+      {/* Main Login Card with Institutional Colors from Image 1 */}
+      <div className="w-full max-w-md bg-[#0D1527] text-white border border-[#5B142F]/60 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6 relative z-10">
         
         {/* Header Logo */}
         <div className="text-center space-y-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/unrc_official_logo.png"
-            alt="Universidad Nacional Rosario Castellanos"
-            className="h-16 w-auto mx-auto mb-2 object-contain rounded-xl shadow-lg border border-[#5B142F]/60"
-          />
+          <div className="w-24 h-16 bg-[#5B142F] rounded-2xl mx-auto flex items-center justify-center shadow-lg border border-[#851D44] p-1 mb-3">
+            <img
+              src="/unrc_official_logo.png"
+              alt="Universidad Nacional Rosario Castellanos"
+              className="h-full w-auto object-contain drop-shadow-md"
+            />
+          </div>
           <h1 className="text-xl font-extrabold text-white tracking-tight">Acceso Institucional Seguro</h1>
-          <p className="text-xs text-gray-400">Universidad Nacional Rosario Castellanos — CDMX</p>
+          <p className="text-xs text-gray-400">Universidad Nacional Rosario Castellanos — Campus Tijuana</p>
         </div>
 
         {/* Role Selector Tabs */}
-        <div className="grid grid-cols-3 gap-1 p-1 bg-black/40 rounded-2xl border border-white/10 text-[11px] font-bold text-center">
+        <div className="grid grid-cols-3 gap-1 p-1 bg-black/50 rounded-2xl border border-white/10 text-[11px] font-bold text-center">
           {(['admin', 'teacher', 'student'] as const).map((r) => (
             <button
               key={r}
@@ -230,8 +233,8 @@ export default function LoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder={selectedRole === 'admin' ? 'admin' : selectedRole === 'teacher' ? 'DOC-UNRC-...' : 'UNRC-2026-...'}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-emerald-500 transition-colors font-mono"
+                placeholder={selectedRole === 'admin' ? 'admin@admin.com' : selectedRole === 'teacher' ? 'DOC-UNRC-01' : 'UNRC-2026-001'}
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#EEF2F6] border border-gray-300 text-gray-900 placeholder-gray-500 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors font-mono font-semibold"
               />
             </div>
           </div>
@@ -255,8 +258,8 @@ export default function LoginPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-emerald-500 transition-colors font-mono"
+                placeholder="••••••••••••"
+                className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-[#EEF2F6] border border-gray-300 text-gray-900 placeholder-gray-500 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors font-mono font-semibold"
               />
             </div>
           </div>
@@ -264,7 +267,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold text-xs shadow-xl shadow-emerald-600/30 transition-all flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50"
+            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#00A86B] to-[#00C853] hover:from-[#00965D] hover:to-[#00B048] text-white font-extrabold text-sm shadow-xl shadow-emerald-500/25 transition-all flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50 active:scale-98"
           >
             {loading ? (
               <span className="flex items-center gap-2">
@@ -281,12 +284,12 @@ export default function LoginPage() {
         </form>
 
         {/* Security Notice */}
-        <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-center space-y-1">
-          <p className="text-xs font-bold text-emerald-300 flex items-center justify-center space-x-1">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+        <div className="p-3.5 rounded-2xl bg-black/40 border border-emerald-500/20 text-center space-y-1">
+          <p className="text-xs font-bold text-emerald-400 flex items-center justify-center space-x-1.5">
+            <ShieldCheck className="w-4 h-4 text-emerald-400" />
             <span>Seguridad & Privacidad Institucional</span>
           </p>
-          <p className="text-[11px] text-gray-400">
+          <p className="text-[11px] text-gray-400 leading-tight">
             Autenticación protegida con encriptación SSL. No comparta sus credenciales de acceso con terceros.
           </p>
         </div>
