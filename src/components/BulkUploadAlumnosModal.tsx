@@ -83,6 +83,120 @@ interface DetectedMetadata {
   asignatura?: string;
   grado?: string;
   matriculaColName?: string;
+  docente?: string;
+}
+
+function cleanDocenteCandidate(str: string): string {
+  if (!str) return '';
+  let s = String(str).trim();
+  s = s.replace(/^[_\s\-:=]+|[_\s\-:=]+$/g, '').trim();
+  s = s.replace(/[\*#]+$/, '').trim();
+  s = s.replace(/^(?:firma(?:\s+del\s+docente)?|nombre(?:\s+del\s+docente)?|docente(?:\s+titular|\s+responsable)?|profesor(?:a)?(?:\s+titular)?|catedr[aá]tico(?:a)?|maestro(?:a)?)\s*[:=]?\s*/i, '').trim();
+  return s;
+}
+
+function isValidDocenteName(str: string): boolean {
+  if (!str || str.length < 4 || str.length > 80) return false;
+  if (/^\d+$/.test(str)) return false;
+  if (/^\d{1,4}[-\/\.]\d{1,2}[-\/\.]\d{1,4}/.test(str)) return false;
+  const lower = str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const rejectedKeywords = [
+    'licenciatura', 'carrera', 'campus', 'tijuana', 'semestre', 'ciclo', 'grado',
+    'calificacion', 'asistencia', 'promedio', 'observacion', 'observaciones',
+    'matricula', 'control', 'cuenta', 'boleta', 'expediente', 'total', 'hombres',
+    'mujeres', 'firma', 'sello', 'director', 'coordinador', 'secretaria'
+  ];
+  if (rejectedKeywords.some(kw => lower === kw || lower.startsWith(kw + ' ') || lower.endsWith(' ' + kw))) {
+    return false;
+  }
+  const hasTitle = /^(?:dr|dra|mtro|mtra|lic|ing|prof|profr|profra)\.?/i.test(str);
+  const words = str.split(/\s+/).filter(w => w.length > 1);
+  return words.length >= 2 || (hasTitle && words.length >= 1);
+}
+
+function detectDocenteFromMatrix(matrix: any[][]): string | null {
+  if (!matrix || matrix.length === 0) return null;
+
+  // 1. Scan bottom rows upwards (last 35 rows first, where footers and signature blocks are placed)
+  const bottomScanLimit = Math.max(0, matrix.length - 35);
+  for (let r = matrix.length - 1; r >= bottomScanLimit; r--) {
+    const row = matrix[r] || [];
+    for (let c = 0; c < row.length; c++) {
+      const val = String(row[c] ?? '').trim();
+      if (!val) continue;
+
+      // Inline match: "Docente: Dr. Adrian Silva"
+      const inlineMatch = val.match(/(?:nombre\s+del\s+)?(?:docente(?:\s+titular|\s+responsable|\s+asignado)?|profesor(?:a)?(?:\s+titular|\s+responsable|\s+asignado)?|catedr[aá]tico(?:a)?|maestro(?:a)?|titular(?:\s+de\s+la\s+asignatura)?|facilitador(?:a)?|instructor(?:a)?|firma\s+del\s+docente)\s*[:=]\s*(.+)/i);
+      if (inlineMatch && inlineMatch[1]) {
+        const candidate = cleanDocenteCandidate(inlineMatch[1]);
+        if (isValidDocenteName(candidate)) return candidate;
+      }
+
+      // Label cell match: "Docente:" or "Docente" or "Firma del Docente"
+      if (/^(?:nombre\s+del\s+)?(?:docente(?:\s+titular|\s+responsable|\s+asignado)?|profesor(?:a)?(?:\s+titular|\s+responsable|\s+asignado)?|catedr[aá]tico(?:a)?|maestro(?:a)?|titular(?:\s+de\s+la\s+asignatura)?|facilitador(?:a)?|instructor(?:a)?|firma\s+del\s+docente)[\s:=_-]*$/i.test(val)) {
+        for (let nextC = c + 1; nextC <= c + 4 && nextC < row.length; nextC++) {
+          const adjVal = String(row[nextC] ?? '').trim();
+          if (adjVal) {
+            const candidate = cleanDocenteCandidate(adjVal);
+            if (isValidDocenteName(candidate)) return candidate;
+          }
+        }
+        // Row above
+        if (r > 0) {
+          for (let checkC = Math.max(0, c - 1); checkC <= Math.min(row.length - 1, c + 2); checkC++) {
+            const aboveVal = String(matrix[r - 1]?.[checkC] ?? '').trim();
+            const candidate = cleanDocenteCandidate(aboveVal);
+            if (isValidDocenteName(candidate)) return candidate;
+          }
+        }
+        // Row below
+        if (r < matrix.length - 1) {
+          for (let checkC = Math.max(0, c - 1); checkC <= Math.min(row.length - 1, c + 2); checkC++) {
+            const belowVal = String(matrix[r + 1]?.[checkC] ?? '').trim();
+            const candidate = cleanDocenteCandidate(belowVal);
+            if (isValidDocenteName(candidate)) return candidate;
+          }
+        }
+      }
+
+      // Professional title pattern in footer block
+      if (/^(?:Dr|Dra|Mtro|Mtra|Lic|Ing|Prof|Profr|Profra)\.?\s+[A-Za-zÀ-ÿ]{3,}/i.test(val)) {
+        const candidate = cleanDocenteCandidate(val);
+        if (isValidDocenteName(candidate)) {
+          if (r >= matrix.length - 12) return candidate;
+          const rowText = row.map((cell: any) => String(cell ?? '')).join(' ').toLowerCase();
+          if (rowText.includes('docente') || rowText.includes('profesor') || rowText.includes('titular') || rowText.includes('firma')) {
+            return candidate;
+          }
+        }
+      }
+    }
+  }
+
+  // 2. Scan entire sheet from top if not found at bottom
+  for (let r = 0; r < matrix.length; r++) {
+    const row = matrix[r] || [];
+    for (let c = 0; c < row.length; c++) {
+      const val = String(row[c] ?? '').trim();
+      if (!val) continue;
+
+      const inlineMatch = val.match(/(?:nombre\s+del\s+)?(?:docente(?:\s+titular|\s+responsable|\s+asignado)?|profesor(?:a)?(?:\s+titular|\s+responsable|\s+asignado)?|catedr[aá]tico(?:a)?|maestro(?:a)?|titular(?:\s+de\s+la\s+asignatura)?)\s*[:=]\s*(.+)/i);
+      if (inlineMatch && inlineMatch[1]) {
+        const candidate = cleanDocenteCandidate(inlineMatch[1]);
+        if (isValidDocenteName(candidate)) return candidate;
+      }
+
+      if (/^(?:nombre\s+del\s+)?(?:docente|profesor(?:a)?|catedr[aá]tico(?:a)?|maestro(?:a)?)[\s:=_-]*$/i.test(val)) {
+        for (let nextC = c + 1; nextC <= c + 3 && nextC < row.length; nextC++) {
+          const adjVal = String(row[nextC] ?? '').trim();
+          const candidate = cleanDocenteCandidate(adjVal);
+          if (isValidDocenteName(candidate)) return candidate;
+        }
+      }
+    }
+  }
+
+  return null;
 }
 
 export default function BulkUploadAlumnosModal({
@@ -111,6 +225,7 @@ export default function BulkUploadAlumnosModal({
   const [targetGrupo, setTargetGrupo] = useState<string>('301');
   const [targetGrado, setTargetGrado] = useState<string>('3° Semestre');
   const [targetSedeId, setTargetSedeId] = useState<string>('');
+  const [targetDocenteName, setTargetDocenteName] = useState<string>('');
   // Respetar las entidades que vienen en el archivo (.xls/.xlsx/csv)
   const [respectFileEntities, setRespectFileEntities] = useState<boolean>(true);
 
@@ -519,6 +634,14 @@ export default function BulkUploadAlumnosModal({
     if (meta.grupo) {
       meta.grado = inferGradoFromGrupo(meta.grupo);
     }
+
+    // Detect Docente from footer/end of file or signature rows
+    const foundDocente = detectDocenteFromMatrix(matrix);
+    if (foundDocente) {
+      meta.docente = foundDocente;
+      setTargetDocenteName(foundDocente);
+    }
+
     setDetectedMetadata(Object.keys(meta).length > 0 ? meta : null);
 
     // Sync destination selectors with detected metadata if available
@@ -1050,6 +1173,7 @@ export default function BulkUploadAlumnosModal({
     setSelectedSheet('');
     setCurrentMatrix([]);
     setDetectedMetadata(null);
+    setTargetDocenteName('');
     setParsedRows([]);
     setDetectedHeaders([]);
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -1147,6 +1271,28 @@ export default function BulkUploadAlumnosModal({
 
     setIsSubmitting(true);
     try {
+      // 1. Ensure Docente is inserted in database if detected or specified
+      let finalDocenteRecord: any = null;
+      const cleanDocenteCandidate = targetDocenteName?.trim() || detectedMetadata?.docente?.trim();
+      if (cleanDocenteCandidate) {
+        try {
+          finalDocenteRecord = await db.ensureDocenteExists(cleanDocenteCandidate, {
+            carreraId: selectedCarreraObj.id,
+            carreraNombre: selectedCarreraObj.nombre,
+            grupo: targetGrupo,
+            asignatura: detectedMetadata?.asignatura
+          });
+        } catch (docErr) {
+          console.error('Error al asegurar registro de docente:', docErr);
+        }
+      }
+
+      const formattedDocenteNombre = finalDocenteRecord
+        ? (finalDocenteRecord.titulo
+            ? `${finalDocenteRecord.titulo} ${finalDocenteRecord.nombre} ${finalDocenteRecord.apellido_paterno}`.trim()
+            : `${finalDocenteRecord.nombre} ${finalDocenteRecord.apellido_paterno}`.trim())
+        : (cleanDocenteCandidate || undefined);
+
       const alumnosPayload = rowsToImport.map((r) => {
         const finalCarreraId = respectFileEntities
           ? r.carrera_id || selectedCarreraObj.id
@@ -1173,14 +1319,19 @@ export default function BulkUploadAlumnosModal({
           estado_matricula: r.estado_matricula,
           tutor: sanitizedTutor,
           telefono: r.telefono,
+          docente_nombre: formattedDocenteNombre,
+          docente_id: finalDocenteRecord?.id,
           password: r.password?.trim() || getDefaultUserPassword(r.matricula, '2026-2'),
           qr_code: r.matricula
         };
       });
 
       const res = await db.addAlumnosBulk(alumnosPayload, { updateExisting });
+      const docenteFeedback = formattedDocenteNombre
+        ? ` Docente ${formattedDocenteNombre} insertado y vinculado en la BD.`
+        : '';
       showToast(
-        `✅ ${res.added} nuevos alumnos agregados y ${res.updated} actualizados exitosamente.`,
+        `✅ ${res.added} nuevos alumnos agregados y ${res.updated} actualizados exitosamente.${docenteFeedback}`,
         'success'
       );
       onSuccess(res);
@@ -1299,8 +1450,8 @@ export default function BulkUploadAlumnosModal({
               </label>
             </div>
 
-            {/* Grupo, Semestre and Sede overrides */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-white/10">
+            {/* Grupo, Semestre, Sede and Docente overrides */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2 border-t border-white/10">
               <div>
                 <label className="text-gray-300 block mb-1 text-[11px] font-semibold">Grupo por Defecto</label>
                 <input
@@ -1351,6 +1502,26 @@ export default function BulkUploadAlumnosModal({
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-emerald-400 font-semibold text-[11px] flex items-center space-x-1">
+                    <span>👨‍🏫 Docente Asignado</span>
+                  </label>
+                  {targetDocenteName && (
+                    <span className="text-[9px] text-emerald-400 font-mono bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                      Al final del archivo ✓
+                    </span>
+                  )}
+                </div>
+                <input
+                  type="text"
+                  value={targetDocenteName}
+                  onChange={(e) => setTargetDocenteName(e.target.value)}
+                  className="w-full px-3 py-1.5 rounded-xl bg-black/50 border border-emerald-500/50 text-emerald-300 font-medium text-xs focus:outline-none focus:border-emerald-400"
+                  placeholder="Dr. Adrian Silva (se inserta en BD)"
+                />
               </div>
             </div>
           </div>
@@ -1516,6 +1687,15 @@ export default function BulkUploadAlumnosModal({
                     {detectedMetadata.ciclo && (
                       <span className="bg-white/5 border border-white/10 px-2.5 py-1 rounded-xl text-gray-200">
                         🗓️ Ciclo: <strong className="text-blue-300">{detectedMetadata.ciclo}</strong>
+                      </span>
+                    )}
+                    {detectedMetadata.docente && (
+                      <span className="bg-emerald-500/20 border border-emerald-500/50 px-2.5 py-1 rounded-xl text-white shadow-sm flex items-center space-x-1">
+                        <span>👨‍🏫 Docente al final del archivo:</span>
+                        <strong className="text-emerald-300 font-bold ml-1">{detectedMetadata.docente}</strong>
+                        <span className="ml-1 text-[10px] text-emerald-400 font-mono bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20">
+                          ✓ Se insertará en la BD
+                        </span>
                       </span>
                     )}
                   </div>

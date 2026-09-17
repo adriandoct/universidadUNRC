@@ -118,6 +118,8 @@ export interface Alumno {
   estado_matricula?: 'activo' | 'baja_temporal' | 'egresado' | 'aspirante';
   tutor: string;
   telefono: string;
+  docente_nombre?: string;
+  docente_id?: string;
   foto_url?: string;
   qr_code: string;
   password?: string;
@@ -1723,6 +1725,8 @@ export const db = {
           sede_nombre: newAlumno.sede_nombre || 'Campus Tijuana',
           ciclo_id: newAlumno.ciclo_id,
           estado_matricula: newAlumno.estado_matricula || 'activo',
+          docente_nombre: newAlumno.docente_nombre || null,
+          docente_id: newAlumno.docente_id || null,
           password: newAlumno.password
         };
         const { data, error } = await supabase
@@ -1821,6 +1825,8 @@ export const db = {
           ciclo_id: item.ciclo_id,
           estado_matricula: item.estado_matricula || 'activo',
           tutor: item.tutor || 'Tutor Registrado',
+          docente_nombre: item.docente_nombre || null,
+          docente_id: item.docente_id || null,
           telefono: item.telefono || '+525500000000',
           foto_url: item.foto_url,
           qr_code: item.qr_code || item.matricula,
@@ -2508,6 +2514,135 @@ export const db = {
     }
     await db.addAuditoria('ALTA_DOCENTE', 'Recursos Humanos / Personal', `Se registró al docente ${newDoc.nombre} ${newDoc.apellido_paterno} (${newDoc.num_empleado})`, 'Administrador');
     return newDoc;
+  },
+
+  ensureDocenteExists: async (
+    rawName: string,
+    context?: {
+      carreraNombre?: string;
+      carreraId?: string;
+      grupoClave?: string;
+      materiaNombre?: string;
+      sedeNombre?: string;
+      sedeId?: string;
+    }
+  ): Promise<Docente> => {
+    initLocalStorage();
+    const cleanName = rawName.replace(/^[_\s\-:]+|[_\s\-:]+$/g, '').trim();
+    if (!cleanName) throw new Error('Nombre de docente inválido');
+
+    const list = await db.getDocentes();
+
+    // Parse name parts
+    const nameWithoutTitle = cleanName.replace(/^(?:Dr|Dra|Mtro|Mtra|Lic|Ing|Prof|Profr|Profra)\.?\s+/i, '').trim();
+    const parts = nameWithoutTitle.split(/\s+/).filter(Boolean);
+    let nombre = parts[0] || cleanName;
+    let apellido_paterno = parts[1] || 'UNRC';
+    let apellido_materno = parts.slice(2).join(' ') || '';
+    if (parts.length >= 4) {
+      nombre = parts.slice(0, 2).join(' ');
+      apellido_paterno = parts[2];
+      apellido_materno = parts.slice(3).join(' ');
+    }
+
+    const normSearch = nameWithoutTitle.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+    // Search for existing docente
+    let existing = list.find((d) => {
+      const dFull = `${d.nombre} ${d.apellido_paterno} ${d.apellido_materno || ''}`
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+      const dSimple = `${d.nombre} ${d.apellido_paterno}`
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+      return dFull.includes(normSearch) || normSearch.includes(dSimple) || dSimple.includes(normSearch);
+    });
+
+    if (existing) {
+      let updated = false;
+      const carrList = existing.carreras_asignadas || [];
+      if (context?.carreraNombre && !carrList.includes(context.carreraNombre)) {
+        carrList.push(context.carreraNombre);
+        existing.carreras_asignadas = carrList;
+        updated = true;
+      }
+      const matList = existing.materias || [];
+      if (context?.materiaNombre && !matList.includes(context.materiaNombre)) {
+        matList.push(context.materiaNombre);
+        existing.materias = matList;
+        updated = true;
+      }
+      if (updated) {
+        await db.updateDocente(existing.id, {
+          carreras_asignadas: existing.carreras_asignadas,
+          materias: existing.materias
+        });
+      }
+    } else {
+      const nextNum = (list.length + 1).toString().padStart(2, '0');
+      const num_empleado = `DOC-UNRC-${nextNum}`;
+      const cleanEmail = `${nombre.toLowerCase().replace(/\s+/g, '.')}.${apellido_paterno.toLowerCase()}@rcastellanos.cdmx.gob.mx`
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+
+      const newDocPayload: Omit<Docente, 'id' | 'created_at'> = {
+        num_empleado,
+        nombre,
+        apellido_paterno,
+        apellido_materno,
+        email: cleanEmail,
+        departamento: context?.carreraNombre ? `${context.carreraNombre} / Campus Tijuana` : 'Campus Tijuana',
+        puesto: 'docente',
+        carreras_asignadas: context?.carreraNombre ? [context.carreraNombre] : ['Licenciatura UNRC'],
+        materias: context?.materiaNombre ? [context.materiaNombre] : ['Asignatura Curricular UNRC'],
+        horario_resumen: 'Lunes a Sábado (Campus Tijuana)',
+        sede_nombre: context?.sedeNombre || 'Campus Tijuana',
+        sede_id: context?.sedeId || 'sede-tij',
+        telefono: '+526641234567',
+        foto_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200&h=200'
+      };
+
+      existing = await db.addDocente(newDocPayload);
+    }
+
+    // Sync group assignment
+    if (context?.grupoClave) {
+      const rawGrupos = localStorage.getItem('unrc_grupos');
+      let gruposList: Grupo[] = rawGrupos ? JSON.parse(rawGrupos) : MOCK_GRUPOS;
+      let grp = gruposList.find((g) => g.clave_grupo.toUpperCase() === context.grupoClave?.toUpperCase());
+      if (grp) {
+        grp.docente_nombre = cleanName;
+        grp.docente_id = existing.id;
+      } else {
+        gruposList.push({
+          id: `g-${Date.now()}`,
+          clave_grupo: context.grupoClave,
+          carrera_id: context.carreraId || 'c5555555-5555-5555-5555-555555555555',
+          materia_id: 'm1',
+          sede_id: context.sedeId || 'sede-tij',
+          sede_nombre: context.sedeNombre || 'Campus Tijuana',
+          turno: 'Matutino',
+          periodo: '2026-2',
+          horario: 'Lunes a Sábado (07:00 - 13:00 hrs)',
+          dias_clase: ['Lunes', 'Miércoles', 'Viernes'],
+          docente_nombre: cleanName,
+          docente_id: existing.id,
+          aula: `${context.sedeNombre || 'Campus Tijuana'} - Aula ${context.grupoClave}`
+        });
+      }
+      localStorage.setItem('unrc_grupos', JSON.stringify(gruposList));
+      if (supabase) {
+        try {
+          await supabase.from('courses').update({ schedule_description: `Docente: ${cleanName}` }).eq('name', context.grupoClave);
+        } catch (e) {
+          // ignore
+        }
+      }
+    }
+
+    return existing;
   },
 
   updateDocente: async (id: string, updates: Partial<Docente>): Promise<Docente | null> => {

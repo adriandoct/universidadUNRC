@@ -110,6 +110,27 @@ ALTER TABLE public.alumnos ADD COLUMN IF NOT EXISTS sede_nombre TEXT DEFAULT 'Ca
 ALTER TABLE public.alumnos ADD COLUMN IF NOT EXISTS ciclo_id TEXT DEFAULT 'ciclo-2026-2';
 ALTER TABLE public.alumnos ADD COLUMN IF NOT EXISTS estado_matricula TEXT DEFAULT 'activo';
 ALTER TABLE public.alumnos ADD COLUMN IF NOT EXISTS password TEXT;
+ALTER TABLE public.alumnos ADD COLUMN IF NOT EXISTS docente_nombre TEXT;
+ALTER TABLE public.alumnos ADD COLUMN IF NOT EXISTS docente_id TEXT;
+
+-- Tabla de Docentes para personal académico
+CREATE TABLE IF NOT EXISTS public.docentes (
+    id TEXT PRIMARY KEY DEFAULT ('docente-' || gen_random_uuid()::text),
+    num_empleado TEXT UNIQUE NOT NULL,
+    nombre TEXT NOT NULL,
+    apellido_paterno TEXT NOT NULL,
+    apellido_materno TEXT DEFAULT '',
+    email TEXT,
+    departamento TEXT DEFAULT 'Campus Tijuana',
+    puesto TEXT DEFAULT 'docente',
+    materias TEXT[],
+    carreras_asignadas TEXT[],
+    sede_id TEXT DEFAULT 'sede-tij',
+    sede_nombre TEXT DEFAULT 'Campus Tijuana',
+    telefono TEXT DEFAULT '+526641234567',
+    password TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
 
 -- Migración para normalizar alumnos al Campus Tijuana en Supabase:
 UPDATE public.alumnos 
@@ -367,6 +388,17 @@ CREATE POLICY "Public read alumnos" ON public.alumnos FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Admin manage alumnos" ON public.alumnos;
 CREATE POLICY "Admin manage alumnos" ON public.alumnos FOR ALL USING (
+    public.get_user_role() = 'admin' OR auth.role() = 'authenticated' OR auth.role() = 'anon'
+);
+
+-- 5.8 DOCENTES (Personal Académico y Carga Masiva) Policies
+ALTER TABLE public.docentes ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public read docentes" ON public.docentes;
+CREATE POLICY "Public read docentes" ON public.docentes FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Admin manage docentes" ON public.docentes;
+CREATE POLICY "Admin manage docentes" ON public.docentes FOR ALL USING (
     public.get_user_role() = 'admin' OR auth.role() = 'authenticated' OR auth.role() = 'anon'
 );
 
