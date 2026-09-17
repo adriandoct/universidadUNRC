@@ -1605,6 +1605,12 @@ export const db = {
               item.tutor = 'Tutor UNRC';
             }
 
+            if (!item.docente_nombre || item.docente_nombre.includes('Tutor') || item.docente_nombre === 'Tutor UNRC') {
+              hadChanges = true;
+              item.docente_nombre = 'Dr. Adrian Silva';
+              item.docente_id = 'docente-3';
+            }
+
             if (!item.password) {
               hadChanges = true;
               item.password = getDefaultUserPassword(item.matricula, '2026-2');
@@ -1696,6 +1702,8 @@ export const db = {
                 ? 'c3333333-3333-3333-3333-333333333333'
                 : sa.carrera_id || mockMatch?.carrera_id || '',
               tutor: resolvedTutor,
+              docente_nombre: sa.docente_nombre || mockMatch?.docente_nombre || 'Dr. Adrian Silva',
+              docente_id: sa.docente_id || mockMatch?.docente_id || 'docente-3',
               password: sa.password || mockMatch?.password || getDefaultUserPassword(sa.matricula, '2026-2'),
               sede_id: resolvedSedeId,
               sede_nombre: resolvedSedeNombre,
@@ -1714,6 +1722,8 @@ export const db = {
 
     const seeded = MOCK_ALUMNOS.map(a => ({
       ...a,
+      docente_nombre: a.docente_nombre || 'Dr. Adrian Silva',
+      docente_id: a.docente_id || 'docente-3',
       password: a.password || getDefaultUserPassword(a.matricula, '2026-2')
     }));
     localStorage.setItem('unrc_alumnos', JSON.stringify(seeded));
@@ -2055,6 +2065,8 @@ export const db = {
         if (updates.estado_matricula !== undefined) supabasePayload.estado_matricula = updates.estado_matricula;
         if (updates.ciclo_id !== undefined) supabasePayload.ciclo_id = updates.ciclo_id;
         if (updates.qr_code !== undefined) supabasePayload.qr_code = updates.qr_code;
+        if (updates.docente_nombre !== undefined) supabasePayload.docente_nombre = updates.docente_nombre;
+        if (updates.docente_id !== undefined) supabasePayload.docente_id = updates.docente_id;
         if (updates.password !== undefined) supabasePayload.password = updates.password;
 
         if (Object.keys(supabasePayload).length > 0) {

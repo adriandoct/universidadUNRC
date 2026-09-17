@@ -242,6 +242,7 @@ export default function AdminDashboardPage() {
     sede_id: '',
     ciclo_id: '',
     estado_matricula: 'activo' as 'activo' | 'baja_temporal' | 'egresado' | 'aspirante',
+    docente_nombre: 'Dr. Adrian Silva',
     tutor: 'Tutor UNRC',
     telefono: '',
     password: '',
@@ -841,6 +842,7 @@ export default function AdminDashboardPage() {
           sede_nombre: selectedSede?.nombre,
           ciclo_id: alumnoForm.ciclo_id,
           estado_matricula: alumnoForm.estado_matricula,
+          docente_nombre: alumnoForm.docente_nombre || 'Dr. Adrian Silva',
           tutor: alumnoForm.tutor,
           telefono: alumnoForm.telefono,
           password: assignedPassword,
@@ -863,6 +865,7 @@ export default function AdminDashboardPage() {
                   sede_nombre: selectedSede?.nombre || a.sede_nombre,
                   ciclo_id: alumnoForm.ciclo_id,
                   estado_matricula: alumnoForm.estado_matricula,
+                  docente_nombre: alumnoForm.docente_nombre || 'Dr. Adrian Silva',
                   tutor: alumnoForm.tutor,
                   telefono: alumnoForm.telefono,
                   password: assignedPassword,
@@ -885,6 +888,7 @@ export default function AdminDashboardPage() {
           sede_nombre: selectedSede?.nombre,
           ciclo_id: alumnoForm.ciclo_id,
           estado_matricula: alumnoForm.estado_matricula,
+          docente_nombre: alumnoForm.docente_nombre || 'Dr. Adrian Silva',
           tutor: alumnoForm.tutor,
           telefono: alumnoForm.telefono,
           qr_code: alumnoForm.matricula,
@@ -2357,7 +2361,12 @@ export default function AdminDashboardPage() {
                             <div className="font-bold text-white">
                               {al.nombre} {al.apellido_paterno} {al.apellido_materno || ''}
                             </div>
-                            <div className="text-[10px] text-gray-400">Tutor: {al.tutor}</div>
+                            <div className="text-[10px] text-emerald-400 font-semibold flex items-center space-x-1">
+                              <span>👨‍🏫 Docente:</span>
+                              <span className="text-emerald-300 font-bold">
+                                {al.docente_nombre || (al.grupo?.toUpperCase().includes('TUR') || al.grupo?.toUpperCase().includes('ADM') || al.grupo?.toUpperCase().includes('PHLAC') ? 'Dr. Adrian Silva' : 'Dr. Adrian Silva')}
+                              </span>
+                            </div>
                           </td>
                           <td className="p-3.5">
                             <select
@@ -2479,6 +2488,7 @@ export default function AdminDashboardPage() {
                                   sede_id: al.sede_id || '',
                                   ciclo_id: al.ciclo_id || '',
                                   estado_matricula: al.estado_matricula || 'activo',
+                                  docente_nombre: al.docente_nombre || 'Dr. Adrian Silva',
                                   tutor: al.tutor,
                                   telefono: al.telefono,
                                   password: al.password || getDefaultUserPassword(al.matricula, '2026-2'),
@@ -4076,14 +4086,14 @@ export default function AdminDashboardPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-gray-400 block mb-1">Tutor Institucional o Legal</label>
+                  <label className="text-emerald-400 block mb-1 font-semibold">👨‍🏫 Docente Asignado</label>
                   <input
                     type="text"
                     required
-                    placeholder="Tutor UNRC"
-                    value={alumnoForm.tutor}
-                    onChange={(e) => setAlumnoForm({ ...alumnoForm, tutor: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white"
+                    placeholder="Dr. Adrian Silva"
+                    value={alumnoForm.docente_nombre}
+                    onChange={(e) => setAlumnoForm({ ...alumnoForm, docente_nombre: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-white/5 border border-emerald-500/30 text-white font-medium focus:border-emerald-400"
                   />
                 </div>
                 <div>

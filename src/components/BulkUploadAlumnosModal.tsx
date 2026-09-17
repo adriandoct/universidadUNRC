@@ -52,6 +52,8 @@ interface ParsedAlumnoRow {
   sede_nombre: string;
   estado_matricula: 'activo' | 'baja_temporal' | 'egresado' | 'aspirante';
   tutor: string;
+  docente_nombre?: string;
+  docente_id?: string;
   telefono: string;
   password?: string;
   qr_code?: string;
@@ -1071,6 +1073,8 @@ export default function BulkUploadAlumnosModal({
         sede_nombre: resolvedSede.nombre,
         estado_matricula: resolvedEstado,
         tutor: cleanRowTutor,
+        docente_nombre: foundDocente || targetDocenteName || 'Dr. Adrian Silva',
+        docente_id: 'docente-3',
         telefono: rowTel || '+525500000000',
         password: rowPwd,
         qr_code: rawMat,
@@ -1323,8 +1327,8 @@ export default function BulkUploadAlumnosModal({
           estado_matricula: r.estado_matricula,
           tutor: sanitizedTutor,
           telefono: r.telefono,
-          docente_nombre: formattedDocenteNombre,
-          docente_id: finalDocenteRecord?.id,
+          docente_nombre: formattedDocenteNombre || r.docente_nombre || targetDocenteName || 'Dr. Adrian Silva',
+          docente_id: finalDocenteRecord?.id || r.docente_id || 'docente-3',
           password: r.password?.trim() || getDefaultUserPassword(r.matricula, '2026-2'),
           qr_code: r.matricula
         };
@@ -1891,7 +1895,7 @@ export default function BulkUploadAlumnosModal({
                         <th className="p-2.5">Licenciatura</th>
                         <th className="p-2.5">Grupo / Semestre</th>
                         <th className="p-2.5">Sede</th>
-                        <th className="p-2.5">Tutor Titular</th>
+                        <th className="p-2.5">Docente Asignado</th>
                         <th className="p-2.5">Contraseña Asignada</th>
                       </tr>
                     </thead>
@@ -1974,7 +1978,12 @@ export default function BulkUploadAlumnosModal({
                             <td className="p-2.5 text-gray-300 truncate max-w-[140px]" title={r.sede_nombre}>
                               {r.sede_nombre}
                             </td>
-                            <td className="p-2.5 text-gray-300 whitespace-nowrap">{r.tutor}</td>
+                            <td className="p-2.5 whitespace-nowrap">
+                              <span className="inline-flex items-center space-x-1 text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/25 font-semibold text-[10px]">
+                                <span>👨‍🏫</span>
+                                <span>{targetDocenteName || r.docente_nombre || 'Dr. Adrian Silva'}</span>
+                              </span>
+                            </td>
                             <td className="p-2.5 font-mono text-gray-300 text-[10px] whitespace-nowrap">
                               {r.password?.trim()
                                 ? r.password
