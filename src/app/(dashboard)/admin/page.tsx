@@ -1472,135 +1472,179 @@ export default function AdminDashboardPage() {
         {/* ========================================================= */}
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
-            {/* 1. TOP KPI CARDS WITH VIBRANT GRADIENTS & CURVED ACCENTS */}
+            {/* 1. TOP KPI CARDS: COMBINACIÓN INSTITUCIONAL GUINDA, AMARILLO Y BLANCO */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Card 1: Total Teachers */}
-              <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-[#FF7A8A] via-[#FF8595] to-[#FFA07A] p-6 text-white shadow-sm transition-transform hover:-translate-y-0.5">
-                <div className="pointer-events-none absolute -bottom-10 -right-10 h-40 w-40 rounded-full bg-white/20" />
-                <div className="pointer-events-none absolute -bottom-16 right-16 h-32 w-32 rounded-full bg-white/15" />
+              {/* Tarjeta 1: GUINDA INSTITUCIONAL (Total Docentes) */}
+              <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-[#5B142F] via-[#701538] to-[#8A1B46] p-6 text-white shadow-sm border border-[#5B142F]/80 transition-transform hover:-translate-y-0.5">
+                <div className="pointer-events-none absolute -bottom-10 -right-10 h-40 w-40 rounded-full bg-white/10" />
+                <div className="pointer-events-none absolute -bottom-16 right-16 h-32 w-32 rounded-full bg-[#E8A938]/15" />
 
                 <div className="relative z-10 flex flex-col justify-between h-32">
-                  <span className="text-sm font-medium tracking-wide text-white/95">Total Teachers</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold tracking-wide text-amber-200">Total Docentes</span>
+                    <span className="text-[11px] bg-black/20 text-amber-300 border border-amber-300/30 px-2 py-0.5 rounded-full font-semibold">
+                      Activos
+                    </span>
+                  </div>
                   <div>
-                    <div className="text-4xl sm:text-5xl font-extrabold tracking-tight">
+                    <div className="text-4xl sm:text-5xl font-black tracking-tight text-white">
                       {docentes.length > 0 ? docentes.length : 9}
                     </div>
+                    <p className="text-[11px] text-amber-100/80 font-medium mt-1">
+                      Planta docente verificada
+                    </p>
                   </div>
                 </div>
               </div>
 
-              {/* Card 2: Total Students */}
-              <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-[#3BA9F5] via-[#4AB5F9] to-[#60C3FF] p-6 text-white shadow-sm transition-transform hover:-translate-y-0.5">
-                <div className="pointer-events-none absolute -bottom-10 -right-10 h-40 w-40 rounded-full bg-white/20" />
+              {/* Tarjeta 2: AMARILLO / DORADO INSTITUCIONAL (Total Estudiantes) */}
+              <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-[#B45309] via-[#D97706] to-[#E8A938] p-6 text-white shadow-sm border border-amber-500/40 transition-transform hover:-translate-y-0.5">
+                <div className="pointer-events-none absolute -bottom-10 -right-10 h-40 w-40 rounded-full bg-white/25" />
                 <div className="pointer-events-none absolute -bottom-16 right-16 h-32 w-32 rounded-full bg-white/15" />
 
                 <div className="relative z-10 flex flex-col justify-between h-32">
-                  <span className="text-sm font-medium tracking-wide text-white/95">Total Students</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-extrabold tracking-wide text-white drop-shadow-xs">Total Estudiantes</span>
+                    <span className="text-[11px] bg-white/20 text-white border border-white/40 px-2 py-0.5 rounded-full font-bold">
+                      Ciclo 2026-2
+                    </span>
+                  </div>
                   <div>
-                    <div className="text-4xl sm:text-5xl font-extrabold tracking-tight">
+                    <div className="text-4xl sm:text-5xl font-black tracking-tight text-white drop-shadow-xs">
                       {alumnos.length > 0 ? alumnos.length : 26}
                     </div>
+                    <p className="text-[11px] text-white/90 font-medium mt-1">
+                      Matrícula activa en campus
+                    </p>
                   </div>
                 </div>
               </div>
 
-              {/* Card 3: Total Parents */}
-              <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-[#20CBA5] via-[#2ED9B4] to-[#45E4C2] p-6 text-white shadow-sm transition-transform hover:-translate-y-0.5">
-                <div className="pointer-events-none absolute -bottom-10 -right-10 h-40 w-40 rounded-full bg-white/20" />
-                <div className="pointer-events-none absolute -bottom-16 right-16 h-32 w-32 rounded-full bg-white/15" />
+              {/* Tarjeta 3: BLANCO PURO CON ACENTOS GUINDA & DORADO (Total Tutores y Familias) */}
+              <div className="relative overflow-hidden rounded-xl bg-white border-2 border-[#5B142F]/15 p-6 text-gray-800 shadow-sm transition-transform hover:-translate-y-0.5 hover:border-[#E8A938]/60">
+                <div className="pointer-events-none absolute -bottom-10 -right-10 h-40 w-40 rounded-full bg-[#5B142F]/5" />
+                <div className="pointer-events-none absolute -bottom-16 right-16 h-32 w-32 rounded-full bg-[#E8A938]/15" />
 
                 <div className="relative z-10 flex flex-col justify-between h-32">
-                  <span className="text-sm font-medium tracking-wide text-white/95">Total Parents</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-extrabold tracking-wide text-[#5B142F]">Total Tutores y Familias</span>
+                    <span className="text-[11px] bg-amber-50 text-[#92400E] border border-amber-200/80 px-2 py-0.5 rounded-full font-bold">
+                      Comunidad
+                    </span>
+                  </div>
                   <div>
-                    <div className="text-4xl sm:text-5xl font-extrabold tracking-tight">
+                    <div className="text-4xl sm:text-5xl font-black tracking-tight text-[#5B142F]">
                       {grupos.length + secciones.length > 0 ? grupos.length + secciones.length : 30}
                     </div>
+                    <p className="text-[11px] text-gray-500 font-medium mt-1">
+                      Vinculación estudiantil y familiar
+                    </p>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* 2. MIDDLE ROW: TOP RANKERS 🏆 & ATTENDANCE BAR CHART */}
+            {/* 2. FILA MEDIA: ALUMNOS DESTACADOS 🏆 & ASISTENCIA */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              {/* Left: Top Rankers 🏆 in White Card */}
-              <div className="lg:col-span-7 bg-white rounded-xl p-6 shadow-xs border border-gray-200/70 flex flex-col justify-between min-h-[340px]">
+              {/* Izquierda: Alumnos Destacados 🏆 en Tarjeta Blanca */}
+              <div className="lg:col-span-7 bg-white rounded-xl p-6 shadow-xs border border-gray-200/80 flex flex-col justify-between min-h-[340px]">
                 <div>
                   <div className="flex items-center justify-between mb-5">
-                    <h3 className="text-base font-bold text-gray-800 flex items-center space-x-2">
-                      <span>Top Rankers</span>
+                    <h3 className="text-base font-extrabold text-[#5B142F] flex items-center space-x-2">
+                      <span>Alumnos Destacados</span>
                       <span className="text-lg">🏆</span>
                     </h3>
+                    <span className="text-xs font-bold text-[#E8A938] bg-amber-50 px-2.5 py-1 rounded-md border border-amber-200/70">
+                      Excelencia Académica
+                    </span>
                   </div>
 
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-xs text-gray-600">
                       <thead>
-                        <tr className="border-b border-gray-100 text-[11px] text-gray-400 font-semibold">
-                          <th className="pb-3 w-12 text-left">No.</th>
-                          <th className="pb-3 px-3 text-left">Class Name</th>
-                          <th className="pb-3 px-3 text-left">Student Name</th>
-                          <th className="pb-3 text-right">Percentage</th>
+                        <tr className="border-b border-gray-100 text-[11px] text-gray-400 font-bold uppercase tracking-wider">
+                          <th className="pb-3 w-12 text-left">N°</th>
+                          <th className="pb-3 px-3 text-left">Materia / Grupo</th>
+                          <th className="pb-3 px-3 text-left">Nombre del Estudiante</th>
+                          <th className="pb-3 text-right">Promedio</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
-                        <tr className="hover:bg-gray-50/80 transition-colors">
-                          <td className="py-3.5 font-bold text-gray-700">1</td>
-                          <td className="py-3.5 px-3 text-gray-700">201Maestria - 201 Español</td>
-                          <td className="py-3.5 px-3 font-semibold text-gray-900">Carlos Alonso Cano Ramirez</td>
-                          <td className="py-3.5 text-right font-semibold text-gray-800">96 %</td>
+                        <tr className="hover:bg-amber-50/40 transition-colors">
+                          <td className="py-3.5 font-black text-[#5B142F]">🥇 1</td>
+                          <td className="py-3.5 px-3 text-gray-700 font-medium">201Maestría - Lengua Española</td>
+                          <td className="py-3.5 px-3 font-bold text-gray-900">Carlos Alonso Cano Ramirez</td>
+                          <td className="py-3.5 text-right font-black">
+                            <span className="bg-[#5B142F] text-amber-200 px-2.5 py-1 rounded-md text-xs">
+                              98 %
+                            </span>
+                          </td>
                         </tr>
-                        <tr className="hover:bg-gray-50/80 transition-colors">
-                          <td className="py-3.5 font-bold text-gray-700">2</td>
-                          <td className="py-3.5 px-3 text-gray-700">201-TUR - Hospedaje</td>
-                          <td className="py-3.5 px-3 font-semibold text-gray-900">
+                        <tr className="hover:bg-amber-50/40 transition-colors">
+                          <td className="py-3.5 font-bold text-gray-700">🥈 2</td>
+                          <td className="py-3.5 px-3 text-gray-700 font-medium">201-TUR - Gestión y Hospedaje</td>
+                          <td className="py-3.5 px-3 font-bold text-gray-900">
                             {alumnos[0] ? `${alumnos[0].nombre} ${alumnos[0].apellido_paterno} ${alumnos[0].apellido_materno || ''}`.trim() : 'Angélica Altamirano Solórzano'}
                           </td>
-                          <td className="py-3.5 text-right font-semibold text-gray-800">95 %</td>
+                          <td className="py-3.5 text-right font-bold">
+                            <span className="bg-amber-100 text-[#92400E] px-2.5 py-1 rounded-md text-xs">
+                              96 %
+                            </span>
+                          </td>
                         </tr>
-                        <tr className="hover:bg-gray-50/80 transition-colors">
-                          <td className="py-3.5 font-bold text-gray-700">3</td>
-                          <td className="py-3.5 px-3 text-gray-700">203-ADM - Matemáticas</td>
-                          <td className="py-3.5 px-3 font-semibold text-gray-900">
+                        <tr className="hover:bg-amber-50/40 transition-colors">
+                          <td className="py-3.5 font-bold text-gray-700">🥉 3</td>
+                          <td className="py-3.5 px-3 text-gray-700 font-medium">203-ADM - Matemáticas Financieras</td>
+                          <td className="py-3.5 px-3 font-bold text-gray-900">
                             {alumnos[1] ? `${alumnos[1].nombre} ${alumnos[1].apellido_paterno} ${alumnos[1].apellido_materno || ''}`.trim() : 'Dayanna Gissel Buitimea Garma'}
                           </td>
-                          <td className="py-3.5 text-right font-semibold text-gray-800">94 %</td>
+                          <td className="py-3.5 text-right font-bold">
+                            <span className="bg-amber-100 text-[#92400E] px-2.5 py-1 rounded-md text-xs">
+                              95 %
+                            </span>
+                          </td>
                         </tr>
-                        <tr className="hover:bg-gray-50/80 transition-colors">
+                        <tr className="hover:bg-amber-50/40 transition-colors">
                           <td className="py-3.5 font-bold text-gray-700">4</td>
-                          <td className="py-3.5 px-3 text-gray-700">101 - Ciencia de Datos</td>
-                          <td className="py-3.5 px-3 font-semibold text-gray-900">
+                          <td className="py-3.5 px-3 text-gray-700 font-medium">101 - Ciencia de Datos e IA</td>
+                          <td className="py-3.5 px-3 font-bold text-gray-900">
                             {alumnos[2] ? `${alumnos[2].nombre} ${alumnos[2].apellido_paterno} ${alumnos[2].apellido_materno || ''}`.trim() : 'Emili Janeht Armenta Mancinas'}
                           </td>
-                          <td className="py-3.5 text-right font-semibold text-gray-800">92 %</td>
+                          <td className="py-3.5 text-right font-bold">
+                            <span className="bg-gray-100 text-gray-700 px-2.5 py-1 rounded-md text-xs">
+                              93 %
+                            </span>
+                          </td>
                         </tr>
                       </tbody>
                     </table>
                   </div>
                 </div>
 
-                <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-400">
+                <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
                   <span>Récord académico verificado • Campus Tijuana</span>
                   <button
                     onClick={() => setActiveTab('matriculas')}
                     className="text-[#5B142F] hover:text-[#851D44] font-bold text-xs flex items-center space-x-1"
                   >
                     <span>Ver expediente completo</span>
-                    <span>→</span>
+                    <span className="text-[#E8A938]">→</span>
                   </button>
                 </div>
               </div>
 
-              {/* Right: Attendance Bar Chart in White Card */}
-              <div className="lg:col-span-5 bg-white rounded-xl p-6 shadow-xs border border-gray-200/70 flex flex-col justify-between min-h-[340px]">
+              {/* Derecha: Gráfico de Asistencia con Barras Guinda y Amarillo */}
+              <div className="lg:col-span-5 bg-white rounded-xl p-6 shadow-xs border border-gray-200/80 flex flex-col justify-between min-h-[340px]">
                 <div>
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-base font-bold text-gray-800">Attendance</h3>
+                    <h3 className="text-base font-extrabold text-[#5B142F]">Registro de Asistencia</h3>
+                    <span className="text-[11px] font-bold text-gray-500">Sede Tijuana</span>
                   </div>
 
-                  {/* Vertical Bar Chart matching Image 2 */}
+                  {/* Gráfico de Barras Verticales */}
                   <div className="relative pt-6 pb-2">
                     <div className="flex">
-                      {/* Y-axis Labels (100 to 0) */}
+                      {/* Escala Y (100 a 0) */}
                       <div className="flex flex-col justify-between text-[10px] font-medium text-gray-400 pr-3 select-none h-44 text-right w-8">
                         <span>100</span>
                         <span>90</span>
@@ -1615,151 +1659,163 @@ export default function AdminDashboardPage() {
                         <span>0</span>
                       </div>
 
-                      {/* Bars Container */}
+                      {/* Contenedor de Barras */}
                       <div className="flex-1 h-44 border-b border-l border-gray-200 flex items-end justify-around px-6 relative">
-                        {/* Bar 1: Pink/Coral 98% (201Maestria - 201 Español) */}
+                        {/* Barra 1: Guinda Institucional 98% */}
                         <div className="flex flex-col items-center group relative z-10 w-16">
+                          <span className="text-[10px] font-bold text-[#5B142F] mb-1">98%</span>
                           <div
                             style={{ height: '98%' }}
-                            className="w-12 bg-[#FF6584] rounded-t-sm shadow-xs transition-transform group-hover:scale-105 cursor-pointer"
+                            className="w-12 bg-gradient-to-t from-[#5B142F] to-[#7D1D41] rounded-t-sm shadow-xs transition-transform group-hover:scale-105 cursor-pointer"
+                            title="201Maestría - Lengua Española: 98%"
                           ></div>
                         </div>
 
-                        {/* Bar 2: Blue 72% (101Maestria - 101 Español) */}
+                        {/* Barra 2: Amarillo / Dorado Institucional 75% */}
                         <div className="flex flex-col items-center group relative z-10 w-16">
+                          <span className="text-[10px] font-bold text-[#B45309] mb-1">75%</span>
                           <div
-                            style={{ height: '72%' }}
-                            className="w-12 bg-[#0080E6] rounded-t-sm shadow-xs transition-transform group-hover:scale-105 cursor-pointer"
+                            style={{ height: '75%' }}
+                            className="w-12 bg-gradient-to-t from-[#D97706] to-[#E8A938] rounded-t-sm shadow-xs transition-transform group-hover:scale-105 cursor-pointer"
+                            title="101Maestría - Lengua Española: 75%"
                           ></div>
                         </div>
                       </div>
                     </div>
 
-                    {/* X-axis Labels */}
-                    <div className="flex justify-around pl-8 pt-2.5 text-[9.5px] text-gray-500 font-medium">
-                      <span className="w-28 text-center truncate">201Maestria - 201 Español</span>
-                      <span className="w-28 text-center truncate">101Maestria - 101 Español</span>
+                    {/* Etiquetas Eje X */}
+                    <div className="flex justify-around pl-8 pt-2.5 text-[9.5px] text-gray-700 font-semibold">
+                      <span className="w-28 text-center truncate">201Maestría - Español</span>
+                      <span className="w-28 text-center truncate">101Maestría - Español</span>
                     </div>
                   </div>
                 </div>
 
-                <p className="text-[11px] text-center text-gray-400 mt-2 font-medium">
-                  Attendance Percentage by Class Section
+                <p className="text-[11px] text-center text-gray-500 mt-2 font-semibold">
+                  Porcentaje de Asistencia por Asignatura y Grupo
                 </p>
               </div>
             </div>
 
-            {/* 3. BOTTOM ROW: TEACHER & GENDER (EXACT IMAGE 2)          */}
+            {/* 3. FILA INFERIOR: PLANTA DOCENTE & GÉNERO */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              {/* Left: Teacher List in White Card */}
-              <div className="lg:col-span-7 bg-white rounded-xl p-6 shadow-xs border border-gray-200/70 flex flex-col justify-between min-h-[260px]">
+              {/* Izquierda: Lista de Docentes */}
+              <div className="lg:col-span-7 bg-white rounded-xl p-6 shadow-xs border border-gray-200/80 flex flex-col justify-between min-h-[260px]">
                 <div>
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-base font-bold text-gray-800">Teacher</h3>
+                    <h3 className="text-base font-extrabold text-[#5B142F]">Planta Docente</h3>
+                    <span className="text-xs text-amber-600 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                      Claustro Activo
+                    </span>
                   </div>
 
                   <div className="space-y-4">
-                    {/* Teacher 1: Diego Alberto Pineda Gonzalez */}
+                    {/* Docente 1 */}
                     <div className="flex items-center justify-between py-1">
                       <div className="flex items-center space-x-3.5">
-                        <div className="w-10 h-10 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-500 text-sm shadow-2xs">
-                          👨‍🏫
+                        <div className="w-10 h-10 rounded-full bg-[#5B142F]/10 border border-[#5B142F]/30 flex items-center justify-center text-[#5B142F] font-black text-xs shadow-2xs">
+                          DP
                         </div>
                         <div>
-                          <p className="text-xs font-bold text-gray-800 leading-snug">
+                          <p className="text-xs font-bold text-gray-900 leading-snug">
                             Diego Alberto Pineda Gonzalez
                           </p>
-                          <p className="text-[11px] text-gray-400">Excelente</p>
+                          <p className="text-[11px] text-amber-600 font-medium">★★★★★ Evaluación de Excelencia</p>
                         </div>
                       </div>
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-xs mr-3"></span>
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-xs mr-3" title="Activo"></span>
                     </div>
 
-                    {/* Teacher 2: Scandy Michelle patron palma */}
+                    {/* Docente 2 */}
                     <div className="flex items-center justify-between py-1">
                       <div className="flex items-center space-x-3.5">
-                        <div className="w-10 h-10 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-500 text-sm shadow-2xs">
-                          👩‍🏫
+                        <div className="w-10 h-10 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center text-[#B45309] font-black text-xs shadow-2xs">
+                          SP
                         </div>
                         <div>
-                          <p className="text-xs font-bold text-gray-800 leading-snug">
-                            Scandy Michelle patron palma
+                          <p className="text-xs font-bold text-gray-900 leading-snug">
+                            Scandy Michelle Patron Palma
                           </p>
-                          <p className="text-[11px] text-gray-400">excelente</p>
+                          <p className="text-[11px] text-amber-600 font-medium">★★★★★ Evaluación de Excelencia</p>
                         </div>
                       </div>
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-xs mr-3"></span>
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-xs mr-3" title="Activo"></span>
                     </div>
 
-                    {/* Teacher 3: Dr. Adrian Silva */}
+                    {/* Docente 3 */}
                     <div className="flex items-center justify-between py-1">
                       <div className="flex items-center space-x-3.5">
-                        <div className="w-10 h-10 rounded-full bg-[#5B142F]/10 border border-[#5B142F]/30 flex items-center justify-center text-[#5B142F] font-bold text-xs shadow-2xs">
+                        <div className="w-10 h-10 rounded-full bg-[#5B142F] text-amber-300 border border-[#E8A938] flex items-center justify-center font-black text-xs shadow-2xs">
                           AS
                         </div>
                         <div>
-                          <p className="text-xs font-bold text-gray-800 leading-snug">
+                          <p className="text-xs font-bold text-gray-900 leading-snug">
                             {docentes[2] ? `${docentes[2].nombre} ${docentes[2].apellido_paterno}` : 'Dr. Adrian Silva'}
                           </p>
-                          <p className="text-[11px] text-gray-400">Excelente • Dirección Campus Tijuana</p>
+                          <p className="text-[11px] text-[#5B142F] font-medium">★★★★★ Dirección y Gestión Campus Tijuana</p>
                         </div>
                       </div>
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-xs mr-3"></span>
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-xs mr-3" title="Activo"></span>
                     </div>
                   </div>
                 </div>
 
-                <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-400">
+                <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
                   <span>Claustro académico activo ({docentes.length || 9})</span>
                   <button
                     onClick={() => setActiveTab('personal')}
-                    className="text-[#5B142F] hover:text-[#851D44] font-semibold"
+                    className="text-[#5B142F] hover:text-[#851D44] font-bold"
                   >
-                    Acceso Docente →
+                    Gestionar Personal Docente →
                   </button>
                 </div>
               </div>
 
-              {/* Right: Gender Donut Chart in White Card */}
-              <div className="lg:col-span-5 bg-white rounded-xl p-6 shadow-xs border border-gray-200/70 flex flex-col justify-between min-h-[260px]">
+              {/* Derecha: Gráfico de Género con Colores Guinda y Amarillo */}
+              <div className="lg:col-span-5 bg-white rounded-xl p-6 shadow-xs border border-gray-200/80 flex flex-col justify-between min-h-[260px]">
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-base font-bold text-gray-800">Gender</h3>
+                    <h3 className="text-base font-extrabold text-[#5B142F]">Distribución por Género</h3>
+                    <span className="text-[11px] font-bold text-gray-500">Campus Tijuana</span>
                   </div>
 
-                  {/* Semicircle Donut Chart matching Image 2 */}
+                  {/* Semicircle Donut Chart Guinda & Amarillo */}
                   <div className="relative flex flex-col items-center justify-center pt-2">
                     <svg viewBox="0 0 160 85" className="w-56 h-28 overflow-visible">
-                      {/* Left Arc: Pink / Coral (58%) */}
+                      {/* Arco Izquierdo: Guinda Institucional (58%) */}
                       <path
                         d="M 20 80 A 60 60 0 0 1 80 20 L 80 45 A 35 35 0 0 0 45 80 Z"
-                        fill="#FF6584"
+                        fill="#5B142F"
                         className="hover:opacity-90 transition-opacity cursor-pointer"
-                      />
+                      >
+                        <title>Femenino: 58%</title>
+                      </path>
 
-                      {/* Right Arc: Blue (42%) */}
+                      {/* Arco Derecho: Amarillo / Dorado Institucional (42%) */}
                       <path
                         d="M 80 20 A 60 60 0 0 1 140 80 L 115 80 A 35 35 0 0 0 80 45 Z"
-                        fill="#38BDF8"
+                        fill="#E8A938"
                         className="hover:opacity-90 transition-opacity cursor-pointer"
-                      />
+                      >
+                        <title>Masculino: 42%</title>
+                      </path>
                     </svg>
                   </div>
 
-                  {/* Legend */}
+                  {/* Leyenda */}
                   <div className="grid grid-cols-2 gap-3 mt-4 pt-3 border-t border-gray-100 text-xs">
                     <div className="flex items-center space-x-2">
-                      <span className="w-3 h-3 rounded-full bg-[#FF6584]"></span>
-                      <span className="text-gray-700 font-medium">Femenino (58%)</span>
+                      <span className="w-3 h-3 rounded-full bg-[#5B142F]"></span>
+                      <span className="text-gray-800 font-bold">Femenino (58%)</span>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <span className="w-3 h-3 rounded-full bg-[#38BDF8]"></span>
-                      <span className="text-gray-700 font-medium">Masculino (42%)</span>
+                      <span className="w-3 h-3 rounded-full bg-[#E8A938]"></span>
+                      <span className="text-gray-800 font-bold">Masculino (42%)</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="pt-2 text-center text-[10px] text-gray-400">
+                <div className="pt-2 text-center text-[10px] text-gray-500 font-medium">
                   Distribución estudiantil UNRC • Campus Tijuana
                 </div>
               </div>

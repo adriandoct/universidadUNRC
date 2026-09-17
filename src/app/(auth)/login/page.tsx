@@ -179,7 +179,7 @@ export default function LoginPage() {
         {/* Header Logo */}
         <div className="text-center space-y-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <div className="w-24 h-16 bg-[#5B142F] rounded-2xl mx-auto flex items-center justify-center shadow-lg border border-[#851D44] p-1 mb-3">
+          <div className="w-24 h-16 bg-[#5B142F] rounded-2xl mx-auto flex items-center justify-center shadow-lg border-2 border-[#E8A938] p-1 mb-3">
             <img
               src="/unrc_official_logo.png"
               alt="Universidad Nacional Rosario Castellanos"
@@ -187,7 +187,7 @@ export default function LoginPage() {
             />
           </div>
           <h1 className="text-xl font-extrabold text-white tracking-tight">Acceso Institucional Seguro</h1>
-          <p className="text-xs text-gray-400">Universidad Nacional Rosario Castellanos — Campus Tijuana</p>
+          <p className="text-xs text-amber-200/90 font-medium">Universidad Nacional Rosario Castellanos — Campus Tijuana</p>
         </div>
 
         {/* Role Selector Tabs */}
@@ -199,7 +199,7 @@ export default function LoginPage() {
               onClick={() => handleRoleChange(r)}
               className={`py-2 rounded-xl transition-all capitalize ${
                 selectedRole === r
-                  ? 'bg-gradient-to-r from-blue-600 to-emerald-600 text-white shadow-lg'
+                  ? 'bg-gradient-to-r from-[#5B142F] to-[#7D1D41] text-amber-300 border border-[#E8A938] shadow-lg'
                   : 'text-gray-400 hover:text-white'
               }`}
             >
@@ -234,7 +234,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder={selectedRole === 'admin' ? 'admin@admin.com' : selectedRole === 'teacher' ? 'DOC-UNRC-01' : 'UNRC-2026-001'}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#EEF2F6] border border-gray-300 text-gray-900 placeholder-gray-500 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors font-mono font-semibold"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#F8FAFC] border border-gray-300 text-gray-900 placeholder-gray-500 text-xs focus:outline-none focus:ring-2 focus:ring-[#E8A938] transition-colors font-mono font-semibold"
               />
             </div>
           </div>
@@ -245,7 +245,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="text-[11px] text-blue-400 hover:text-blue-300 flex items-center gap-1 font-medium"
+                className="text-[11px] text-amber-300 hover:text-amber-200 flex items-center gap-1 font-medium"
               >
                 {showPassword ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
                 {showPassword ? 'Ocultar' : 'Ver'}
@@ -259,7 +259,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••••"
-                className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-[#EEF2F6] border border-gray-300 text-gray-900 placeholder-gray-500 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors font-mono font-semibold"
+                className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-[#F8FAFC] border border-gray-300 text-gray-900 placeholder-gray-500 text-xs focus:outline-none focus:ring-2 focus:ring-[#E8A938] transition-colors font-mono font-semibold"
               />
             </div>
           </div>
@@ -267,7 +267,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#00A86B] to-[#00C853] hover:from-[#00965D] hover:to-[#00B048] text-white font-extrabold text-sm shadow-xl shadow-emerald-500/25 transition-all flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50 active:scale-98"
+            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#5B142F] via-[#72193C] to-[#5B142F] hover:from-[#4D0F25] hover:to-[#631433] text-amber-200 hover:text-white border border-[#E8A938]/60 font-extrabold text-sm shadow-xl shadow-[#5B142F]/40 transition-all flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50 active:scale-98"
           >
             {loading ? (
               <span className="flex items-center gap-2">
@@ -277,16 +277,16 @@ export default function LoginPage() {
             ) : (
               <>
                 <span>Ingresar al Sistema Seguro</span>
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-4 h-4 text-[#FBBF24]" />
               </>
             )}
           </button>
         </form>
 
         {/* Security Notice */}
-        <div className="p-3.5 rounded-2xl bg-black/40 border border-emerald-500/20 text-center space-y-1">
-          <p className="text-xs font-bold text-emerald-400 flex items-center justify-center space-x-1.5">
-            <ShieldCheck className="w-4 h-4 text-emerald-400" />
+        <div className="p-3.5 rounded-2xl bg-black/40 border border-[#E8A938]/30 text-center space-y-1">
+          <p className="text-xs font-bold text-amber-300 flex items-center justify-center space-x-1.5">
+            <ShieldCheck className="w-4 h-4 text-amber-300" />
             <span>Seguridad & Privacidad Institucional</span>
           </p>
           <p className="text-[11px] text-gray-400 leading-tight">
