@@ -417,6 +417,94 @@ INSERT INTO public.grades_sections (id, grade_level, section_name, academic_year
     ('e2030000-0000-0000-0000-000000000203', '2° Semestre', '203-ADM', 'a1111111-1111-1111-1111-111111111111')
 ON CONFLICT DO NOTHING;
 
+-- 6.1 DOCENTES INSTITUCIONALES (Dr. Adrian Silva y Claustro Académico)
+INSERT INTO public.docentes (
+    id, num_empleado, nombre, apellido_paterno, apellido_materno, email,
+    departamento, puesto, materias, carreras_asignadas, sede_id, sede_nombre, telefono
+) VALUES
+    (
+        'docente-3',
+        'DOC-UNRC-03',
+        'Adrian',
+        'Silva',
+        '',
+        'adrian.silva@rcastellanos.cdmx.gob.mx',
+        'Dirección Campus Tijuana / Lic. en Administración / Lic. en Turismo',
+        'docente',
+        ARRAY['Matemáticas para la Administración', 'Administración y Gestión Estratégica', 'Contabilidad y Finanzas Aplicadas', 'Administración de Empresas de Hospedaje', 'Programación para la ciencia de datos'],
+        ARRAY['Lic. en Administración', 'Lic. en Turismo', 'Licenciatura en Ciencia de Datos para los Negocios'],
+        'sede-tij',
+        'Campus Tijuana',
+        '+526641234567'
+    ),
+    (
+        'docente-1',
+        'DOC-UNRC-01',
+        'Alejandro',
+        'Valdez',
+        'Mendoza',
+        'alejandro.valdez@rcastellanos.cdmx.gob.mx',
+        'Lic. en Ciencias de Datos e IA',
+        'docente',
+        ARRAY['Programación Web y Bases de Datos', 'Inteligencia Artificial y Aprendizaje Automático', 'Minería de Datos y Modelado Predictivo'],
+        ARRAY['Lic. en Ciencias de Datos e Inteligencia Artificial', 'Licenciatura en Ciencia de Datos para los Negocios'],
+        'sede-tij',
+        'Campus Tijuana',
+        '+525599887766'
+    ),
+    (
+        'docente-2',
+        'DOC-UNRC-02',
+        'Beatriz',
+        'Sánchez',
+        'Pineda',
+        'beatriz.sanchez@rcastellanos.cdmx.gob.mx',
+        'Lic. en TIC',
+        'docente',
+        ARRAY['Estructura de Datos y Algoritmos', 'Ingeniería de Software y Sistemas Web'],
+        ARRAY['Lic. en Tecnologías de la Información y Comunicación'],
+        'sede-tij',
+        'Campus Tijuana',
+        '+525588776655'
+    )
+ON CONFLICT (num_empleado) DO UPDATE SET
+    nombre = EXCLUDED.nombre,
+    apellido_paterno = EXCLUDED.apellido_paterno,
+    departamento = EXCLUDED.departamento,
+    materias = EXCLUDED.materias,
+    carreras_asignadas = EXCLUDED.carreras_asignadas,
+    sede_id = EXCLUDED.sede_id,
+    sede_nombre = EXCLUDED.sede_nombre;
+
+-- 6.2 PROFILES Y TEACHERS RELACIONALES (Para Horarios y Asignaturas)
+INSERT INTO public.profiles (id, full_name, role, email, avatar_url) VALUES
+    ('d0000003-0000-0000-0000-000000000003', 'Dr. Adrian Silva', 'teacher', 'adrian.silva@rcastellanos.cdmx.gob.mx', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200&h=200'),
+    ('d0000001-0000-0000-0000-000000000001', 'Mtro. Alejandro Valdez', 'teacher', 'alejandro.valdez@rcastellanos.cdmx.gob.mx', 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=200&h=200'),
+    ('d0000002-0000-0000-0000-000000000002', 'Mtra. Beatriz Sánchez', 'teacher', 'beatriz.sanchez@rcastellanos.cdmx.gob.mx', 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200&h=200')
+ON CONFLICT (id) DO UPDATE SET
+    full_name = EXCLUDED.full_name,
+    role = EXCLUDED.role,
+    email = EXCLUDED.email;
+
+INSERT INTO public.teachers (id, profile_id, specialty) VALUES
+    ('t0000003-0000-0000-0000-000000000003', 'd0000003-0000-0000-0000-000000000003', 'Administración y Ciencias de Datos'),
+    ('t0000001-0000-0000-0000-000000000001', 'd0000001-0000-0000-0000-000000000001', 'Inteligencia Artificial y Modelado Predictivo'),
+    ('t0000002-0000-0000-0000-000000000002', 'd0000002-0000-0000-0000-000000000002', 'Estructuras de Datos y Redes')
+ON CONFLICT (profile_id) DO NOTHING;
+
+-- 6.3 ASIGNATURAS / COURSES ASIGNADOS AL DOCENTE DR. ADRIAN SILVA
+INSERT INTO public.courses (id, name, teacher_id, grade_section_id, academic_year_id, schedule_description) VALUES
+    ('c2010000-0000-0000-0000-000000000201', 'Administración de Empresas de Hospedaje', 't0000003-0000-0000-0000-000000000003', 'e2010000-0000-0000-0000-000000000201', 'a1111111-1111-1111-1111-111111111111', 'Miércoles (09:00 - 11:00) y Sábados (07:00 - 09:00) - Docente: Dr. Adrian Silva'),
+    ('c2030000-0000-0000-0000-000000000203', 'Matemáticas para la Administración', 't0000003-0000-0000-0000-000000000003', 'e2030000-0000-0000-0000-000000000203', 'a1111111-1111-1111-1111-111111111111', 'Lunes (07:00 - 09:00) y Miércoles (11:00 - 13:00) - Docente: Dr. Adrian Silva')
+ON CONFLICT DO NOTHING;
+
+-- 6.4 ASIGNAR DOCENTE DR. ADRIAN SILVA EN EXPEDIENTES DE ALUMNOS IMPORTADOS
+UPDATE public.alumnos
+SET docente_nombre = 'Dr. Adrian Silva',
+    docente_id = 'docente-3'
+WHERE (grupo ILIKE '%201-TUR%' OR grupo ILIKE '%203-ADM%' OR grupo ILIKE '%PHLAC%')
+  AND (docente_nombre IS NULL OR docente_nombre = '');
+
 -- ==========================================
 -- 7. TIMETABLE & SCHEDULE SYSTEM (HORARIOS ESCOLARES)
 -- ==========================================

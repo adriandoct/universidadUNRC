@@ -555,6 +555,35 @@ const initLocalStorage = () => {
     localStorage.setItem('unrc_docentes_tij_v1', 'true');
   }
 
+  // Ensure Docentes are also seeded into Supabase
+  if (!localStorage.getItem('unrc_docentes_supabase_synced_v1') && supabase) {
+    try {
+      const docPayloads = MOCK_DOCENTES.map(d => ({
+        id: d.id,
+        num_empleado: d.num_empleado,
+        nombre: d.nombre,
+        apellido_paterno: d.apellido_paterno,
+        apellido_materno: d.apellido_materno || '',
+        email: d.email,
+        departamento: d.departamento,
+        puesto: d.puesto || 'docente',
+        materias: d.materias,
+        carreras_asignadas: d.carreras_asignadas,
+        sede_id: 'sede-tij',
+        sede_nombre: 'Campus Tijuana',
+        telefono: d.telefono,
+        password: d.password || getDefaultUserPassword(d.num_empleado, '2026-2')
+      }));
+      supabase.from('docentes').upsert(docPayloads, { onConflict: 'num_empleado' }).then(() => {
+        localStorage.setItem('unrc_docentes_supabase_synced_v1', 'true');
+      }).catch(err => {
+        console.warn('Docentes initial sync to Supabase notice:', err);
+      });
+    } catch (e) {
+      console.warn('Docentes initial sync notice:', e);
+    }
+  }
+
   // Seed or normalize all alumnos: All students correspond to Campus Tijuana
   if (!localStorage.getItem('unrc_alumnos')) {
     localStorage.setItem('unrc_alumnos', JSON.stringify(MOCK_ALUMNOS));
@@ -2522,7 +2551,9 @@ export const db = {
       carreraNombre?: string;
       carreraId?: string;
       grupoClave?: string;
+      grupo?: string;
       materiaNombre?: string;
+      asignatura?: string;
       sedeNombre?: string;
       sedeId?: string;
     }
@@ -2547,6 +2578,13 @@ export const db = {
 
     const normSearch = nameWithoutTitle.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
+    const targetGrupo = context?.grupoClave || context?.grupo;
+    const targetMateria = context?.materiaNombre || context?.asignatura;
+    const targetCarrera = context?.carreraNombre;
+    const targetCarreraId = context?.carreraId;
+    const targetSede = context?.sedeNombre || 'Campus Tijuana';
+    const targetSedeId = context?.sedeId || 'sede-tij';
+
     // Search for existing docente
     let existing = list.find((d) => {
       const dFull = `${d.nombre} ${d.apellido_paterno} ${d.apellido_materno || ''}`
@@ -2563,14 +2601,14 @@ export const db = {
     if (existing) {
       let updated = false;
       const carrList = existing.carreras_asignadas || [];
-      if (context?.carreraNombre && !carrList.includes(context.carreraNombre)) {
-        carrList.push(context.carreraNombre);
+      if (targetCarrera && !carrList.includes(targetCarrera)) {
+        carrList.push(targetCarrera);
         existing.carreras_asignadas = carrList;
         updated = true;
       }
       const matList = existing.materias || [];
-      if (context?.materiaNombre && !matList.includes(context.materiaNombre)) {
-        matList.push(context.materiaNombre);
+      if (targetMateria && !matList.includes(targetMateria)) {
+        matList.push(targetMateria);
         existing.materias = matList;
         updated = true;
       }
@@ -2593,13 +2631,13 @@ export const db = {
         apellido_paterno,
         apellido_materno,
         email: cleanEmail,
-        departamento: context?.carreraNombre ? `${context.carreraNombre} / Campus Tijuana` : 'Campus Tijuana',
+        departamento: targetCarrera ? `${targetCarrera} / ${targetSede}` : targetSede,
         puesto: 'docente',
-        carreras_asignadas: context?.carreraNombre ? [context.carreraNombre] : ['Licenciatura UNRC'],
-        materias: context?.materiaNombre ? [context.materiaNombre] : ['Asignatura Curricular UNRC'],
+        carreras_asignadas: targetCarrera ? [targetCarrera] : ['Licenciatura UNRC'],
+        materias: targetMateria ? [targetMateria] : ['Asignatura Curricular UNRC'],
         horario_resumen: 'Lunes a Sábado (Campus Tijuana)',
-        sede_nombre: context?.sedeNombre || 'Campus Tijuana',
-        sede_id: context?.sedeId || 'sede-tij',
+        sede_nombre: targetSede,
+        sede_id: targetSedeId,
         telefono: '+526641234567',
         foto_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200&h=200'
       };
@@ -2607,35 +2645,80 @@ export const db = {
       existing = await db.addDocente(newDocPayload);
     }
 
+    // ALWAYS INSERT / UPSERT DOCENTE INTO SUPABASE
+    if (supabase && existing) {
+      try {
+        const payloadToUpsert = {
+          id: existing.id,
+          num_empleado: existing.num_empleado,
+          nombre: existing.nombre,
+          apellido_paterno: existing.apellido_paterno,
+          apellido_materno: existing.apellido_materno || '',
+          email: existing.email,
+          departamento: existing.departamento || 'Campus Tijuana',
+          puesto: existing.puesto || 'docente',
+          materias: existing.materias || [],
+          carreras_asignadas: existing.carreras_asignadas || [],
+          sede_id: existing.sede_id || targetSedeId,
+          sede_nombre: existing.sede_nombre || targetSede,
+          telefono: existing.telefono || '+526641234567',
+          password: existing.password || getDefaultUserPassword(existing.num_empleado, '2026-2')
+        };
+        await supabase.from('docentes').upsert([payloadToUpsert], { onConflict: 'num_empleado' });
+
+        // Also upsert into profiles (role teacher)
+        const profileId = existing.id === 'docente-3' || existing.num_empleado === 'DOC-UNRC-03'
+          ? 'd0000003-0000-0000-0000-000000000003'
+          : (existing.id.length === 36 ? existing.id : undefined);
+
+        if (profileId) {
+          await supabase.from('profiles').upsert([{
+            id: profileId,
+            full_name: cleanName,
+            role: 'teacher',
+            email: existing.email,
+            avatar_url: existing.foto_url
+          }], { onConflict: 'id' });
+
+          await supabase.from('teachers').upsert([{
+            profile_id: profileId,
+            specialty: existing.departamento || 'Docente UNRC'
+          }], { onConflict: 'profile_id' });
+        }
+      } catch (err) {
+        console.warn('Supabase upsert docente notice:', err);
+      }
+    }
+
     // Sync group assignment
-    if (context?.grupoClave) {
+    if (targetGrupo) {
       const rawGrupos = localStorage.getItem('unrc_grupos');
       let gruposList: Grupo[] = rawGrupos ? JSON.parse(rawGrupos) : MOCK_GRUPOS;
-      let grp = gruposList.find((g) => g.clave_grupo.toUpperCase() === context.grupoClave?.toUpperCase());
+      let grp = gruposList.find((g) => g.clave_grupo.toUpperCase() === targetGrupo.toUpperCase());
       if (grp) {
         grp.docente_nombre = cleanName;
         grp.docente_id = existing.id;
       } else {
         gruposList.push({
           id: `g-${Date.now()}`,
-          clave_grupo: context.grupoClave,
-          carrera_id: context.carreraId || 'c5555555-5555-5555-5555-555555555555',
+          clave_grupo: targetGrupo,
+          carrera_id: targetCarreraId || 'c5555555-5555-5555-5555-555555555555',
           materia_id: 'm1',
-          sede_id: context.sedeId || 'sede-tij',
-          sede_nombre: context.sedeNombre || 'Campus Tijuana',
+          sede_id: targetSedeId,
+          sede_nombre: targetSede,
           turno: 'Matutino',
           periodo: '2026-2',
           horario: 'Lunes a Sábado (07:00 - 13:00 hrs)',
           dias_clase: ['Lunes', 'Miércoles', 'Viernes'],
           docente_nombre: cleanName,
           docente_id: existing.id,
-          aula: `${context.sedeNombre || 'Campus Tijuana'} - Aula ${context.grupoClave}`
+          aula: `${targetSede} - Aula ${targetGrupo}`
         });
       }
       localStorage.setItem('unrc_grupos', JSON.stringify(gruposList));
       if (supabase) {
         try {
-          await supabase.from('courses').update({ schedule_description: `Docente: ${cleanName}` }).eq('name', context.grupoClave);
+          await supabase.from('courses').update({ schedule_description: `Docente: ${cleanName}` }).eq('name', targetGrupo);
         } catch (e) {
           // ignore
         }

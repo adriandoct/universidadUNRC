@@ -1280,7 +1280,11 @@ export default function BulkUploadAlumnosModal({
             carreraId: selectedCarreraObj.id,
             carreraNombre: selectedCarreraObj.nombre,
             grupo: targetGrupo,
-            asignatura: detectedMetadata?.asignatura
+            grupoClave: targetGrupo,
+            asignatura: detectedMetadata?.asignatura,
+            materiaNombre: detectedMetadata?.asignatura,
+            sedeNombre: selectedSedeObj.nombre,
+            sedeId: selectedSedeObj.id
           });
         } catch (docErr) {
           console.error('Error al asegurar registro de docente:', docErr);
