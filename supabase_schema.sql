@@ -92,9 +92,9 @@ CREATE TABLE IF NOT EXISTS public.alumnos (
     carrera TEXT DEFAULT 'Licenciatura UNRC',
     carrera_id TEXT,
     grupo_id TEXT,
-    sede_id TEXT,
-    sede_nombre TEXT,
-    ciclo_id TEXT,
+    sede_id TEXT DEFAULT 'sede-tij',
+    sede_nombre TEXT DEFAULT 'Campus Tijuana',
+    ciclo_id TEXT DEFAULT 'ciclo-2026-2',
     estado_matricula TEXT DEFAULT 'activo', -- 'activo', 'baja_temporal', 'egresado', 'aspirante'
     tutor TEXT DEFAULT 'Tutor Registrado',
     telefono TEXT DEFAULT '+525500000000',
@@ -105,11 +105,18 @@ CREATE TABLE IF NOT EXISTS public.alumnos (
 );
 
 -- Garantizar que las columnas institucionales existan en bases de datos existentes sin borrar datos:
-ALTER TABLE public.alumnos ADD COLUMN IF NOT EXISTS sede_id TEXT;
-ALTER TABLE public.alumnos ADD COLUMN IF NOT EXISTS sede_nombre TEXT;
-ALTER TABLE public.alumnos ADD COLUMN IF NOT EXISTS ciclo_id TEXT;
+ALTER TABLE public.alumnos ADD COLUMN IF NOT EXISTS sede_id TEXT DEFAULT 'sede-tij';
+ALTER TABLE public.alumnos ADD COLUMN IF NOT EXISTS sede_nombre TEXT DEFAULT 'Campus Tijuana';
+ALTER TABLE public.alumnos ADD COLUMN IF NOT EXISTS ciclo_id TEXT DEFAULT 'ciclo-2026-2';
 ALTER TABLE public.alumnos ADD COLUMN IF NOT EXISTS estado_matricula TEXT DEFAULT 'activo';
 ALTER TABLE public.alumnos ADD COLUMN IF NOT EXISTS password TEXT;
+
+-- Migración para normalizar alumnos al Campus Tijuana en Supabase:
+UPDATE public.alumnos 
+SET sede_id = 'sede-tij', sede_nombre = 'Campus Tijuana' 
+WHERE sede_nombre IS NULL 
+   OR sede_nombre = '' 
+   OR sede_nombre IN ('Campus Magdalena Contreras', 'Sede Justo Sierra', 'Sede Coyoacán', 'Sede Azcapotzalco');
 
 -- 2.6 TEACHERS (Docentes)
 CREATE TABLE IF NOT EXISTS public.teachers (

@@ -96,7 +96,7 @@ export function createGoogleCalendarUrl(horario: HorarioDocenteItem, docente: Do
     `🆔 No. Empleado: ${docente.num_empleado}`,
     `📚 Asignatura: ${horario.materia}`,
     `👥 Grupo / Sección: ${horario.grupo}`,
-    `📍 Sede / Plantel: ${docente.sede_nombre || 'Campus Magdalena Contreras'}`,
+    `📍 Sede / Plantel: ${docente.sede_nombre || 'Campus Tijuana'}`,
     `🏢 Aula o Espacio: ${horario.aula || (isOnline ? 'Aula Virtual' : 'Por definir')}`,
     `⏰ Horario: ${horario.dia} de ${horario.hora_inicio} a ${horario.hora_fin} hrs`,
     `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
@@ -149,7 +149,7 @@ export function downloadDocenteICS(docente: Docente): void {
     const uid = `unrc-docente-${docente.num_empleado}-${idx}-${Date.now()}@rcastellanos.cdmx.gob.mx`;
     const location = isOnline
       ? 'En Linea - Google Meet / Campus Virtual'
-      : `${h.aula || 'Aula Institucional'}, ${docente.sede_nombre || 'Campus Magdalena Contreras'}`;
+      : `${h.aula || 'Aula Institucional'}, ${docente.sede_nombre || 'Campus Tijuana'}`;
 
     const desc = [
       `UNIVERSIDAD NACIONAL ROSARIO CASTELLANOS`,
@@ -300,7 +300,7 @@ export function generateDocenteHorarioPDF(docente: Docente): void {
   doc.setFontSize(9);
   doc.setTextColor(15, 23, 42);
   doc.text(docente.email || 'Sin correo registrado', 18, row2Y + 4.5);
-  doc.text(docente.sede_nombre || 'Campus Magdalena Contreras', 110, row2Y + 4.5);
+  doc.text(docente.sede_nombre || 'Campus Tijuana', 110, row2Y + 4.5);
 
   const row3Y = row2Y + 9;
   doc.setFont('helvetica', 'normal');

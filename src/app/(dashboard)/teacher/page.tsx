@@ -152,7 +152,7 @@ export default function TeacherDashboardPage() {
               <h2 className="text-lg font-bold text-white">Mi Horario de Clases Semanal</h2>
             </div>
             <p className="text-xs text-gray-400 mt-0.5">
-              Carga horaria asignada para el Ciclo 2026-2 • Sede: {currentDocente?.sede_nombre || 'Campus Magdalena Contreras'}
+              Carga horaria asignada para el Ciclo 2026-2 • Sede: {currentDocente?.sede_nombre || 'Campus Tijuana'}
             </p>
           </div>
 

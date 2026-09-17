@@ -241,14 +241,14 @@ export default function StudentDashboardPage() {
             currentStudent.sede_nombre = 'Campus Tijuana';
             currentStudent.sede_id = 'sede-tij';
           } else if (gLower.includes('js')) {
-            currentStudent.sede_nombre = 'Sede Justo Sierra';
-            currentStudent.sede_id = 'sede-js';
+            currentStudent.sede_nombre = 'Campus Tijuana';
+            currentStudent.sede_id = 'sede-tij';
           } else if (gLower.includes('coy')) {
-            currentStudent.sede_nombre = 'Sede Coyoacán';
-            currentStudent.sede_id = 'sede-coy';
+            currentStudent.sede_nombre = 'Campus Tijuana';
+            currentStudent.sede_id = 'sede-tij';
           } else {
-            currentStudent.sede_nombre = 'Campus Magdalena Contreras';
-            currentStudent.sede_id = 'sede-mc';
+            currentStudent.sede_nombre = 'Campus Tijuana';
+            currentStudent.sede_id = 'sede-tij';
           }
         }
       }
@@ -659,7 +659,7 @@ export default function StudentDashboardPage() {
               <span className="flex items-center gap-1 text-gray-400">
                 <MapPin className="w-3.5 h-3.5 text-blue-400" />
                 <span>
-                  {student.sede_nombre || (student.grupo?.toLowerCase().includes('tij') ? 'Campus Tijuana' : 'Campus Magdalena Contreras')}
+                  {student.sede_nombre || 'Campus Tijuana'}
                 </span>
               </span>
             </div>
@@ -922,7 +922,7 @@ export default function StudentDashboardPage() {
                           </span>
                         </td>
                         <td className="p-3.5 text-gray-400">
-                          {att.ubicacion || 'Acceso Plantel Magdalena Contreras'}
+                          {att.ubicacion || `Acceso ${student?.sede_nombre || 'Campus Tijuana'}`}
                         </td>
                         <td className="p-3.5 text-right font-mono text-blue-400">
                           {att.escaneado_por || 'Escáner QR Oficial'}
@@ -1139,7 +1139,7 @@ export default function StudentDashboardPage() {
                 <ShieldCheck className="w-4 h-4" />
                 <span>Credencial Oficial Validada por Superadmin</span>
               </div>
-              <span className="font-mono">Sede: Magdalena Contreras</span>
+              <span className="font-mono">Sede: {student?.sede_nombre || 'Campus Tijuana'}</span>
             </div>
 
           </div>

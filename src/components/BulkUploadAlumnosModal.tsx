@@ -202,7 +202,9 @@ export default function BulkUploadAlumnosModal({
     };
 
   const selectedSedeObj =
-    sedes.find((s) => s.id === targetSedeId) || sedes[0] || {
+    sedes.find((s) => s.id === targetSedeId) ||
+    sedes.find((s) => s.nombre.toLowerCase().includes('tijuana')) ||
+    sedes[0] || {
       id: 'sede-tij',
       nombre: 'Campus Tijuana'
     };
