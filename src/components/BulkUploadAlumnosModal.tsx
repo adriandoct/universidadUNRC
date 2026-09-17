@@ -82,6 +82,7 @@ interface DetectedMetadata {
   ciclo?: string;
   asignatura?: string;
   grado?: string;
+  matriculaColName?: string;
 }
 
 export default function BulkUploadAlumnosModal({
@@ -571,12 +572,31 @@ export default function BulkUploadAlumnosModal({
             .normalize('NFD')
             .replace(/[\u0300-\u036f]/g, '')
             .trim();
-          if (s.includes('matricula')) score += 35;
+          if (
+            s.includes('matricula') ||
+            s.includes('control') ||
+            s.includes('cuenta') ||
+            s.includes('expediente') ||
+            s.includes('boleta') ||
+            s.includes('clave') ||
+            s.includes('codigo') ||
+            s.includes('curp') ||
+            s.includes('folio') ||
+            s.includes('student') ||
+            s === 'id' ||
+            s === 'cve' ||
+            s === 'cod' ||
+            s.includes('identificador') ||
+            s.includes('registro')
+          ) {
+            score += 40;
+          }
           if (s.includes('nombre')) score += 15;
-          if (s.includes('apellido')) score += 15;
-          if (s.includes('alumno') || s.includes('estudiante')) score += 15;
+          if (s.includes('apellido') || s.includes('paterno') || s.includes('materno')) score += 15;
+          if (s.includes('alumno') || s.includes('estudiante')) score += 20;
+          if (s.includes('carrera') || s.includes('licenciatura') || s.includes('grupo') || s.includes('grado')) score += 10;
           if (s.includes('calificacion')) score += 5;
-          if (s === 'no' || s === 'num' || s === '#') score += 5;
+          if (s === 'no' || s === 'num' || s === '#' || s === 'n°') score += 5;
         }
         if (score > maxScore && score >= 20) {
           maxScore = score;
@@ -608,11 +628,112 @@ export default function BulkUploadAlumnosModal({
       return -1;
     };
 
-    // Specific mapping for Matrícula: MUST NOT match generic 'id' if 'matricula' exists
-    let colMat = findExactOrIncludes('matricula', 'studentcode', 'nocontrol', 'control', 'cuenta', 'expediente', 'boleta');
+    // Specific mapping for Matrícula: Priority for explicit identifiers
+    let colMat = findExactOrIncludes(
+      'matricula',
+      'matriculaescolar',
+      'matriculaoficial',
+      'matriculaestudiante',
+      'matriculaalumno',
+      'matriculas',
+      'matriculafolio',
+      'mat',
+      'nocontrol',
+      'nodecontrol',
+      'numcontrol',
+      'numerocontrol',
+      'numerodecontrol',
+      'control',
+      'nocuenta',
+      'nodecuenta',
+      'numcuenta',
+      'cuenta',
+      'noexpediente',
+      'numexpediente',
+      'expediente',
+      'noboleta',
+      'numboleta',
+      'boleta',
+      'clavealumno',
+      'clavedealumno',
+      'cvealumno',
+      'cve.alumno',
+      'cve_alumno',
+      'codigoalumno',
+      'codalumno',
+      'codigo',
+      'cod',
+      'idalumno',
+      'idestudiante',
+      'id_alumno',
+      'id_estudiante',
+      'studentcode',
+      'studentid',
+      'curp',
+      'folio',
+      'nofolio',
+      'numfolio',
+      'registro',
+      'numregistro',
+      'noregistro'
+    );
+
     if (colMat === -1) {
-      // Fallback only if no explicit matricula column
-      colMat = findExactOrIncludes('codigo', 'clave', 'id');
+      // Fallback only if no explicit column
+      colMat = findExactOrIncludes('clave', 'cve', 'id');
+    }
+
+    // Data-driven Matrícula Column Fallback:
+    // If headers didn't have "matricula", inspect actual row values for student codes
+    if (colMat === -1 && matrix.length > headerIdx + 1) {
+      const sampleLimit = Math.min(matrix.length, headerIdx + 25);
+      const totalSampleRows = sampleLimit - (headerIdx + 1);
+      let bestCandidateCol = -1;
+      let highestCandidateScore = 0;
+
+      const numCols = Math.max(...matrix.slice(headerIdx + 1, sampleLimit).map((r) => (r ? r.length : 0)));
+      for (let c = 0; c < numCols; c++) {
+        let matchCount = 0;
+        const uniqueValues = new Set<string>();
+
+        for (let r = headerIdx + 1; r < sampleLimit; r++) {
+          const rawVal = String(matrix[r]?.[c] ?? '').trim().replace(/\.0+$/, '').replace(/^["']|["']$/g, '');
+          if (!rawVal) continue;
+
+          // Matrícula pattern: alphanumeric, length 4-25, not row sequence 1..N, not space-separated name
+          const isRowCounter = /^\d{1,3}$/.test(rawVal) && Number(rawVal) <= totalSampleRows + 5;
+          const isMatriculaFormat =
+            rawVal.length >= 4 &&
+            rawVal.length <= 25 &&
+            /^[A-Za-z0-9\-_]+$/.test(rawVal) &&
+            !isRowCounter &&
+            !/\s/.test(rawVal) &&
+            !/^(?:101|102|201|202|203|301|302|401|402|501|502|601|602)$/.test(rawVal);
+
+          if (isMatriculaFormat) {
+            matchCount++;
+            uniqueValues.add(rawVal.toLowerCase());
+          }
+        }
+
+        if (matchCount >= Math.max(2, Math.floor(totalSampleRows * 0.35)) && uniqueValues.size >= Math.floor(matchCount * 0.7)) {
+          const score = matchCount * 10 + uniqueValues.size;
+          if (score > highestCandidateScore) {
+            highestCandidateScore = score;
+            bestCandidateCol = c;
+          }
+        }
+      }
+
+      if (bestCandidateCol !== -1) {
+        colMat = bestCandidateCol;
+      }
+    }
+
+    if (colMat >= 0 && rawHeaders[colMat]) {
+      meta.matriculaColName = rawHeaders[colMat];
+    } else if (colMat >= 0) {
+      meta.matriculaColName = `Columna ${colMat + 1}`;
     }
 
     const mapping: ColumnMapping = customMapping || {
@@ -664,11 +785,36 @@ export default function BulkUploadAlumnosModal({
         continue;
       }
 
-      // Exact Matrícula from file: NEVER OVERWRITE if present
+      // 1. Exact Matrícula from file: NEVER OVERWRITE IF PRESENT IN FILE
       let rawMat = mapping.colMatricula >= 0 ? String(row[mapping.colMatricula] ?? '').trim() : '';
       let isMatriculaGenerated = false;
 
-      // Names extraction
+      // Clean rawMat (remove Excel float decimals e.g. "20260012.0", quotes, extra spaces)
+      if (rawMat) {
+        rawMat = rawMat.replace(/\.0+$/, '').replace(/^["']|["']$/g, '').trim();
+      }
+
+      // 2. If empty in this specific row, search all other cells for any student code
+      if (!rawMat) {
+        for (let c = 0; c < row.length; c++) {
+          if (c === mapping.colAlumnoCompleto || c === mapping.colNombre || c === mapping.colPaterno || c === mapping.colMaterno) continue;
+          const candidateVal = String(row[c] ?? '').trim().replace(/\.0+$/, '').replace(/^["']|["']$/g, '');
+          if (
+            candidateVal &&
+            candidateVal.length >= 4 &&
+            candidateVal.length <= 25 &&
+            /^[A-Za-z0-9\-_]+$/.test(candidateVal) &&
+            /\d/.test(candidateVal) &&
+            !/^\d{1,3}$/.test(candidateVal) &&
+            !/^(?:101|102|201|202|203|301|302|401|402|501|502|601|602)$/.test(candidateVal)
+          ) {
+            rawMat = candidateVal;
+            break;
+          }
+        }
+      }
+
+      // 3. Names extraction
       let nom = mapping.colNombre >= 0 ? String(row[mapping.colNombre] ?? '').trim() : '';
       let pat = mapping.colPaterno >= 0 ? String(row[mapping.colPaterno] ?? '').trim() : '';
       let mat = mapping.colMaterno >= 0 ? String(row[mapping.colMaterno] ?? '').trim() : '';
@@ -691,12 +837,21 @@ export default function BulkUploadAlumnosModal({
         }
       }
 
+      // 4. Check if matrícula is embedded in the student name cell (e.g. "UNRC-2026-001 - Juan Pérez")
+      if (!rawMat) {
+        const full = String(row[mapping.colAlumnoCompleto] ?? row[mapping.colNombre] ?? '').trim();
+        const embeddedMatch = full.match(/\b((?:UNRC|DOC|ALU)?[A-Za-z0-9\-_]{5,20})\b/);
+        if (embeddedMatch && embeddedMatch[1] && /\d/.test(embeddedMatch[1]) && !/^(?:101|102|201|202|203|301|302|401|402|501|502|601|602)$/.test(embeddedMatch[1])) {
+          rawMat = embeddedMatch[1];
+        }
+      }
+
       // If both name and surname are missing, and it's a 1-2 cell row, it's a signature footer -> skip
       if (!nom && !pat && nonBlankCells.length <= 2) {
         continue;
       }
 
-      // If matrícula is empty, and only then, generate one
+      // 5. Only if matrícula is completely absent from the file, generate one
       if (!rawMat) {
         rawMat = `UNRC-2026-${String(existingAlumnos.length + rows.length + 10).padStart(3, '0')}`;
         isMatriculaGenerated = true;
@@ -772,7 +927,7 @@ export default function BulkUploadAlumnosModal({
         errorMessage = `Matrícula duplicada en el archivo: ${rawMat}`;
       } else if (existingAlumnos.some((a) => (a.matricula || '').trim().toLowerCase() === rawMat.toLowerCase())) {
         status = 'exists';
-        errorMessage = 'Matrícula ya registrada en la base de datos';
+        errorMessage = 'Matrícula ya registrada en la base de datos (se actualizará)';
       }
 
       if (rawMat) seenMatriculas.add(rawMat.toLowerCase());
@@ -1332,6 +1487,11 @@ export default function BulkUploadAlumnosModal({
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-2 text-[11px]">
+                    {detectedMetadata.matriculaColName && (
+                      <span className="bg-emerald-500/15 border border-emerald-500/40 px-2.5 py-1 rounded-xl text-white">
+                        🆔 Matrícula del archivo: <strong className="text-emerald-300 font-bold">{detectedMetadata.matriculaColName}</strong>
+                      </span>
+                    )}
                     {detectedMetadata.carrera && (
                       <span className="bg-white/5 border border-white/10 px-2.5 py-1 rounded-xl text-gray-200">
                         🎓 Carrera: <strong className="text-emerald-300">{detectedMetadata.carrera}</strong>
@@ -1371,7 +1531,9 @@ export default function BulkUploadAlumnosModal({
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                     <div>
-                      <label className="text-gray-400 block mb-1 text-[11px]">Columna Matrícula</label>
+                      <label className="text-emerald-400 block mb-1 text-[11px] font-bold">
+                        Columna Matrícula (del archivo)
+                      </label>
                       <select
                         value={columnMapping.colMatricula}
                         onChange={(e) => {
@@ -1381,12 +1543,12 @@ export default function BulkUploadAlumnosModal({
                             processMatrix(currentMatrix, updated, headerRowIdx, respectFileEntities);
                           }
                         }}
-                        className="w-full px-2.5 py-1.5 rounded-xl bg-black/40 border border-white/10 text-white text-xs cursor-pointer"
+                        className="w-full px-2.5 py-1.5 rounded-xl bg-black/40 border border-emerald-500/50 text-emerald-300 text-xs cursor-pointer font-bold focus:ring-1 focus:ring-emerald-400"
                       >
-                        <option value={-1}>Auto-generar (si viene vacía)</option>
+                        <option value={-1}>Auto-generar (solo si viene vacía en el archivo)</option>
                         {detectedHeaders.map((h, i) => (
                           <option key={i} value={i}>
-                            Col {i + 1}: {h || `(vacía)`}
+                            Columna {i + 1}: {h || `(sin encabezado)`}
                           </option>
                         ))}
                       </select>
@@ -1599,12 +1761,12 @@ export default function BulkUploadAlumnosModal({
                             <td className="p-2.5 font-mono text-white font-medium whitespace-nowrap">
                               <span className="font-bold text-emerald-300">{r.matricula}</span>
                               {r.isMatriculaGenerated ? (
-                                <span className="ml-1.5 text-[9px] text-blue-400 bg-blue-500/10 px-1 py-0.2 rounded border border-blue-500/20">
-                                  auto
+                                <span className="ml-1.5 text-[9px] text-amber-300 bg-amber-500/15 px-1.5 py-0.5 rounded border border-amber-500/30 font-semibold" title="No venía en el archivo; generada automáticamente">
+                                  ⚠️ auto
                                 </span>
                               ) : (
-                                <span className="ml-1.5 text-[9px] text-emerald-400 bg-emerald-500/10 px-1 py-0.2 rounded border border-emerald-500/20" title="Matrícula original del archivo">
-                                  archivo
+                                <span className="ml-1.5 text-[9px] text-emerald-300 bg-emerald-500/20 px-1.5 py-0.5 rounded border border-emerald-500/40 font-bold" title="Matrícula leída directamente de tu archivo .xls/.csv">
+                                  ✓ del archivo
                                 </span>
                               )}
                             </td>
