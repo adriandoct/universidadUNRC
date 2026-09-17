@@ -747,7 +747,7 @@ export default function BulkUploadAlumnosModal({
       colCarrera: findExactOrIncludes('carrera', 'licenciatura', 'programa'),
       colSede: findExactOrIncludes('sede', 'campus', 'plantel', 'unidadacademica'),
       colEstado: findExactOrIncludes('estadomatricula', 'estado', 'status'),
-      colTutor: findExactOrIncludes('tutor', 'docentetitular', 'profesor'),
+      colTutor: findExactOrIncludes('tutor', 'tutora', 'padre', 'padredefamilia', 'tutorlegal', 'responsable', 'acudiente', 'guardian'),
       colTelefono: findExactOrIncludes('telefono', 'celular', 'tel', 'phone'),
       colPassword: findExactOrIncludes('password', 'contrasena', 'contrasenia')
     };
@@ -911,10 +911,11 @@ export default function BulkUploadAlumnosModal({
       else if (rowEstado.includes('egres')) resolvedEstado = 'egresado';
       else if (rowEstado.includes('aspir')) resolvedEstado = 'aspirante';
 
-      // Auto tutor based on Carrera
-      const isTurismo = resolvedCarrera.nombre.toLowerCase().includes('turismo');
-      const isAdm = resolvedCarrera.nombre.toLowerCase().includes('administra');
-      const defaultTutorName = isTurismo || isAdm ? 'Dr. Adrian Silva' : 'Tutor Registrado UNRC';
+      // Default institutional tutor (Docente Dr. Adrian Silva is NOT a tutor)
+      const defaultTutorName = 'Tutor UNRC';
+      const cleanRowTutor = (rowTutor && !rowTutor.toLowerCase().includes('adrian silva') && !rowTutor.toLowerCase().includes('adrián silva'))
+        ? rowTutor
+        : defaultTutorName;
 
       let status: 'valid' | 'exists' | 'error' = 'valid';
       let errorMessage: string | undefined = undefined;
@@ -946,7 +947,7 @@ export default function BulkUploadAlumnosModal({
         sede_id: resolvedSede.id,
         sede_nombre: resolvedSede.nombre,
         estado_matricula: resolvedEstado,
-        tutor: rowTutor || defaultTutorName,
+        tutor: cleanRowTutor,
         telefono: rowTel || '+525500000000',
         password: rowPwd,
         qr_code: rawMat,
@@ -1085,7 +1086,7 @@ export default function BulkUploadAlumnosModal({
         currentCarreraName,
         currentSedeName,
         'activo',
-        'Dr. Adrian Silva',
+        'Tutor UNRC',
         '+525511223344',
         ''
       ],
@@ -1099,7 +1100,7 @@ export default function BulkUploadAlumnosModal({
         currentCarreraName,
         currentSedeName,
         'activo',
-        'Dr. Adrian Silva',
+        'Tutor UNRC',
         '+525522334455',
         ''
       ]
@@ -1153,9 +1154,9 @@ export default function BulkUploadAlumnosModal({
         const finalCarreraNom = respectFileEntities
           ? r.carrera || selectedCarreraObj.nombre
           : selectedCarreraObj.nombre;
-        const isTurismo = finalCarreraNom.toLowerCase().includes('turismo');
-        const isAdm = finalCarreraNom.toLowerCase().includes('administra');
-        const finalTutor = isTurismo || isAdm ? 'Dr. Adrian Silva' : 'Tutor Registrado UNRC';
+        const sanitizedTutor = (r.tutor?.trim() && !r.tutor.toLowerCase().includes('adrian silva') && !r.tutor.toLowerCase().includes('adrián silva'))
+          ? r.tutor.trim()
+          : 'Tutor UNRC';
 
         return {
           matricula: r.matricula,
@@ -1170,7 +1171,7 @@ export default function BulkUploadAlumnosModal({
           sede_nombre: r.sede_nombre || selectedSedeObj.nombre,
           ciclo_id: activeCiclo?.id || 'ciclo-2026-2',
           estado_matricula: r.estado_matricula,
-          tutor: r.tutor || finalTutor,
+          tutor: sanitizedTutor,
           telefono: r.telefono,
           password: r.password?.trim() || getDefaultUserPassword(r.matricula, '2026-2'),
           qr_code: r.matricula

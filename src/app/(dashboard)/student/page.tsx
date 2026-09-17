@@ -358,7 +358,9 @@ export default function StudentDashboardPage() {
           const cName = (currentStudent.carrera || '').toLowerCase();
           const sCampus = currentStudent.sede_nombre || 'Campus Tijuana';
           const sGroup = currentStudent.grupo || '203-TIJ';
-          const sTutor = currentStudent.tutor || 'Dr. Adrian Silva';
+          const sTutor = (currentStudent.tutor && !currentStudent.tutor.toLowerCase().includes('adrian silva'))
+            ? currentStudent.tutor
+            : 'Tutor UNRC';
 
           if (cName.includes('admin') || sGroup.toLowerCase().includes('lac')) {
             scheduleList.push(
@@ -368,7 +370,7 @@ export default function StudentDashboardPage() {
                 hora_inicio: '07:00',
                 hora_fin: '09:00',
                 materia: 'Matemáticas para la Administración',
-                docente_nombre: sTutor,
+                docente_nombre: 'Dr. Adrian Silva',
                 aula: `${sCampus} - Aula ${sGroup}`,
                 sede: sCampus,
                 grupo: sGroup,
@@ -380,7 +382,7 @@ export default function StudentDashboardPage() {
                 hora_inicio: '11:00',
                 hora_fin: '13:00',
                 materia: 'Administración y Gestión Estratégica',
-                docente_nombre: sTutor,
+                docente_nombre: 'Dr. Adrian Silva',
                 aula: `${sCampus} - Aula Magna`,
                 sede: sCampus,
                 grupo: sGroup,
@@ -392,7 +394,7 @@ export default function StudentDashboardPage() {
                 hora_inicio: '08:00',
                 hora_fin: '10:00',
                 materia: 'Contabilidad y Finanzas Aplicadas',
-                docente_nombre: sTutor,
+                docente_nombre: 'Dr. Adrian Silva',
                 aula: 'Aula Virtual UNRC (Google Meet)',
                 sede: sCampus,
                 grupo: sGroup,

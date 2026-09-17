@@ -242,7 +242,7 @@ export default function AdminDashboardPage() {
     sede_id: '',
     ciclo_id: '',
     estado_matricula: 'activo' as 'activo' | 'baja_temporal' | 'egresado' | 'aspirante',
-    tutor: 'Dr. Adrian Silva',
+    tutor: 'Tutor UNRC',
     telefono: '',
     password: '',
   });
@@ -2136,7 +2136,7 @@ export default function AdminDashboardPage() {
                       sede_id: defaultSede,
                       ciclo_id: activeCiclo?.id || '',
                       estado_matricula: 'activo',
-                      tutor: defaultGrp.includes('TUR') ? 'Dr. Adrian Silva' : 'Tutor Institucional',
+                      tutor: 'Tutor UNRC',
                       telefono: '+525500000000',
                       password: getDefaultUserPassword(newMat, '2026-2'),
                     });
@@ -2379,7 +2379,7 @@ export default function AdminDashboardPage() {
                                     carrera: targetCar.nombre,
                                     carrera_id: targetCar.id,
                                     grupo: isTur ? '201-TUR' : al.grupo,
-                                    tutor: isTur ? 'Dr. Adrian Silva' : al.tutor
+                                    tutor: al.tutor && !al.tutor.toLowerCase().includes('adrian silva') ? al.tutor : 'Tutor UNRC'
                                   });
                                   showToast(`Carrera de ${al.nombre} reasignada a: ${targetCar.nombre}`);
                                   await loadData();
@@ -4076,11 +4076,11 @@ export default function AdminDashboardPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-gray-400 block mb-1">Docente Titular / Tutor</label>
+                  <label className="text-gray-400 block mb-1">Tutor Institucional o Legal</label>
                   <input
                     type="text"
                     required
-                    placeholder="Dr. Adrian Silva"
+                    placeholder="Tutor UNRC"
                     value={alumnoForm.tutor}
                     onChange={(e) => setAlumnoForm({ ...alumnoForm, tutor: e.target.value })}
                     className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white"

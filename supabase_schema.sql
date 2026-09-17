@@ -118,6 +118,11 @@ WHERE sede_nombre IS NULL
    OR sede_nombre = '' 
    OR sede_nombre IN ('Campus Magdalena Contreras', 'Sede Justo Sierra', 'Sede Coyoacán', 'Sede Azcapotzalco');
 
+-- Migración para corregir asignación errónea de tutor (Dr. Adrian Silva es Docente del Campus Tijuana, no tutor):
+UPDATE public.alumnos 
+SET tutor = 'Tutor UNRC' 
+WHERE tutor ILIKE '%Adrian Silva%' OR tutor ILIKE '%Adrián Silva%';
+
 -- 2.6 TEACHERS (Docentes)
 CREATE TABLE IF NOT EXISTS public.teachers (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
