@@ -128,9 +128,16 @@ CREATE TABLE IF NOT EXISTS public.docentes (
     sede_id TEXT DEFAULT 'sede-tij',
     sede_nombre TEXT DEFAULT 'Campus Tijuana',
     telefono TEXT DEFAULT '+526641234567',
+    horario_resumen TEXT,
+    horarios JSONB DEFAULT '[]'::jsonb,
     password TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+-- Columnas de horarios y asignación académica para docentes:
+ALTER TABLE public.docentes ADD COLUMN IF NOT EXISTS horario_resumen TEXT;
+ALTER TABLE public.docentes ADD COLUMN IF NOT EXISTS horarios JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.docentes ADD COLUMN IF NOT EXISTS carreras_asignadas TEXT[];
 
 -- Migración para normalizar alumnos al Campus Tijuana en Supabase:
 UPDATE public.alumnos 

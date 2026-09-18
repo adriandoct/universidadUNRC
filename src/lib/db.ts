@@ -470,9 +470,7 @@ const MOCK_DOCENTES: Docente[] = [
       { dia: 'Miércoles', hora_inicio: '11:00', hora_fin: '13:00', carrera: 'Lic. en Administración', materia: 'Administración y Gestión Estratégica', grupo: 'PHLAC-203-TIJ', aula: 'Campus Tijuana - Aula Magna TIJ', sede: 'Campus Tijuana', es_en_linea: false },
       { dia: 'Viernes', hora_inicio: '08:00', hora_fin: '10:00', carrera: 'Lic. en Administración', materia: 'Contabilidad y Finanzas Aplicadas', grupo: 'PHLAC-203-TIJ', aula: 'Aula Virtual UNRC (Google Meet)', sede: 'Campus Tijuana', es_en_linea: true },
       { dia: 'Miércoles', hora_inicio: '09:00', hora_fin: '11:00', carrera: 'Lic. en Turismo', materia: 'Administración de Empresas de Hospedaje', grupo: '201-TUR', aula: 'Campus Tijuana - Aula Magna 2', sede: 'Campus Tijuana', es_en_linea: false },
-      { dia: 'Sábado', hora_inicio: '07:00', hora_fin: '09:00', carrera: 'Lic. en Turismo', materia: 'Administración de Empresas de Hospedaje', grupo: '201-TUR', aula: 'Aula Virtual UNRC (Google Meet)', sede: 'Campus Tijuana', es_en_linea: true },
-      { dia: 'Lunes', hora_inicio: '07:00', hora_fin: '09:00', carrera: 'Lic. en Administración', materia: 'Matemáticas para la Administración', grupo: '203-ADM', aula: 'Campus Tijuana - Aula 203', sede: 'Campus Tijuana', es_en_linea: false },
-      { dia: 'Miércoles', hora_inicio: '09:00', hora_fin: '11:00', carrera: 'Licenciatura en Ciencia de Datos para los Negocios', materia: 'Programación para la ciencia de datos', grupo: '401-LCDN', aula: 'Aula Virtual UNRC (Google Meet)', sede: 'Campus Tijuana', es_en_linea: true }
+      { dia: 'Sábado', hora_inicio: '07:00', hora_fin: '09:00', carrera: 'Lic. en Turismo', materia: 'Administración de Empresas de Hospedaje', grupo: '201-TUR', aula: 'Aula Virtual UNRC (Google Meet)', sede: 'Campus Tijuana', es_en_linea: true }
     ],
     sede_nombre: 'Campus Tijuana',
     telefono: '+526641234567',
@@ -1044,7 +1042,11 @@ export const db = {
       try {
         const payload: Record<string, any> = {
           materias: params.materias,
-          departamento: params.carreras_asignadas.join(' / ')
+          carreras_asignadas: params.carreras_asignadas,
+          departamento: params.carreras_asignadas.join(' / '),
+          horario_resumen: params.horario_resumen,
+          horarios: params.horarios,
+          sede_nombre: params.sede_nombre || docentes[index].sede_nombre
         };
         await supabase
           .from('docentes')
@@ -1055,36 +1057,70 @@ export const db = {
       }
     }
 
-    // Also link to grupos so teachers reflect across groups
+    // Also link to grupos so all scheduled blocks per group are aggregated properly
     try {
       const grupos = await db.getGrupos();
+      const groupMap = new Map<string, HorarioDocenteItem[]>();
       params.horarios.forEach(h => {
-        const gIdx = grupos.findIndex(g => g.clave_grupo === h.grupo);
+        if (!h.grupo) return;
+        const list = groupMap.get(h.grupo) || [];
+        list.push(h);
+        groupMap.set(h.grupo, list);
+      });
+
+      const docFullName = `${docentes[index].nombre} ${docentes[index].apellido_paterno}`.trim();
+
+      groupMap.forEach((slots, grupoClave) => {
+        const fullHorarioStr = slots.map(s => `${s.dia} (${s.hora_inicio} - ${s.hora_fin} hrs)`).join(' | ');
+        const allDias = Array.from(new Set(slots.map(s => s.dia)));
+        const allAulas = Array.from(new Set(slots.map(s => s.aula).filter(Boolean))).join(' / ');
+
+        const gIdx = grupos.findIndex(g => g.clave_grupo === grupoClave);
         if (gIdx !== -1) {
-          grupos[gIdx].docente_nombre = `${docentes[index].nombre} ${docentes[index].apellido_paterno}`;
+          grupos[gIdx].docente_nombre = docFullName;
           grupos[gIdx].docente_id = docentes[index].id;
-          grupos[gIdx].horario = `${h.dia} (${h.hora_inicio} - ${h.hora_fin} hrs)`;
-          if (h.aula) grupos[gIdx].aula = h.aula;
-        } else if (h.grupo) {
+          grupos[gIdx].horario = fullHorarioStr;
+          grupos[gIdx].dias_clase = allDias;
+          if (allAulas) grupos[gIdx].aula = allAulas;
+        } else {
           grupos.push({
             id: `g-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-            clave_grupo: h.grupo,
+            clave_grupo: grupoClave,
             carrera_id: 'c1111111-1111-1111-1111-111111111111',
             materia_id: 'm-auto',
             sede_id: docentes[index].sede_nombre || 'sede-tij',
             sede_nombre: docentes[index].sede_nombre || 'Campus Tijuana',
             turno: 'Matutino',
             periodo: '2026-2',
-            horario: `${h.dia} (${h.hora_inicio} - ${h.hora_fin} hrs)`,
-            dias_clase: [h.dia],
-            docente_nombre: `${docentes[index].nombre} ${docentes[index].apellido_paterno}`,
+            horario: fullHorarioStr,
+            dias_clase: allDias,
+            docente_nombre: docFullName,
             docente_id: docentes[index].id,
-            aula: h.aula || 'Aula Asignada'
+            aula: allAulas || 'Aula Asignada'
           });
         }
       });
+
       if (typeof window !== 'undefined') {
         localStorage.setItem('unrc_grupos', JSON.stringify(grupos));
+      }
+
+      // Also link docente to matching alumnos
+      const alumnos = await db.getAlumnos();
+      let alumnosModified = false;
+      groupMap.forEach((_, grupoClave) => {
+        const cleanG = grupoClave.toLowerCase().replace(/[\s-_]/g, '');
+        alumnos.forEach(al => {
+          const cleanAlG = (al.grupo || '').toLowerCase().replace(/[\s-_]/g, '');
+          if (cleanAlG === cleanG || cleanAlG.includes(cleanG) || cleanG.includes(cleanAlG)) {
+            al.docente_nombre = docFullName;
+            al.docente_id = docentes[index].id;
+            alumnosModified = true;
+          }
+        });
+      });
+      if (alumnosModified && typeof window !== 'undefined') {
+        localStorage.setItem('unrc_alumnos', JSON.stringify(alumnos));
       }
     } catch (ge) {
       console.warn('Grupos link notice:', ge);
@@ -2403,51 +2439,19 @@ export const db = {
               if (isSilva) {
                 return {
                   ...updated,
-                  carreras_asignadas: (d.carreras_asignadas && d.carreras_asignadas.length > 0) ? d.carreras_asignadas : ['Lic. en Turismo', 'Lic. en Administración', 'Licenciatura en Ciencia de Datos para los Negocios'],
-                  materias: (d.materias && d.materias.length > 0) ? d.materias : ['Administración de Empresas de Hospedaje', 'Matemáticas para la Administración', 'Programación para la ciencia de datos', 'Estructura de Datos'],
-                  horario_resumen: 'Miércoles (09:00 - 11:00 hrs) y Sábados (07:00 - 09:00 hrs)',
+                  carreras_asignadas: (d.carreras_asignadas && d.carreras_asignadas.length > 0) ? d.carreras_asignadas : ['Lic. en Administración', 'Lic. en Turismo', 'Licenciatura en Ciencia de Datos para los Negocios'],
+                  materias: (d.materias && d.materias.length > 0) ? d.materias : ['Matemáticas para la Administración', 'Administración y Gestión Estratégica', 'Contabilidad y Finanzas Aplicadas', 'Administración de Empresas de Hospedaje'],
+                  horario_resumen: 'Lunes a Sábado (Campus Tijuana)',
                   horarios: [
-                    { dia: 'Miércoles', hora_inicio: '09:00', hora_fin: '11:00', carrera: 'Lic. en Turismo', materia: 'Administración de Empresas de Hospedaje', grupo: '201-TUR', aula: 'Campus Tijuana - Aula Magna 2', es_en_linea: false },
-                    { dia: 'Sábado', hora_inicio: '07:00', hora_fin: '09:00', carrera: 'Lic. en Turismo', materia: 'Administración de Empresas de Hospedaje', grupo: '201-TUR', aula: 'Aula Virtual UNRC (Google Meet)', es_en_linea: true },
-                    { dia: 'Lunes', hora_inicio: '07:00', hora_fin: '09:00', carrera: 'Lic. en Administración', materia: 'Matemáticas para la Administración', grupo: '203-ADM', aula: 'Campus Tijuana - Aula 203', es_en_linea: false },
-                    { dia: 'Miércoles', hora_inicio: '09:00', hora_fin: '11:00', carrera: 'Licenciatura en Ciencia de Datos para los Negocios', materia: 'Programación para la ciencia de datos', grupo: '401-LCDN', aula: 'Aula Virtual UNRC (Google Meet)', es_en_linea: true }
+                    { dia: 'Lunes', hora_inicio: '07:00', hora_fin: '09:00', carrera: 'Lic. en Administración', materia: 'Matemáticas para la Administración', grupo: 'PHLAC-203-TIJ', aula: 'Campus Tijuana - Aula 203', sede: 'Campus Tijuana', es_en_linea: false },
+                    { dia: 'Miércoles', hora_inicio: '11:00', hora_fin: '13:00', carrera: 'Lic. en Administración', materia: 'Administración y Gestión Estratégica', grupo: 'PHLAC-203-TIJ', aula: 'Campus Tijuana - Aula Magna TIJ', sede: 'Campus Tijuana', es_en_linea: false },
+                    { dia: 'Viernes', hora_inicio: '08:00', hora_fin: '10:00', carrera: 'Lic. en Administración', materia: 'Contabilidad y Finanzas Aplicadas', grupo: 'PHLAC-203-TIJ', aula: 'Aula Virtual UNRC (Google Meet)', sede: 'Campus Tijuana', es_en_linea: true },
+                    { dia: 'Miércoles', hora_inicio: '09:00', hora_fin: '11:00', carrera: 'Lic. en Turismo', materia: 'Administración de Empresas de Hospedaje', grupo: '201-TUR', aula: 'Campus Tijuana - Aula Magna 2', sede: 'Campus Tijuana', es_en_linea: false },
+                    { dia: 'Sábado', hora_inicio: '07:00', hora_fin: '09:00', carrera: 'Lic. en Turismo', materia: 'Administración de Empresas de Hospedaje', grupo: '201-TUR', aula: 'Aula Virtual UNRC (Google Meet)', sede: 'Campus Tijuana', es_en_linea: true }
                   ],
                   sede_nombre: d.sede_nombre || 'Campus Tijuana'
                 };
               }
-            }
-
-            if (isSilva) {
-              const hasTurismo = updated.horarios?.some((h: HorarioDocenteItem) => h.grupo === '201-TUR' || h.carrera?.includes('Turismo'));
-              const hasAdm = updated.horarios?.some((h: HorarioDocenteItem) => h.grupo === '203-ADM' || h.carrera?.includes('Administración'));
-              const has401 = updated.horarios?.some((h: HorarioDocenteItem) => h.grupo === '401-LCDN' || h.grupo === '401');
-
-              const toAdd: HorarioDocenteItem[] = [];
-              if (!hasTurismo) {
-                toAdd.push(
-                  { dia: 'Miércoles', hora_inicio: '09:00', hora_fin: '11:00', carrera: 'Lic. en Turismo', materia: 'Administración de Empresas de Hospedaje', grupo: '201-TUR', aula: 'Edificio A - Aula Magna 2', es_en_linea: false },
-                  { dia: 'Sábado', hora_inicio: '07:00', hora_fin: '09:00', carrera: 'Lic. en Turismo', materia: 'Administración de Empresas de Hospedaje', grupo: '201-TUR', aula: 'Aula Virtual UNRC (Google Meet)', es_en_linea: true }
-                );
-              }
-              if (!hasAdm) {
-                toAdd.push(
-                  { dia: 'Lunes', hora_inicio: '07:00', hora_fin: '09:00', carrera: 'Lic. en Administración', materia: 'Matemáticas para la Administración', grupo: '203-ADM', aula: 'Edificio C - Aula 203', es_en_linea: false }
-                );
-              }
-              if (!has401) {
-                toAdd.push(
-                  { dia: 'Miércoles', hora_inicio: '09:00', hora_fin: '11:00', carrera: 'Licenciatura en Ciencia de Datos para los Negocios', materia: 'Programación para la ciencia de datos', grupo: '401-LCDN', aula: 'Aula Virtual UNRC (Google Meet)', es_en_linea: true }
-                );
-              }
-
-              if (toAdd.length > 0) {
-                hadChanges = true;
-                updated.horarios = [...(updated.horarios || []), ...toAdd];
-              }
-
-              updated.horario_resumen = 'Miércoles (09:00 - 11:00 hrs) y Sábados (07:00 - 09:00 hrs)';
-              updated.carreras_asignadas = Array.from(new Set([...(updated.carreras_asignadas || []), 'Lic. en Turismo', 'Lic. en Administración', 'Licenciatura en Ciencia de Datos para los Negocios']));
-              updated.materias = Array.from(new Set([...(updated.materias || []), 'Administración de Empresas de Hospedaje', 'Matemáticas para la Administración', 'Programación para la ciencia de datos', 'Estructura de Datos']));
             }
 
             return updated;
@@ -2790,6 +2794,9 @@ export const db = {
         if (updates.email !== undefined) supabasePayload.email = updates.email;
         if (updates.departamento !== undefined) supabasePayload.departamento = updates.departamento;
         if (updates.materias !== undefined) supabasePayload.materias = updates.materias;
+        if (updates.carreras_asignadas !== undefined) supabasePayload.carreras_asignadas = updates.carreras_asignadas;
+        if (updates.horario_resumen !== undefined) supabasePayload.horario_resumen = updates.horario_resumen;
+        if (updates.horarios !== undefined) supabasePayload.horarios = updates.horarios;
         if (updates.telefono !== undefined) supabasePayload.telefono = updates.telefono;
 
         if (Object.keys(supabasePayload).length > 0) {

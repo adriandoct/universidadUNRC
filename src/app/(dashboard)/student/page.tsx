@@ -60,17 +60,12 @@ function isGroupMatch(slotGrupo?: string, studentGrupo?: string): boolean {
   const cleanStg = stg.replace(/[\s-_]/g, '');
   if (cleanSg === cleanStg) return true;
 
-  // Campus-specific protection:
-  // If one group explicitly has TIJ/Tijuana and the other does not (or has MC/JS/COY), do not cross-match
-  const sgIsTij = sg.includes('tij') || sg.includes('tijuana');
-  const stgIsTij = stg.includes('tij') || stg.includes('tijuana');
-  if (sgIsTij !== stgIsTij) {
-    return false;
-  }
-
-  const sgIsMC = sg.includes('mc') || sg.includes('contreras');
-  const stgIsMC = stg.includes('mc') || stg.includes('contreras');
-  if (sgIsMC !== stgIsMC) {
+  // Campus-specific cross-campus protection:
+  // ONLY block if one group belongs to another campus (MC, JS, COY, AZC)
+  const otherCampuses = ['mc', 'contreras', 'justo', 'js', 'coyoacan', 'coy', 'azcapotzalco', 'azc'];
+  const sgHasOther = otherCampuses.some((c) => sg.includes(c));
+  const stgHasOther = otherCampuses.some((c) => stg.includes(c));
+  if (sgHasOther !== stgHasOther) {
     return false;
   }
 

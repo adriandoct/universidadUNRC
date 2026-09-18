@@ -44,7 +44,9 @@ import {
   LayoutDashboard,
   TrendingUp,
   PieChart,
-  BarChart3
+  BarChart3,
+  Phone,
+  Mail
 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import {
@@ -54,6 +56,7 @@ import {
 } from '@/lib/horarioDocenteUtils';
 import { getTijuanaDateString } from '@/lib/tijuanaTime';
 import BulkUploadAlumnosModal from '@/components/BulkUploadAlumnosModal';
+import BulkUploadDocentesModal, { resolveCarreraAbreviatura } from '@/components/BulkUploadDocentesModal';
 import {
   db,
   Docente,
@@ -135,6 +138,7 @@ export default function AdminDashboardPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedAlumnoQr, setSelectedAlumnoQr] = useState<Alumno | null>(null);
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
+  const [isDocentesCsvModalOpen, setIsDocentesCsvModalOpen] = useState(false);
   const [isDeleteAllModalOpen, setIsDeleteAllModalOpen] = useState(false);
   const [deleteFilterMode, setDeleteFilterMode] = useState<'filtered' | 'all'>('all');
   const [isDeletingAll, setIsDeletingAll] = useState(false);
@@ -752,17 +756,36 @@ export default function AdminDashboardPage() {
       showToast('Selecciona materia y grupo para el bloque de horario', 'error');
       return;
     }
+
+    // Resolve matching carrera from materia if possible
+    const matObj = materias.find((m) => m.nombre === newHorarioSlot.materia);
+    const carObj = matObj?.carrera_id ? carreras.find((c) => c.id === matObj.carrera_id) : null;
+    const finalCarrera = carObj?.nombre || newHorarioSlot.carrera || selectedDocente?.carreras_asignadas?.[0] || 'Licenciatura';
+
+    const slotToSave = {
+      ...newHorarioSlot,
+      carrera: finalCarrera,
+    };
+
+    // Automatically make sure assignedMaterias and assignedCarreras include this materia and carrera
+    if (newHorarioSlot.materia && !assignedMaterias.includes(newHorarioSlot.materia)) {
+      setAssignedMaterias((prev) => [...prev, newHorarioSlot.materia]);
+    }
+    if (finalCarrera && !assignedCarreras.includes(finalCarrera)) {
+      setAssignedCarreras((prev) => [...prev, finalCarrera]);
+    }
+
     if (editingHorarioIndex !== null) {
       setAssignedHorarios((prev) => {
         const updated = [...prev];
-        updated[editingHorarioIndex] = { ...newHorarioSlot };
+        updated[editingHorarioIndex] = { ...slotToSave };
         return updated;
       });
       setEditingHorarioIndex(null);
-      showToast(`Bloque de horario actualizado (${newHorarioSlot.es_en_linea ? 'En línea 🌐' : 'Presencial 🏛️'})`);
+      showToast(`Bloque de horario actualizado (${slotToSave.es_en_linea ? 'En línea 🌐' : 'Presencial 🏛️'})`);
     } else {
-      setAssignedHorarios((prev) => [...prev, { ...newHorarioSlot, id: `h-${Date.now()}` }]);
-      showToast(`Bloque de horario añadido (${newHorarioSlot.es_en_linea ? 'En línea 🌐' : 'Presencial 🏛️'})`);
+      setAssignedHorarios((prev) => [...prev, { ...slotToSave, id: `h-${Date.now()}` }]);
+      showToast(`Bloque de horario añadido (${slotToSave.es_en_linea ? 'En línea 🌐' : 'Presencial 🏛️'})`);
     }
   };
 
@@ -784,9 +807,13 @@ export default function AdminDashboardPage() {
               .join(' | ')
           : 'Sin horario fijado';
 
+      // Ensure all materias and carreras present in assignedHorarios are included
+      const allSlotMaterias = Array.from(new Set([...assignedMaterias, ...assignedHorarios.map((h) => h.materia).filter(Boolean)]));
+      const allSlotCarreras = Array.from(new Set([...assignedCarreras, ...assignedHorarios.map((h) => h.carrera).filter(Boolean)]));
+
       const updatedDoc = await db.asignarDocenteHorarioCarreras(selectedDocente.id, {
-        carreras_asignadas: assignedCarreras,
-        materias: assignedMaterias,
+        carreras_asignadas: allSlotCarreras,
+        materias: allSlotMaterias,
         horario_resumen: summary,
         horarios: assignedHorarios,
         sede_nombre: assignedSede,
@@ -799,8 +826,8 @@ export default function AdminDashboardPage() {
             ? {
                 ...d,
                 ...(updatedDoc || {}),
-                carreras_asignadas: assignedCarreras,
-                materias: assignedMaterias,
+                carreras_asignadas: allSlotCarreras,
+                materias: allSlotMaterias,
                 horario_resumen: summary,
                 horarios: assignedHorarios,
                 sede_nombre: assignedSede,
@@ -1129,18 +1156,41 @@ export default function AdminDashboardPage() {
     await loadData();
   };
 
-  // Filtered Personal
+  // Filtered Personal (Docentes)
   const filteredPersonal = docentes.filter((d) => {
-    const query = searchQuery.toLowerCase();
-    return (
+    const query = searchQuery.toLowerCase().trim();
+    const matchesQuery =
+      !query ||
       `${d.nombre} ${d.apellido_paterno} ${d.apellido_materno || ''}`
         .toLowerCase()
         .includes(query) ||
       d.num_empleado.toLowerCase().includes(query) ||
+      (d.email && d.email.toLowerCase().includes(query)) ||
+      (d.telefono && d.telefono.toLowerCase().includes(query)) ||
       d.departamento.toLowerCase().includes(query) ||
       (d.carreras_asignadas &&
-        d.carreras_asignadas.some((c) => c.toLowerCase().includes(query)))
-    );
+        d.carreras_asignadas.some((c) => c.toLowerCase().includes(query)));
+
+    const matchesCarrera =
+      filterCarrera === 'todos' ||
+      (d.carreras_asignadas &&
+        d.carreras_asignadas.some((c) => {
+          const selCar = carreras.find((car) => car.id === filterCarrera);
+          return (
+            c.toLowerCase().includes(selCar?.nombre.toLowerCase() || '') ||
+            (selCar?.clave && c.toUpperCase().includes(selCar.clave))
+          );
+        })) ||
+      (carreras.find((car) => car.id === filterCarrera)?.nombre &&
+        d.departamento.toLowerCase().includes(carreras.find((car) => car.id === filterCarrera)!.nombre.toLowerCase()));
+
+    const matchesSede =
+      filterSede === 'todos' ||
+      d.sede_nombre === sedes.find((s) => s.id === filterSede)?.nombre ||
+      (sedes.find((s) => s.id === filterSede)?.nombre &&
+        d.sede_nombre?.toLowerCase().includes(sedes.find((s) => s.id === filterSede)!.nombre.toLowerCase()));
+
+    return matchesQuery && matchesCarrera && matchesSede;
   });
 
   // Active Ciclo
@@ -1361,8 +1411,8 @@ export default function AdminDashboardPage() {
                 : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
             }`}
           >
-            <School className="w-3.5 h-3.5" />
-            <span>1. Personal & Asignación Docente ({docentes.length})</span>
+            <Users className="w-3.5 h-3.5" />
+            <span>1. Docentes ({docentes.length})</span>
           </button>
 
           <button
@@ -1835,28 +1885,27 @@ export default function AdminDashboardPage() {
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
                 <h3 className="text-lg font-bold text-white flex items-center space-x-2">
-                  <span>Claustro Docente y Personal Institucional</span>
+                  <span>Directorio de Docentes & Asignación Académica</span>
                   <span className="text-xs font-normal text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30">
-                    {docentes.length} Integrantes
+                    {filteredPersonal.length} Docentes {filteredPersonal.length !== docentes.length ? `(${docentes.length} en total)` : ''}
                   </span>
                 </h3>
                 <p className="text-xs text-gray-400">
-                  Control de personal, asignación de carreras a impartir y configuración de horarios
-                  oficiales por docente.
+                  Gestión oficial de docentes, asignación de carreras y horarios de clase, correo institucional y contacto.
                 </p>
               </div>
 
               <div className="flex items-center space-x-3 w-full sm:w-auto">
-                <div className="relative flex-1 sm:w-64">
-                  <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-gray-400" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Buscar por nombre, clave o carrera..."
-                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-xs focus:outline-none focus:border-amber-500"
-                  />
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsDocentesCsvModalOpen(true)}
+                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/30 transition-all flex items-center space-x-1.5 whitespace-nowrap"
+                  title="Cargar masivamente docentes desde archivo Excel (.xlsx, .xls) o CSV"
+                >
+                  <FileSpreadsheet className="w-4 h-4" />
+                  <span>Carga Masiva Excel / CSV</span>
+                </button>
+
                 <button
                   onClick={() => {
                     const newEmp = `DOC-UNRC-0${docentes.length + 1}`;
@@ -1867,9 +1916,9 @@ export default function AdminDashboardPage() {
                       apellido_paterno: '',
                       apellido_materno: '',
                       email: '',
-                      departamento: 'Lic. en Turismo',
+                      departamento: 'Lic. en Administración',
                       puesto: 'docente',
-                      telefono: '',
+                      telefono: '+525500000000',
                       sede_nombre: sedes[0]?.nombre || 'Campus Tijuana',
                       password: getDefaultUserPassword(newEmp, '2026-2'),
                     });
@@ -1879,8 +1928,52 @@ export default function AdminDashboardPage() {
                   className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow-lg shadow-amber-600/30 transition-all flex items-center space-x-1.5 whitespace-nowrap"
                 >
                   <Plus className="w-4 h-4" />
-                  <span>Nuevo Personal</span>
+                  <span>Nuevo Docente</span>
                 </button>
+              </div>
+            </div>
+
+            {/* Filter Bar */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-black/30 p-3 rounded-2xl border border-white/5">
+              <div className="relative">
+                <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Buscar por nombre, correo, teléfono o carrera..."
+                  className="w-full pl-9 pr-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-xs focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div>
+                <select
+                  value={filterCarrera}
+                  onChange={(e) => setFilterCarrera(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-[#090E1A] border border-white/10 text-white text-xs"
+                >
+                  <option value="todos">Todas las carreras impartidas</option>
+                  {carreras.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.nombre} ({c.clave})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <select
+                  value={filterSede}
+                  onChange={(e) => setFilterSede(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-[#090E1A] border border-white/10 text-white text-xs"
+                >
+                  <option value="todos">Todas las sedes</option>
+                  {sedes.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.nombre}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -1889,170 +1982,222 @@ export default function AdminDashboardPage() {
               <table className="w-full text-left text-xs text-gray-300">
                 <thead className="bg-black/60 text-gray-400 uppercase text-[10px] font-bold">
                   <tr>
-                    <th className="p-3.5">Clave / Puesto</th>
-                    <th className="p-3.5">Nombre y Correo</th>
-                    <th className="p-3.5">Carreras / Departamento</th>
-                    <th className="p-3.5">Horarios Asignados</th>
-                    <th className="p-3.5">Sede</th>
-                    <th className="p-3.5">Contacto</th>
-                    <th className="p-3.5 text-right">Acciones</th>
+                    <th className="p-3.5">N° EMPLEADO</th>
+                    <th className="p-3.5">NOMBRE COMPLETO</th>
+                    <th className="p-3.5">CORREO</th>
+                    <th className="p-3.5">TELÉFONO</th>
+                    <th className="p-3.5">CARRERAS QUE IMPARTE (ABREVIATURA)</th>
+                    <th className="p-3.5">HORARIOS ASIGNADOS</th>
+                    <th className="p-3.5">SEDE</th>
+                    <th className="p-3.5 text-right">ACCIONES</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5 bg-black/20">
-                  {filteredPersonal.map((doc) => (
-                    <tr key={doc.id} className="hover:bg-white/5 transition-colors">
-                      <td className="p-3.5">
-                        <div className="font-mono font-bold text-amber-400 text-xs">
-                          {doc.num_empleado}
-                        </div>
-                        <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase bg-white/5 text-gray-400 border border-white/10">
-                          {doc.puesto || 'DOCENTE'}
-                        </span>
-                      </td>
-                      <td className="p-3.5">
-                        <div className="font-bold text-white text-sm">
-                          {doc.nombre} {doc.apellido_paterno} {doc.apellido_materno || ''}
-                        </div>
-                        <div className="text-[11px] text-gray-400">{doc.email}</div>
-                      </td>
-                      <td className="p-3.5">
-                        <div className="flex flex-wrap gap-1 max-w-xs">
-                          {doc.carreras_asignadas && doc.carreras_asignadas.length > 0 ? (
-                            doc.carreras_asignadas.map((c, i) => (
-                              <span
-                                key={i}
-                                className="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-300 border border-amber-500/20 text-[10px] font-medium"
-                              >
-                                {c}
-                              </span>
-                            ))
-                          ) : (
-                            <span className="text-gray-500 text-[10px]">
-                              {doc.departamento || 'Sin asignar'}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="p-3.5">
-                        <div className="max-w-xs space-y-1">
-                          {doc.horario_resumen ? (
-                            <div className="font-mono text-cyan-300 text-[11px] bg-cyan-950/40 px-2 py-1 rounded border border-cyan-800/40">
-                              {doc.horario_resumen}
-                            </div>
-                          ) : (
-                            <span className="text-gray-500 text-[10px]">Por programar</span>
-                          )}
-                          {doc.horarios && doc.horarios.length > 0 && (
-                            <div className="flex items-center gap-1 text-[10px] flex-wrap">
-                              <span className="text-emerald-400 font-semibold">
-                                {doc.horarios.length} bloque(s)
-                              </span>
-                              {doc.horarios.some((h) => h.es_en_linea) && (
-                                <span className="px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/30">
-                                  🌐 En línea
-                                </span>
-                              )}
-                              {doc.horarios.some((h) => !h.es_en_linea) && (
-                                <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
-                                  🏛️ Presencial
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                      <td className="p-3.5 text-gray-300 font-medium">
-                        <div className="flex items-center space-x-1 text-xs">
-                          <MapPin className="w-3 h-3 text-rose-400" />
-                          <span>{doc.sede_nombre || 'Campus Tijuana'}</span>
-                        </div>
-                      </td>
-                      <td className="p-3.5 text-gray-400 font-mono text-[11px]">
-                        <div>{doc.telefono || 'Sin teléfono'}</div>
-                        <div
-                          className="mt-1 flex items-center space-x-1 text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/25 max-w-fit font-bold"
-                          title="Acceso institucional protegido"
-                        >
-                          <KeyRound className="w-3 h-3 text-emerald-400 shrink-0" />
-                          <span>Protegida</span>
-                        </div>
-                      </td>
-                      <td className="p-3.5 text-right">
-                        <div className="flex items-center justify-end space-x-1.5">
-                          {/* Botón Asignar Horario & Carreras */}
-                          <button
-                            onClick={() => handleOpenAsignarDocente(doc)}
-                            className="px-2.5 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 font-bold text-[11px] transition-all flex items-center space-x-1"
-                            title="Asignar carreras y horarios de clase"
-                          >
-                            <Clock className="w-3.5 h-3.5" />
-                            <span>Horarios</span>
-                          </button>
-
-                          {/* Botón Descargar Horario PDF */}
-                          <button
-                            onClick={() => {
-                              generateDocenteHorarioPDF(doc);
-                              showToast(`Horario en PDF descargado para ${doc.nombre} ${doc.apellido_paterno}`);
-                            }}
-                            className="p-1.5 rounded-xl bg-blue-500/15 hover:bg-blue-500/30 text-blue-300 border border-blue-500/30 transition-all"
-                            title="Descargar horario oficial en PDF para el docente"
-                          >
-                            <FileText className="w-3.5 h-3.5" />
-                          </button>
-
-                          {/* Botón Sincronizar Google Calendar (.ics) */}
-                          <button
-                            onClick={() => {
-                              downloadDocenteICS(doc);
-                              showToast(`Archivo Google Calendar (.ics) generado para ${doc.nombre}`);
-                            }}
-                            className="p-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 transition-all"
-                            title="Descargar archivo para Google Calendar con recordatorios presencial/en línea"
-                          >
-                            <Calendar className="w-3.5 h-3.5" />
-                          </button>
-
-                          <button
-                            onClick={() => {
-                              setEditingId(doc.id);
-                              setPersonalForm({
-                                num_empleado: doc.num_empleado,
-                                nombre: doc.nombre,
-                                apellido_paterno: doc.apellido_paterno,
-                                apellido_materno: doc.apellido_materno || '',
-                                email: doc.email,
-                                departamento: doc.departamento,
-                                puesto: doc.puesto || 'docente',
-                                telefono: doc.telefono || '',
-                                sede_nombre: doc.sede_nombre || 'Campus Tijuana',
-                                password: doc.password || getDefaultUserPassword(doc.num_empleado, '2026-2'),
-                              });
-                              setShowPersonalPassword(false);
-                              setModalType('personal');
-                            }}
-                            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 transition-all"
-                            title="Editar expediente y contraseña"
-                          >
-                            <Edit className="w-3.5 h-3.5" />
-                          </button>
-
-                          <button
-                            onClick={() =>
-                              handleDeletePersonal(
-                                doc.id,
-                                `${doc.nombre} ${doc.apellido_paterno}`
-                              )
-                            }
-                            className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition-all"
-                            title="Eliminar personal"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                  {filteredPersonal.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="p-8 text-center text-gray-400">
+                        <div className="max-w-md mx-auto space-y-3">
+                          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mx-auto text-amber-400">
+                            <Users className="w-6 h-6" />
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-bold text-white">No se encontraron docentes</h4>
+                            <p className="text-xs text-gray-400 mt-1">
+                              No hay docentes que coincidan con la búsqueda o filtro seleccionado.
+                            </p>
+                          </div>
                         </div>
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    filteredPersonal.map((doc) => {
+                      const rawCarreras =
+                        doc.carreras_asignadas && doc.carreras_asignadas.length > 0
+                          ? doc.carreras_asignadas
+                          : doc.departamento
+                          ? [doc.departamento]
+                          : ['Lic. en Administración'];
+
+                      return (
+                        <tr key={doc.id} className="hover:bg-white/5 transition-colors">
+                          {/* N° Empleado */}
+                          <td className="p-3.5 font-mono text-xs">
+                            <div className="font-bold text-amber-400">{doc.num_empleado}</div>
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase bg-white/5 text-gray-400 border border-white/10">
+                              {doc.puesto || 'DOCENTE'}
+                            </span>
+                          </td>
+
+                          {/* 1. NOMBRE COMPLETO */}
+                          <td className="p-3.5">
+                            <div className="font-bold text-white text-sm">
+                              {doc.nombre} {doc.apellido_paterno} {doc.apellido_materno || ''}
+                            </div>
+                            <div className="text-[10px] text-gray-400">Docente Titular UNRC</div>
+                          </td>
+
+                          {/* 2. CORREO */}
+                          <td className="p-3.5">
+                            <a
+                              href={`mailto:${doc.email}`}
+                              className="text-amber-300/90 hover:text-amber-200 font-mono text-xs flex items-center space-x-1 underline decoration-amber-500/30"
+                              title={`Enviar correo a ${doc.email}`}
+                            >
+                              <Mail className="w-3 h-3 shrink-0 text-amber-400" />
+                              <span>{doc.email}</span>
+                            </a>
+                          </td>
+
+                          {/* 3. TELÉFONO */}
+                          <td className="p-3.5 font-mono text-xs">
+                            <div className="flex items-center space-x-1 text-gray-300">
+                              <Phone className="w-3 h-3 text-emerald-400 shrink-0" />
+                              <span>{doc.telefono || 'Sin teléfono'}</span>
+                            </div>
+                            <div
+                              className="mt-1 flex items-center space-x-1 text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/25 max-w-fit font-bold"
+                              title="Acceso institucional protegido"
+                            >
+                              <KeyRound className="w-3 h-3 text-emerald-400 shrink-0" />
+                              <span>Protegida</span>
+                            </div>
+                          </td>
+
+                          {/* 4. CARRERAS QUE IMPARTE (ABREVIATURA) */}
+                          <td className="p-3.5">
+                            <div className="flex flex-wrap gap-1.5 max-w-xs">
+                              {rawCarreras.map((carItem, i) => {
+                                const resolved = resolveCarreraAbreviatura(carItem);
+                                return (
+                                  <span
+                                    key={i}
+                                    className="px-2.5 py-1 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[11px] font-extrabold tracking-wide shadow-sm"
+                                    title={resolved.fullName || carItem}
+                                  >
+                                    {resolved.abrev}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          </td>
+
+                          {/* Horarios Asignados */}
+                          <td className="p-3.5">
+                            <div className="max-w-xs space-y-1">
+                              {doc.horario_resumen ? (
+                                <div className="font-mono text-cyan-300 text-[11px] bg-cyan-950/40 px-2 py-1 rounded border border-cyan-800/40">
+                                  {doc.horario_resumen}
+                                </div>
+                              ) : (
+                                <span className="text-gray-500 text-[10px]">Por programar</span>
+                              )}
+                              {doc.horarios && doc.horarios.length > 0 && (
+                                <div className="flex items-center gap-1 text-[10px] flex-wrap">
+                                  <span className="text-emerald-400 font-semibold">
+                                    {doc.horarios.length} bloque(s)
+                                  </span>
+                                  {doc.horarios.some((h) => h.es_en_linea) && (
+                                    <span className="px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/30">
+                                      🌐 En línea
+                                    </span>
+                                  )}
+                                  {doc.horarios.some((h) => !h.es_en_linea) && (
+                                    <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
+                                      🏛️ Presencial
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* Sede */}
+                          <td className="p-3.5 text-gray-300 font-medium">
+                            <div className="flex items-center space-x-1 text-xs">
+                              <MapPin className="w-3 h-3 text-rose-400" />
+                              <span>{doc.sede_nombre || 'Campus Tijuana'}</span>
+                            </div>
+                          </td>
+
+                          {/* Acciones */}
+                          <td className="p-3.5 text-right">
+                            <div className="flex items-center justify-end space-x-1.5">
+                              {/* Botón Asignar Horario & Carreras */}
+                              <button
+                                onClick={() => handleOpenAsignarDocente(doc)}
+                                className="px-2.5 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 font-bold text-[11px] transition-all flex items-center space-x-1"
+                                title="Asignar carreras y horarios de clase"
+                              >
+                                <Clock className="w-3.5 h-3.5" />
+                                <span>Horarios</span>
+                              </button>
+
+                              {/* Botón Descargar Horario PDF */}
+                              <button
+                                onClick={() => {
+                                  generateDocenteHorarioPDF(doc);
+                                  showToast(`Horario en PDF descargado para ${doc.nombre} ${doc.apellido_paterno}`);
+                                }}
+                                className="p-1.5 rounded-xl bg-blue-500/15 hover:bg-blue-500/30 text-blue-300 border border-blue-500/30 transition-all"
+                                title="Descargar horario oficial en PDF para el docente"
+                              >
+                                <FileText className="w-3.5 h-3.5" />
+                              </button>
+
+                              {/* Botón Sincronizar Google Calendar (.ics) */}
+                              <button
+                                onClick={() => {
+                                  downloadDocenteICS(doc);
+                                  showToast(`Archivo Google Calendar (.ics) generado para ${doc.nombre}`);
+                                }}
+                                className="p-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 transition-all"
+                                title="Descargar archivo para Google Calendar con recordatorios presencial/en línea"
+                              >
+                                <Calendar className="w-3.5 h-3.5" />
+                              </button>
+
+                              <button
+                                onClick={() => {
+                                  setEditingId(doc.id);
+                                  setPersonalForm({
+                                    num_empleado: doc.num_empleado,
+                                    nombre: doc.nombre,
+                                    apellido_paterno: doc.apellido_paterno,
+                                    apellido_materno: doc.apellido_materno || '',
+                                    email: doc.email,
+                                    departamento: doc.departamento,
+                                    puesto: doc.puesto || 'docente',
+                                    telefono: doc.telefono || '',
+                                    sede_nombre: doc.sede_nombre || 'Campus Tijuana',
+                                    password: doc.password || getDefaultUserPassword(doc.num_empleado, '2026-2'),
+                                  });
+                                  setShowPersonalPassword(false);
+                                  setModalType('personal');
+                                }}
+                                className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 transition-all"
+                                title="Editar expediente y contraseña"
+                              >
+                                <Edit className="w-3.5 h-3.5" />
+                              </button>
+
+                              <button
+                                onClick={() =>
+                                  handleDeletePersonal(
+                                    doc.id,
+                                    `${doc.nombre} ${doc.apellido_paterno}`
+                                  )
+                                }
+                                className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition-all"
+                                title="Eliminar docente"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>
@@ -3469,9 +3614,16 @@ export default function AdminDashboardPage() {
                   <label className="text-gray-400 block text-[10px] mb-1">Asignatura a impartir en este horario</label>
                   <select
                     value={newHorarioSlot.materia}
-                    onChange={(e) =>
-                      setNewHorarioSlot({ ...newHorarioSlot, materia: e.target.value })
-                    }
+                    onChange={(e) => {
+                      const matName = e.target.value;
+                      const matObj = materias.find((m) => m.nombre === matName);
+                      const carObj = matObj?.carrera_id ? carreras.find((c) => c.id === matObj.carrera_id) : null;
+                      setNewHorarioSlot({
+                        ...newHorarioSlot,
+                        materia: matName,
+                        carrera: carObj?.nombre || newHorarioSlot.carrera,
+                      });
+                    }}
                     className="w-full px-2 py-1.5 rounded-lg bg-[#090E1A] border border-white/10 text-white"
                   >
                     {materias.map((m) => (
@@ -4978,6 +5130,19 @@ export default function AdminDashboardPage() {
         activeCiclo={activeCiclo}
         initialCarreraId={filterCarrera !== 'todos' ? filterCarrera : undefined}
         initialSedeId={filterSede !== 'todos' ? filterSede : undefined}
+        showToast={showToast}
+      />
+
+      {/* Modal de Carga Masiva de Docentes Excel / CSV */}
+      <BulkUploadDocentesModal
+        isOpen={isDocentesCsvModalOpen}
+        onClose={() => setIsDocentesCsvModalOpen(false)}
+        onSuccess={async () => {
+          await loadData();
+        }}
+        existingDocentes={docentes}
+        carreras={carreras}
+        sedes={sedes}
         showToast={showToast}
       />
 
