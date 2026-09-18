@@ -57,6 +57,7 @@ import {
 import { getTijuanaDateString } from '@/lib/tijuanaTime';
 import BulkUploadAlumnosModal from '@/components/BulkUploadAlumnosModal';
 import BulkUploadDocentesModal, { resolveCarreraAbreviatura } from '@/components/BulkUploadDocentesModal';
+import BulkUploadHorariosModal from '@/components/BulkUploadHorariosModal';
 import {
   db,
   Docente,
@@ -139,6 +140,7 @@ export default function AdminDashboardPage() {
   const [selectedAlumnoQr, setSelectedAlumnoQr] = useState<Alumno | null>(null);
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
   const [isDocentesCsvModalOpen, setIsDocentesCsvModalOpen] = useState(false);
+  const [isHorariosCsvModalOpen, setIsHorariosCsvModalOpen] = useState(false);
   const [isDeleteAllModalOpen, setIsDeleteAllModalOpen] = useState(false);
   const [deleteFilterMode, setDeleteFilterMode] = useState<'filtered' | 'all'>('all');
   const [isDeletingAll, setIsDeletingAll] = useState(false);
@@ -1904,6 +1906,16 @@ export default function AdminDashboardPage() {
                 >
                   <FileSpreadsheet className="w-4 h-4" />
                   <span>Carga Masiva Excel / CSV</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsHorariosCsvModalOpen(true)}
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-600/30 transition-all flex items-center space-x-1.5 whitespace-nowrap"
+                  title="Cargar horarios masivamente desde Excel o CSV con persistencia en BD sin sobrescribir existentes"
+                >
+                  <Clock className="w-4 h-4" />
+                  <span>Cargar Horarios (Excel / CSV)</span>
                 </button>
 
                 <button
@@ -5142,6 +5154,21 @@ export default function AdminDashboardPage() {
         }}
         existingDocentes={docentes}
         carreras={carreras}
+        sedes={sedes}
+        showToast={showToast}
+      />
+
+      {/* Modal de Carga Masiva de Horarios Excel / CSV */}
+      <BulkUploadHorariosModal
+        isOpen={isHorariosCsvModalOpen}
+        onClose={() => setIsHorariosCsvModalOpen(false)}
+        onSuccess={async () => {
+          await loadData();
+        }}
+        existingDocentes={docentes}
+        carreras={carreras}
+        grupos={grupos}
+        materias={materias}
         sedes={sedes}
         showToast={showToast}
       />

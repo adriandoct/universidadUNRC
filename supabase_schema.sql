@@ -138,6 +138,15 @@ CREATE TABLE IF NOT EXISTS public.docentes (
 ALTER TABLE public.docentes ADD COLUMN IF NOT EXISTS horario_resumen TEXT;
 ALTER TABLE public.docentes ADD COLUMN IF NOT EXISTS horarios JSONB DEFAULT '[]'::jsonb;
 ALTER TABLE public.docentes ADD COLUMN IF NOT EXISTS carreras_asignadas TEXT[];
+ALTER TABLE public.docentes ADD COLUMN IF NOT EXISTS sede_id TEXT DEFAULT 'sede-tij';
+ALTER TABLE public.docentes ADD COLUMN IF NOT EXISTS sede_nombre TEXT DEFAULT 'Campus Tijuana';
+
+-- Políticas de RLS para lectura y escritura transparente de Docentes y Horarios:
+ALTER TABLE public.docentes ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Public read docentes" ON public.docentes;
+CREATE POLICY "Public read docentes" ON public.docentes FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Allow all manage docentes" ON public.docentes;
+CREATE POLICY "Allow all manage docentes" ON public.docentes FOR ALL USING (true) WITH CHECK (true);
 
 -- Migración para normalizar alumnos al Campus Tijuana en Supabase:
 UPDATE public.alumnos 

@@ -1037,23 +1037,78 @@ export const db = {
       localStorage.setItem('unrc_docentes', JSON.stringify(docentes));
     }
 
-    // Sync to Supabase in background
+    // Sync to Supabase directly (Dual-Mode: native columns + safe meta fallback)
     if (supabase) {
       try {
-        const payload: Record<string, any> = {
-          materias: params.materias,
-          carreras_asignadas: params.carreras_asignadas,
-          departamento: params.carreras_asignadas.join(' / '),
-          horario_resumen: params.horario_resumen,
+        const targetDoc = docentes[index];
+        const baseDept = (params.carreras_asignadas && params.carreras_asignadas.length > 0)
+          ? params.carreras_asignadas.join(' / ')
+          : (targetDoc.departamento || 'Licenciatura');
+
+        const scheduleMeta = {
           horarios: params.horarios,
-          sede_nombre: params.sede_nombre || docentes[index].sede_nombre
+          horario_resumen: params.horario_resumen,
+          carreras_asignadas: params.carreras_asignadas,
+          sede_nombre: params.sede_nombre || targetDoc.sede_nombre || 'Campus Tijuana'
         };
-        await supabase
-          .from('docentes')
-          .update(payload)
-          .eq('num_empleado', docentes[index].num_empleado);
+        const encodedDept = `${baseDept}\n@@UNRC_DOC_META@@${JSON.stringify(scheduleMeta)}`;
+
+        // Attempt 1: Try native columns if existing in Supabase schema
+        let updatedInDb = false;
+        try {
+          const payloadWithNative: Record<string, any> = {
+            materias: params.materias,
+            carreras_asignadas: params.carreras_asignadas,
+            departamento: encodedDept,
+            horario_resumen: params.horario_resumen,
+            horarios: params.horarios,
+            sede_nombre: params.sede_nombre || targetDoc.sede_nombre
+          };
+          const { data: natRes, error: natErr } = await supabase
+            .from('docentes')
+            .update(payloadWithNative)
+            .eq('num_empleado', targetDoc.num_empleado)
+            .select();
+
+          if (!natErr && natRes && natRes.length > 0) {
+            updatedInDb = true;
+          }
+        } catch (e) {
+          // Native columns not yet added, fallback to standard schema
+        }
+
+        // Attempt 2: Fallback update standard columns + embedded metadata
+        if (!updatedInDb) {
+          const { data: stdRes, error: stdErr } = await supabase
+            .from('docentes')
+            .update({
+              materias: params.materias,
+              departamento: encodedDept
+            })
+            .eq('num_empleado', targetDoc.num_empleado)
+            .select();
+
+          if (stdRes && stdRes.length > 0) {
+            updatedInDb = true;
+          }
+        }
+
+        // Attempt 3: If docente was not in Supabase yet, insert new row
+        if (!updatedInDb) {
+          await supabase.from('docentes').insert([{
+            id: targetDoc.id,
+            num_empleado: targetDoc.num_empleado,
+            nombre: targetDoc.nombre,
+            apellido_paterno: targetDoc.apellido_paterno,
+            apellido_materno: targetDoc.apellido_materno || '',
+            email: targetDoc.email,
+            departamento: encodedDept,
+            materias: params.materias,
+            telefono: targetDoc.telefono || ''
+          }]);
+        }
       } catch (err) {
-        console.warn('Supabase assignation background update:', err);
+        console.warn('Supabase assignation background update notice:', err);
       }
     }
 
@@ -2387,114 +2442,117 @@ export const db = {
   getDocentes: async (): Promise<Docente[]> => {
     if (typeof window === 'undefined') return MOCK_DOCENTES;
     initLocalStorage();
-    const raw = localStorage.getItem('unrc_docentes');
-    if (raw) {
-      try {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          // If any docente is missing schedule or password, assign them
-          let hadChanges = false;
-          const enriched = parsed.map((d: Docente) => {
-            const isValdez = d.num_empleado === 'DOC-UNRC-01' || d.id === 'a1111111-1111-1111-1111-111111111111' || d.email?.includes('valdez') || d.apellido_paterno?.includes('Valdez');
-            const isSanchez = d.num_empleado === 'DOC-UNRC-02' || d.id === 'b2222222-2222-2222-2222-222222222222' || d.email?.includes('sanchez') || d.apellido_paterno?.includes('Sánchez');
-            const isSilva = d.num_empleado === 'DOC-UNRC-03' || d.id === 'd0000003-0000-0000-0000-000000000003' || d.email?.includes('silva') || d.apellido_paterno?.includes('Silva');
 
-            let updated = { ...d };
-            if (!updated.password) {
-              hadChanges = true;
-              updated.password = getDefaultUserPassword(d.num_empleado, '2026-2');
-            }
-
-            if (!d.horarios || d.horarios.length === 0 || d.horario_resumen === 'Por programar' || d.horario_resumen === 'Por asignar') {
-              hadChanges = true;
-              if (isValdez) {
-                return {
-                  ...updated,
-                  carreras_asignadas: (d.carreras_asignadas && d.carreras_asignadas.length > 0) ? d.carreras_asignadas : ['Lic. en Ciencias de Datos e Inteligencia Artificial', 'Licenciatura en Ciencia de Datos para los Negocios'],
-                  materias: (d.materias && d.materias.length > 0) ? d.materias : ['Programación Web y Bases de Datos', 'Inteligencia Artificial y Aprendizaje Automático', 'Minería de Datos y Modelado Predictivo'],
-                  horario_resumen: 'Lunes a Sábado (07:00 - 13:00 hrs)',
-                  horarios: [
-                    { dia: 'Lunes', hora_inicio: '07:00', hora_fin: '10:00', carrera: 'Lic. en Ciencias de Datos e Inteligencia Artificial', materia: 'Programación Web y Bases de Datos', grupo: '101', aula: 'Edificio B - Aula 101', es_en_linea: false },
-                    { dia: 'Miércoles', hora_inicio: '07:00', hora_fin: '10:00', carrera: 'Lic. en Ciencias de Datos e Inteligencia Artificial', materia: 'Inteligencia Artificial y Aprendizaje Automático', grupo: '102', aula: 'Edificio B - Aula 102', es_en_linea: false },
-                    { dia: 'Miércoles', hora_inicio: '09:00', hora_fin: '12:00', carrera: 'Licenciatura en Ciencia de Datos para los Negocios', materia: 'Inteligencia Artificial y Aprendizaje Automático', grupo: '401-LCDN', aula: 'Laboratorio de Cómputo e IA', es_en_linea: false },
-                    { dia: 'Lunes', hora_inicio: '09:00', hora_fin: '12:00', carrera: 'Licenciatura en Ciencia de Datos para los Negocios', materia: 'Programación Web y Bases de Datos', grupo: '401-LCDN', aula: 'Laboratorio de Cómputo e IA', es_en_linea: false },
-                    { dia: 'Viernes', hora_inicio: '08:00', hora_fin: '11:00', carrera: 'Licenciatura en Ciencia de Datos para los Negocios', materia: 'Minería de Datos y Modelado Predictivo', grupo: '401-LCDN', aula: 'Aula Virtual UNRC (Google Meet)', es_en_linea: true }
-                  ],
-                  sede_nombre: d.sede_nombre || 'Campus Tijuana'
-                };
-              }
-              if (isSanchez) {
-                return {
-                  ...updated,
-                  carreras_asignadas: (d.carreras_asignadas && d.carreras_asignadas.length > 0) ? d.carreras_asignadas : ['Inteligencia Artificial', 'Lic. en Tecnologías de la Información y Comunicación'],
-                  materias: (d.materias && d.materias.length > 0) ? d.materias : ['Redes Neuronales', 'Algoritmos Complejos', 'Estructura de Datos y Algoritmos'],
-                  horario_resumen: 'Lunes a Sábado (14:00 - 20:00 hrs)',
-                  horarios: [
-                    { dia: 'Martes', hora_inicio: '14:00', hora_fin: '17:00', carrera: 'Lic. en Tecnologías de la Información y Comunicación', materia: 'Estructura de Datos y Algoritmos', grupo: '201', aula: 'Campus Tijuana - Lab Cómputo 1' },
-                    { dia: 'Jueves', hora_inicio: '14:00', hora_fin: '17:00', carrera: 'Lic. en Tecnologías de la Información y Comunicación', materia: 'Ingeniería de Software y Sistemas Web', grupo: '301', aula: 'Campus Tijuana - Lab Redes 2' }
-                  ],
-                  sede_nombre: d.sede_nombre || 'Campus Tijuana'
-                };
-              }
-              if (isSilva) {
-                return {
-                  ...updated,
-                  carreras_asignadas: (d.carreras_asignadas && d.carreras_asignadas.length > 0) ? d.carreras_asignadas : ['Lic. en Administración', 'Lic. en Turismo', 'Licenciatura en Ciencia de Datos para los Negocios'],
-                  materias: (d.materias && d.materias.length > 0) ? d.materias : ['Matemáticas para la Administración', 'Administración y Gestión Estratégica', 'Contabilidad y Finanzas Aplicadas', 'Administración de Empresas de Hospedaje'],
-                  horario_resumen: 'Lunes a Sábado (Campus Tijuana)',
-                  horarios: [
-                    { dia: 'Lunes', hora_inicio: '07:00', hora_fin: '09:00', carrera: 'Lic. en Administración', materia: 'Matemáticas para la Administración', grupo: 'PHLAC-203-TIJ', aula: 'Campus Tijuana - Aula 203', sede: 'Campus Tijuana', es_en_linea: false },
-                    { dia: 'Miércoles', hora_inicio: '11:00', hora_fin: '13:00', carrera: 'Lic. en Administración', materia: 'Administración y Gestión Estratégica', grupo: 'PHLAC-203-TIJ', aula: 'Campus Tijuana - Aula Magna TIJ', sede: 'Campus Tijuana', es_en_linea: false },
-                    { dia: 'Viernes', hora_inicio: '08:00', hora_fin: '10:00', carrera: 'Lic. en Administración', materia: 'Contabilidad y Finanzas Aplicadas', grupo: 'PHLAC-203-TIJ', aula: 'Aula Virtual UNRC (Google Meet)', sede: 'Campus Tijuana', es_en_linea: true },
-                    { dia: 'Miércoles', hora_inicio: '09:00', hora_fin: '11:00', carrera: 'Lic. en Turismo', materia: 'Administración de Empresas de Hospedaje', grupo: '201-TUR', aula: 'Campus Tijuana - Aula Magna 2', sede: 'Campus Tijuana', es_en_linea: false },
-                    { dia: 'Sábado', hora_inicio: '07:00', hora_fin: '09:00', carrera: 'Lic. en Turismo', materia: 'Administración de Empresas de Hospedaje', grupo: '201-TUR', aula: 'Aula Virtual UNRC (Google Meet)', sede: 'Campus Tijuana', es_en_linea: true }
-                  ],
-                  sede_nombre: d.sede_nombre || 'Campus Tijuana'
-                };
-              }
-            }
-
-            return updated;
-          });
-
-          if (hadChanges) {
-            localStorage.setItem('unrc_docentes', JSON.stringify(enriched));
-          }
-          return enriched;
-        }
-      } catch (e) {
-        console.warn('Error parsing unrc_docentes:', e);
-      }
-    }
-
+    // 1. Try to fetch the single source of truth from Supabase
+    let remoteList: Docente[] | null = null;
     if (supabase) {
       try {
         const { data, error } = await supabase
           .from('docentes')
           .select('*')
           .order('apellido_paterno', { ascending: true });
+
         if (!error && data && data.length > 0) {
-          const list: Docente[] = data.map((sd: any) => {
+          remoteList = data.map((sd: any) => {
+            let parsedHorarios: HorarioDocenteItem[] = [];
+            let parsedResumen = sd.horario_resumen || 'Por programar';
+            let parsedCarreras: string[] = sd.carreras_asignadas || [];
+            let cleanDept = sd.departamento || '';
+
+            if (sd.horarios && Array.isArray(sd.horarios) && sd.horarios.length > 0) {
+              parsedHorarios = sd.horarios;
+            } else if (cleanDept.includes('@@UNRC_DOC_META@@')) {
+              try {
+                const parts = cleanDept.split('@@UNRC_DOC_META@@');
+                cleanDept = parts[0].trim();
+                const meta = JSON.parse(parts[1]);
+                if (meta.horarios && Array.isArray(meta.horarios) && meta.horarios.length > 0) {
+                  parsedHorarios = meta.horarios;
+                  parsedResumen = meta.horario_resumen || parsedResumen;
+                  if (meta.carreras_asignadas && Array.isArray(meta.carreras_asignadas)) {
+                    parsedCarreras = meta.carreras_asignadas;
+                  }
+                }
+              } catch (e) {
+                console.warn('Error parsing @@UNRC_DOC_META@@ in getDocentes:', e);
+              }
+            }
+
             const mockMatch = MOCK_DOCENTES.find(m => m.num_empleado === sd.num_empleado || m.email === sd.email);
+
+            // Fallback for demo faculty if no schedule was saved yet
+            if (parsedHorarios.length === 0 && mockMatch?.horarios && mockMatch.horarios.length > 0) {
+              parsedHorarios = mockMatch.horarios;
+              parsedResumen = mockMatch.horario_resumen || parsedResumen;
+            }
+            if (parsedCarreras.length === 0) {
+              parsedCarreras = mockMatch?.carreras_asignadas || [cleanDept || 'Licenciatura'];
+            }
+
             return {
-              ...mockMatch,
-              ...sd,
-              password: sd.password || mockMatch?.password || getDefaultUserPassword(sd.num_empleado, '2026-2'),
-              carreras_asignadas: sd.carreras_asignadas || mockMatch?.carreras_asignadas || [sd.departamento || 'Licenciatura'],
+              id: sd.id,
+              num_empleado: sd.num_empleado,
+              nombre: sd.nombre,
+              apellido_paterno: sd.apellido_paterno,
+              apellido_materno: sd.apellido_materno || '',
+              email: sd.email,
+              departamento: cleanDept,
+              puesto: sd.puesto || 'docente',
               materias: sd.materias || mockMatch?.materias || [],
-              horario_resumen: sd.horario_resumen || mockMatch?.horario_resumen || 'Por programar',
-              horarios: sd.horarios || mockMatch?.horarios || [],
-              sede_nombre: sd.sede_nombre || mockMatch?.sede_nombre || 'Campus Tijuana'
+              carreras_asignadas: parsedCarreras,
+              horario_resumen: parsedResumen,
+              horarios: parsedHorarios,
+              sede_nombre: sd.sede_nombre || mockMatch?.sede_nombre || 'Campus Tijuana',
+              telefono: sd.telefono || mockMatch?.telefono || '',
+              foto_url: sd.foto_url || mockMatch?.foto_url,
+              password: sd.password || mockMatch?.password || getDefaultUserPassword(sd.num_empleado, '2026-2'),
+              created_at: sd.created_at
             };
           });
-          localStorage.setItem('unrc_docentes', JSON.stringify(list));
-          return list;
         }
       } catch (err) {
-        console.warn('Docentes fetch fallback:', err);
+        console.warn('Docentes fetch from Supabase notice:', err);
       }
     }
 
+    // 2. Read local cache and merge without losing any local modifications or newly added teachers
+    const raw = localStorage.getItem('unrc_docentes');
+    let localList: Docente[] = [];
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) localList = parsed;
+      } catch (e) {
+        console.warn('Error parsing local docentes cache:', e);
+      }
+    }
+
+    let finalList: Docente[] = [];
+
+    if (remoteList && remoteList.length > 0) {
+      finalList = [...remoteList];
+      // Check if any local teacher was added locally and is not in remote
+      localList.forEach((ld) => {
+        const inRemoteIdx = finalList.findIndex((rd) => rd.num_empleado === ld.num_empleado || rd.id === ld.id);
+        if (inRemoteIdx === -1) {
+          finalList.push(ld);
+        } else {
+          // If local has newer/custom schedules that remote didn't have, keep local's schedule
+          if (ld.horarios && ld.horarios.length > 0 && (!finalList[inRemoteIdx].horarios || finalList[inRemoteIdx].horarios.length === 0)) {
+            finalList[inRemoteIdx].horarios = ld.horarios;
+            finalList[inRemoteIdx].horario_resumen = ld.horario_resumen;
+          }
+        }
+      });
+      localStorage.setItem('unrc_docentes', JSON.stringify(finalList));
+      return finalList;
+    }
+
+    if (localList.length > 0) {
+      return localList;
+    }
+
+    // Fallback seed
     const seeded = MOCK_DOCENTES.map(d => ({
       ...d,
       password: d.password || getDefaultUserPassword(d.num_empleado, '2026-2')
@@ -2506,23 +2564,190 @@ export const db = {
   addDocentesBulk: async (docentes: Omit<Docente, 'id' | 'created_at'>[]): Promise<Docente[]> => {
     initLocalStorage();
     const current = await db.getDocentes();
-    const newItems: Docente[] = [];
+    const affectedItems: Docente[] = [];
 
-    docentes.forEach((doc, idx) => {
-      const item: Docente = {
-        ...doc,
-        password: doc.password || getDefaultUserPassword(doc.num_empleado, '2026-2'),
-        id: `docente-${Date.now()}-${idx}`,
-        created_at: new Date().toISOString()
-      };
-      newItems.push(item);
-      current.push(item);
-    });
+    for (let idx = 0; idx < docentes.length; idx++) {
+      const doc = docentes[idx];
+      const existingIdx = current.findIndex(d => 
+        (d.email && doc.email && d.email.toLowerCase() === doc.email.toLowerCase()) ||
+        (d.num_empleado && doc.num_empleado && d.num_empleado.toLowerCase() === doc.num_empleado.toLowerCase())
+      );
+
+      if (existingIdx !== -1) {
+        // PRESERVE EXISTING HORARIOS AND SUBJECTS
+        const existing = current[existingIdx];
+        current[existingIdx] = {
+          ...existing,
+          ...doc,
+          horarios: (existing.horarios && existing.horarios.length > 0)
+            ? existing.horarios
+            : (doc.horarios || []),
+          horario_resumen: (existing.horarios && existing.horarios.length > 0)
+            ? existing.horario_resumen
+            : (doc.horario_resumen || 'Por programar'),
+          materias: (existing.materias && existing.materias.length > 0)
+            ? existing.materias
+            : (doc.materias || [])
+        };
+        affectedItems.push(current[existingIdx]);
+      } else {
+        const item: Docente = {
+          ...doc,
+          password: doc.password || getDefaultUserPassword(doc.num_empleado, '2026-2'),
+          id: `docente-${Date.now()}-${idx}`,
+          created_at: new Date().toISOString()
+        };
+        affectedItems.push(item);
+        current.push(item);
+      }
+    }
 
     if (typeof window !== 'undefined') {
       localStorage.setItem('unrc_docentes', JSON.stringify(current));
     }
-    return newItems;
+
+    // Persist all affected teachers to Supabase with dual-mode
+    if (supabase) {
+      for (const d of affectedItems) {
+        try {
+          const scheduleMeta = {
+            horarios: d.horarios || [],
+            horario_resumen: d.horario_resumen || 'Por programar',
+            carreras_asignadas: d.carreras_asignadas || [d.departamento || 'Licenciatura'],
+            sede_nombre: d.sede_nombre || 'Campus Tijuana'
+          };
+          const baseDept = d.carreras_asignadas?.join(' / ') || d.departamento || 'Campus Tijuana';
+          const encodedDept = `${baseDept}\n@@UNRC_DOC_META@@${JSON.stringify(scheduleMeta)}`;
+
+          const { data: upRes } = await supabase
+            .from('docentes')
+            .update({
+              nombre: d.nombre,
+              apellido_paterno: d.apellido_paterno,
+              apellido_materno: d.apellido_materno || '',
+              email: d.email,
+              departamento: encodedDept,
+              materias: d.materias || [],
+              telefono: d.telefono || ''
+            })
+            .eq('num_empleado', d.num_empleado)
+            .select();
+
+          if (!upRes || upRes.length === 0) {
+            await supabase.from('docentes').insert([{
+              id: d.id,
+              num_empleado: d.num_empleado,
+              nombre: d.nombre,
+              apellido_paterno: d.apellido_paterno,
+              apellido_materno: d.apellido_materno || '',
+              email: d.email,
+              departamento: encodedDept,
+              materias: d.materias || [],
+              telefono: d.telefono || ''
+            }]);
+          }
+        } catch (e) {
+          console.warn('Supabase bulk docente sync notice:', e);
+        }
+      }
+    }
+
+    return affectedItems;
+  },
+
+  addHorariosBulk: async (
+    items: Array<{
+      docenteIdentificador: string;
+      carrera?: string;
+      materia: string;
+      grupo: string;
+      dia: string;
+      hora_inicio: string;
+      hora_fin: string;
+      aula?: string;
+      es_en_linea?: boolean;
+      sede?: string;
+    }>
+  ): Promise<{ totalSlotsAdded: number; docentesUpdated: number }> => {
+    initLocalStorage();
+    const docentes = await db.getDocentes();
+    let docentesUpdatedCount = 0;
+    let totalSlots = 0;
+
+    const slotsByDocente = new Map<string, typeof items>();
+
+    items.forEach((slot) => {
+      const cleanIdent = (slot.docenteIdentificador || '').toLowerCase().trim();
+      if (!cleanIdent) return;
+      const list = slotsByDocente.get(cleanIdent) || [];
+      list.push(slot);
+      slotsByDocente.set(cleanIdent, list);
+    });
+
+    for (const [ident, slots] of slotsByDocente.entries()) {
+      const docIdx = docentes.findIndex((d) => {
+        const dNom = `${d.nombre} ${d.apellido_paterno} ${d.apellido_materno || ''}`.toLowerCase();
+        const dEmp = (d.num_empleado || '').toLowerCase();
+        const dEmail = (d.email || '').toLowerCase();
+        return dEmp === ident || dEmail === ident || dNom.includes(ident) || ident.includes(d.apellido_paterno.toLowerCase());
+      });
+
+      if (docIdx === -1) continue;
+
+      const targetDoc = docentes[docIdx];
+      const existingHorarios = targetDoc.horarios || [];
+      const newHorarios = [...existingHorarios];
+
+      slots.forEach((s) => {
+        const exists = newHorarios.some(
+          (h) =>
+            h.dia.toLowerCase() === s.dia.toLowerCase() &&
+            h.hora_inicio === s.hora_inicio &&
+            h.grupo.toLowerCase() === s.grupo.toLowerCase() &&
+            h.materia.toLowerCase() === s.materia.toLowerCase()
+        );
+        if (!exists) {
+          newHorarios.push({
+            id: `h-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+            dia: s.dia,
+            hora_inicio: s.hora_inicio,
+            hora_fin: s.hora_fin,
+            carrera: s.carrera || targetDoc.carreras_asignadas?.[0] || 'Licenciatura',
+            materia: s.materia,
+            grupo: s.grupo,
+            aula: s.aula || 'Campus Tijuana - Aula Asignada',
+            es_en_linea: Boolean(s.es_en_linea),
+            sede: s.sede || targetDoc.sede_nombre || 'Campus Tijuana',
+          });
+          totalSlots++;
+        }
+      });
+
+      const allMaterias = Array.from(new Set([...(targetDoc.materias || []), ...newHorarios.map((h) => h.materia).filter(Boolean)]));
+      const allCarreras = Array.from(new Set([...(targetDoc.carreras_asignadas || []), ...newHorarios.map((h) => h.carrera).filter(Boolean)]));
+      const summary = newHorarios
+        .map((h) => `${h.dia} (${h.hora_inicio}-${h.hora_fin} hrs • ${h.grupo})`)
+        .join(' | ');
+
+      await db.asignarDocenteHorarioCarreras(targetDoc.id, {
+        carreras_asignadas: allCarreras,
+        materias: allMaterias,
+        horario_resumen: summary,
+        horarios: newHorarios,
+        sede_nombre: targetDoc.sede_nombre,
+      });
+
+      docentesUpdatedCount++;
+    }
+
+    await db.addAuditoria(
+      'CARGA_MASIVA_HORARIOS',
+      'Programación Docente',
+      `Carga masiva de ${totalSlots} bloques de horarios para ${docentesUpdatedCount} docentes. Persistido en base de datos.`,
+      'Control Escolar'
+    );
+
+    return { totalSlotsAdded: totalSlots, docentesUpdated: docentesUpdatedCount };
   },
 
   addDocente: async (docente: Omit<Docente, 'id' | 'created_at'>): Promise<Docente> => {

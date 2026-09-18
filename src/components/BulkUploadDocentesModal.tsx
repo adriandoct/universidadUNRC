@@ -405,22 +405,33 @@ export default function BulkUploadDocentesModal({
 
     setIsSubmitting(true);
     try {
-      const payload = toImport.map((r) => ({
-        num_empleado: r.num_empleado,
-        nombre: r.nombre,
-        apellido_paterno: r.apellido_paterno,
-        apellido_materno: r.apellido_materno,
-        email: r.email,
-        departamento: r.carreras_completas.join(' / '),
-        carreras_asignadas: r.carreras_completas,
-        puesto: 'docente' as const,
-        telefono: r.telefono,
-        sede_nombre: r.sede_nombre,
-        materias: [],
-        horario_resumen: 'Por programar',
-        horarios: [],
-        password: getDefaultUserPassword(r.num_empleado, '2026-2')
-      }));
+      const payload = toImport.map((r) => {
+        const existing = existingDocentes.find(
+          (d) =>
+            (d.email && d.email.toLowerCase() === r.email.toLowerCase()) ||
+            (d.num_empleado && d.num_empleado.toLowerCase() === r.num_empleado.toLowerCase())
+        );
+
+        return {
+          num_empleado: r.num_empleado,
+          nombre: r.nombre,
+          apellido_paterno: r.apellido_paterno,
+          apellido_materno: r.apellido_materno,
+          email: r.email,
+          departamento: r.carreras_completas.join(' / '),
+          carreras_asignadas: r.carreras_completas,
+          puesto: 'docente' as const,
+          telefono: r.telefono,
+          sede_nombre: r.sede_nombre,
+          materias: existing?.materias && existing.materias.length > 0 ? existing.materias : [],
+          horario_resumen:
+            existing?.horarios && existing.horarios.length > 0
+              ? existing.horario_resumen || 'Horario Asignado'
+              : 'Por programar',
+          horarios: existing?.horarios && existing.horarios.length > 0 ? existing.horarios : [],
+          password: getDefaultUserPassword(r.num_empleado, '2026-2'),
+        };
+      });
 
       await db.addDocentesBulk(payload);
       showToast(`✅ ${toImport.length} docentes registrados e incorporados exitosamente.`, 'success');
