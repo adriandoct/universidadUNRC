@@ -338,11 +338,11 @@ const MOCK_MATERIAS: Materia[] = [
 const MOCK_GRUPOS: Grupo[] = [
   { id: 'g101', clave_grupo: '101', carrera_id: 'c1', materia_id: 'm1', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', turno: 'Matutino', periodo: '2026-2', horario: 'Lunes a Sábado (07:00 - 13:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Lic. Alejandro Valdez', aula: 'Campus Tijuana - Aula 101' },
   { id: 'g102', clave_grupo: '102', carrera_id: 'c1', materia_id: 'm2', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', turno: 'Matutino', periodo: '2026-2', horario: 'Lunes a Sábado (07:00 - 13:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Lic. Alejandro Valdez', aula: 'Campus Tijuana - Aula 102' },
-  { id: 'g201', clave_grupo: '201', carrera_id: 'c2', materia_id: 'm3', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', turno: 'Vespertino', periodo: '2026-2', horario: 'Lunes a Sábado (14:00 - 20:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Lic. Beatriz Sánchez', aula: 'Campus Tijuana - Lab Cómputo 1' },
+  { id: 'g201', clave_grupo: '201', carrera_id: 'c2', materia_id: 'm3', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', turno: 'Vespertino', periodo: '2026-2', horario: 'Lunes a Sábado (14:00 - 20:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Dr. Adrian Silva', aula: 'Campus Tijuana - Lab Cómputo 1' },
   { id: 'g201-tur', clave_grupo: '201-TUR', carrera_id: 'c4', materia_id: 'm6', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', turno: 'Matutino', periodo: '2026-2', horario: 'Miércoles 09:00 - 11:00 hrs | Sábado 07:00 - 09:00 hrs', dias_clase: ['Miércoles', 'Sábado'], docente_nombre: 'Dr. Adrian Silva', aula: 'Campus Tijuana - Aula Magna TIJ' },
   { id: 'g203-adm', clave_grupo: '203-ADM', carrera_id: 'c5', materia_id: 'm7', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', turno: 'Matutino', periodo: '2026-2', horario: 'Lunes a Sábado (07:00 - 13:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Dr. Adrian Silva', aula: 'Campus Tijuana - Aula 203' },
   { id: 'g203-tij', clave_grupo: 'PHLAC-203-TIJ', carrera_id: 'c5', materia_id: 'f7777777-7777-7777-7777-777777777777', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', turno: 'Matutino', periodo: '2026-2', horario: 'Lunes, Miércoles y Viernes (07:00 - 13:00 hrs)', dias_clase: ['Lunes', 'Miércoles', 'Viernes'], docente_nombre: 'Dr. Adrian Silva', aula: 'Campus Tijuana - Aula 203' },
-  { id: 'g301', clave_grupo: '301', carrera_id: 'c2', materia_id: 'm4', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', turno: 'Matutino', periodo: '2026-2', horario: 'Lunes a Sábado (07:00 - 13:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Lic. Beatriz Sánchez', aula: 'Campus Tijuana - Lab Redes' },
+  { id: 'g301', clave_grupo: '301', carrera_id: 'c2', materia_id: 'm4', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', turno: 'Matutino', periodo: '2026-2', horario: 'Lunes a Sábado (07:00 - 13:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Dr. Adrian Silva', aula: 'Campus Tijuana - Lab Redes' },
   { id: 'g401-lcdn', clave_grupo: '401-LCDN', carrera_id: 'c1111111-1111-1111-1111-111111111111', materia_id: 'f2222222-2222-2222-2222-222222222222', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', turno: 'Matutino', periodo: '2026-2', horario: 'Miércoles (09:00 - 11:00 hrs) y Sábados (07:00 - 09:00 hrs)', dias_clase: ['Miércoles', 'Sábado'], docente_nombre: 'Dr. Adrian Silva', docente_id: 'd0000003-0000-0000-0000-000000000003', aula: 'Aula Virtual UNRC (Google Meet)' },
   { id: 'g501', clave_grupo: '501', carrera_id: 'c3', materia_id: 'm5', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', turno: 'Matutino', periodo: '2026-2', horario: 'Lunes a Sábado (07:00 - 13:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Tutor UNRC', aula: 'Campus Tijuana - Lab Ciberseguridad' }
 ];
@@ -430,27 +430,6 @@ const MOCK_DOCENTES: Docente[] = [
     sede_nombre: 'Campus Tijuana',
     telefono: '+525599887766',
     foto_url: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=200&h=200',
-    created_at: new Date().toISOString()
-  },
-  {
-    id: 'docente-2',
-    num_empleado: 'DOC-UNRC-02',
-    nombre: 'Beatriz',
-    apellido_paterno: 'Sánchez',
-    apellido_materno: 'Pineda',
-    email: 'beatriz.sanchez@rcastellanos.cdmx.gob.mx',
-    departamento: 'Lic. en TIC',
-    puesto: 'docente',
-    carreras_asignadas: ['Lic. en Tecnologías de la Información y Comunicación'],
-    materias: ['Estructura de Datos y Algoritmos', 'Ingeniería de Software y Sistemas Web'],
-    horario_resumen: 'Lunes a Sábado (14:00 - 20:00 hrs)',
-    horarios: [
-      { dia: 'Martes', hora_inicio: '14:00', hora_fin: '17:00', carrera: 'Lic. en Tecnologías de la Información y Comunicación', materia: 'Estructura de Datos y Algoritmos', grupo: '201', aula: 'Campus Tijuana - Lab Cómputo 1' },
-      { dia: 'Jueves', hora_inicio: '14:00', hora_fin: '17:00', carrera: 'Lic. en Tecnologías de la Información y Comunicación', materia: 'Ingeniería de Software y Sistemas Web', grupo: '301', aula: 'Campus Tijuana - Lab Redes' }
-    ],
-    sede_nombre: 'Campus Tijuana',
-    telefono: '+525588776655',
-    foto_url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200&h=200',
     created_at: new Date().toISOString()
   },
   {
@@ -2443,6 +2422,29 @@ export const db = {
     if (typeof window === 'undefined') return MOCK_DOCENTES;
     initLocalStorage();
 
+    // Track deleted teacher IDs & blacklist
+    let deletedIds: string[] = ['DOC-UNRC-02', 'docente-2', 'b2222222-2222-2222-2222-222222222222'];
+    if (typeof window !== 'undefined') {
+      const rawDeleted = localStorage.getItem('unrc_deleted_docentes');
+      if (rawDeleted) {
+        try {
+          const parsed = JSON.parse(rawDeleted);
+          if (Array.isArray(parsed)) deletedIds = Array.from(new Set([...deletedIds, ...parsed]));
+        } catch (e) {}
+      }
+    }
+
+    const isDocenteDeleted = (dNum?: string, dId?: string, dNom?: string, dPat?: string, dDept?: string, dPuesto?: string) => {
+      if (dNum && (dNum.startsWith('BAJA-') || deletedIds.includes(dNum))) return true;
+      if (dId && deletedIds.includes(dId)) return true;
+      if (dDept && dDept.includes('BAJA')) return true;
+      if (dPuesto === 'baja') return true;
+      const cleanNom = (dNom || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const cleanPat = (dPat || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      if (cleanNom.includes('beatriz') && cleanPat.includes('sanchez')) return true;
+      return false;
+    };
+
     // 1. Try to fetch the single source of truth from Supabase
     let remoteList: Docente[] | null = null;
     if (supabase) {
@@ -2453,7 +2455,9 @@ export const db = {
           .order('apellido_paterno', { ascending: true });
 
         if (!error && data && data.length > 0) {
-          remoteList = data.map((sd: any) => {
+          remoteList = data
+            .filter((sd: any) => !isDocenteDeleted(sd.num_empleado, sd.id, sd.nombre, sd.apellido_paterno, sd.departamento, sd.puesto))
+            .map((sd: any) => {
             let parsedHorarios: HorarioDocenteItem[] = [];
             let parsedResumen = sd.horario_resumen || 'Por programar';
             let parsedCarreras: string[] = sd.carreras_asignadas || [];
@@ -2521,7 +2525,9 @@ export const db = {
     if (raw) {
       try {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) localList = parsed;
+        if (Array.isArray(parsed)) {
+          localList = parsed.filter((ld) => !isDocenteDeleted(ld.num_empleado, ld.id, ld.nombre, ld.apellido_paterno, ld.departamento, ld.puesto));
+        }
       } catch (e) {
         console.warn('Error parsing local docentes cache:', e);
       }
@@ -3043,20 +3049,61 @@ export const db = {
     let list = await db.getDocentes();
     const target = list.find(d => d.id === id || d.num_empleado === id);
     const targetNum = target ? target.num_empleado : id;
-    list = list.filter(d => d.id !== id && d.num_empleado !== id);
+    const targetId = target ? target.id : id;
+    const targetFullName = target ? `${target.nombre} ${target.apellido_paterno}`.toLowerCase() : '';
+
+    list = list.filter(d => d.id !== id && d.num_empleado !== id && d.num_empleado !== targetNum && d.id !== targetId);
     if (typeof window !== 'undefined') {
       localStorage.setItem('unrc_docentes', JSON.stringify(list));
+
+      // Register in deleted blacklist so it can NEVER resurrect
+      const rawDeleted = localStorage.getItem('unrc_deleted_docentes');
+      const deletedList: string[] = rawDeleted ? JSON.parse(rawDeleted) : [];
+      if (targetNum && !deletedList.includes(targetNum)) deletedList.push(targetNum);
+      if (targetId && !deletedList.includes(targetId)) deletedList.push(targetId);
+      if (id && !deletedList.includes(id)) deletedList.push(id);
+      localStorage.setItem('unrc_deleted_docentes', JSON.stringify(deletedList));
+
+      // Clean from groups
+      const rawGrupos = localStorage.getItem('unrc_grupos');
+      if (rawGrupos) {
+        try {
+          const gruposParsed: Grupo[] = JSON.parse(rawGrupos);
+          const cleanedGrupos = gruposParsed.map(g => {
+            const matchesId = g.docente_id === targetId || g.docente_id === id;
+            const matchesName = targetFullName && g.docente_nombre && g.docente_nombre.toLowerCase().includes(targetFullName);
+            if (matchesId || matchesName) {
+              return { ...g, docente_id: undefined, docente_nombre: undefined };
+            }
+            return g;
+          });
+          localStorage.setItem('unrc_grupos', JSON.stringify(cleanedGrupos));
+        } catch (e) {
+          console.warn('Error cleaning grupos on docente delete:', e);
+        }
+      }
     }
 
     if (supabase) {
       try {
-        await supabase.from('docentes').delete().eq('num_empleado', targetNum);
+        // First, update to BAJA_DEFINITIVA so even if RLS denies DELETE, SELECT filter excludes them permanently
+        await supabase
+          .from('docentes')
+          .update({
+            num_empleado: `BAJA-${targetNum}-${Date.now()}`,
+            departamento: 'BAJA_DEFINITIVA',
+            materias: []
+          })
+          .or(`id.eq.${id},id.eq.${targetId},num_empleado.eq.${targetNum}`);
+
+        await supabase.from('docentes').delete().or(`id.eq.${id},id.eq.${targetId},num_empleado.eq.${targetNum}`);
       } catch (e) {
         console.warn('Supabase docente delete notice:', e);
       }
     }
+
     if (target) {
-      await db.addAuditoria('BAJA_DOCENTE', 'Recursos Humanos / Personal', `Se eliminó el expediente docente de ${target.nombre} ${target.apellido_paterno}`, 'Administrador');
+      await db.addAuditoria('BAJA_DOCENTE', 'Recursos Humanos / Personal', `Se dio de baja definitiva al docente ${target.nombre} ${target.apellido_paterno} (${targetNum}) y se removió de todos los grupos y horarios.`, 'Administrador');
     }
     return true;
   },

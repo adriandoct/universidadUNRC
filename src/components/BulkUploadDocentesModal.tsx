@@ -370,7 +370,7 @@ export default function BulkUploadDocentesModal({
     const sampleRows = [
       ['Dr. Adrian Silva', 'adrian.silva@rcastellanos.cdmx.gob.mx', '+525512345678', 'ADM, TUR, LCDN'],
       ['Lic. Alejandro Valdez Mendoza', 'alejandro.valdez@rcastellanos.cdmx.gob.mx', '+525599887766', 'CDIA, LCDN'],
-      ['Mtra. Beatriz Sánchez Pineda', 'beatriz.sanchez@rcastellanos.cdmx.gob.mx', '+525588776655', 'TIC'],
+      ['Mtra. Sofia Morales Ríos', 'sofia.morales@rcastellanos.cdmx.gob.mx', '+525588776655', 'TIC'],
       ['Ing. Roberto Gómez Castillo', 'roberto.gomez@rcastellanos.cdmx.gob.mx', '+525544332211', 'CIB']
     ];
 

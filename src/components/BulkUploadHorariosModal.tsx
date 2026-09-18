@@ -315,7 +315,7 @@ export default function BulkUploadHorariosModal({
       ['Dr. Adrian Silva', 'Lic. en Administración', 'Matemáticas para la Administración', 'PHLAC-203-TIJ', 'Lunes', '07:00', '09:00', 'Campus Tijuana - Aula 203', 'Presencial'],
       ['Lic. Alejandro Valdez', 'Lic. en Ciencias de Datos e IA', 'Programación Web y Bases de Datos', '101', 'Lunes', '07:00', '10:00', 'Campus Tijuana - Lab Cómputo 1', 'Presencial'],
       ['Lic. Alejandro Valdez', 'Licenciatura en Ciencia de Datos para los Negocios', 'Minería de Datos y Modelado Predictivo', '401-LCDN', 'Viernes', '08:00', '11:00', 'Aula Virtual UNRC (Google Meet)', 'En línea'],
-      ['Mtra. Beatriz Sánchez', 'Lic. en Tecnologías de la Información y Comunicación', 'Estructura de Datos y Algoritmos', '201', 'Martes', '14:00', '17:00', 'Campus Tijuana - Lab Redes 2', 'Presencial']
+      ['Dr. Adrian Silva', 'Lic. en Tecnologías de la Información y Comunicación', 'Estructura de Datos y Algoritmos', '201', 'Martes', '14:00', '17:00', 'Campus Tijuana - Lab Redes 2', 'Presencial']
     ];
 
     if (format === 'xlsx') {
