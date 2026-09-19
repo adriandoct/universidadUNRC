@@ -920,8 +920,9 @@ export default function AdminDashboardPage() {
         getDefaultUserPassword(alumnoForm.matricula, '2026-2');
 
       if (editingId) {
+        const currentStudent = alumnos.find((a) => a.id === editingId || a.matricula === editingId);
+        const originalMatricula = currentStudent?.matricula || alumnoForm.matricula;
         const updated = await db.updateAlumnoMatricula(editingId, {
-          matricula: alumnoForm.matricula,
           nombre: alumnoForm.nombre,
           apellido_paterno: alumnoForm.apellido_paterno,
           apellido_materno: alumnoForm.apellido_materno,
@@ -944,7 +945,7 @@ export default function AdminDashboardPage() {
               ? {
                   ...a,
                   ...(updated || {}),
-                  matricula: alumnoForm.matricula,
+                  matricula: originalMatricula, // Preserva la matrícula inmutable original
                   nombre: alumnoForm.nombre,
                   apellido_paterno: alumnoForm.apellido_paterno,
                   apellido_materno: alumnoForm.apellido_materno,
@@ -964,7 +965,7 @@ export default function AdminDashboardPage() {
               : a
           )
         );
-        showToast('Expediente, matrícula y contraseña actualizados.');
+        showToast('Expediente y datos actualizados (matrícula institucional protegida).');
       } else {
         const newAl = await db.addAlumno({
           matricula: alumnoForm.matricula,
@@ -2569,35 +2570,10 @@ export default function AdminDashboardPage() {
                         <tr key={al.id} className="hover:bg-white/5 transition-colors">
                           <td className="p-3.5 font-mono text-xs">
                             <div className="font-bold text-blue-400 text-sm tracking-wide">{al.matricula}</div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setEditingId(al.id);
-                                setAlumnoForm({
-                                  matricula: al.matricula,
-                                  nombre: al.nombre,
-                                  apellido_paterno: al.apellido_paterno,
-                                  apellido_materno: al.apellido_materno || '',
-                                  grado: al.grado,
-                                  grupo: al.grupo,
-                                  carrera_id: al.carrera_id || '',
-                                  sede_id: al.sede_id || '',
-                                  ciclo_id: al.ciclo_id || '',
-                                  estado_matricula: al.estado_matricula || 'activo',
-                                  docente_nombre: al.docente_nombre || 'Dr. Adrian Silva',
-                                  tutor: al.tutor,
-                                  telefono: al.telefono,
-                                  password: al.password || getDefaultUserPassword(al.matricula, '2026-2'),
-                                });
-                                setShowAlumnoPassword(false);
-                                setModalType('alumno');
-                              }}
-                              className="mt-1 flex items-center space-x-1 text-[10px] text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 px-2 py-0.5 rounded-md border border-blue-500/25 max-w-fit font-medium transition-all"
-                              title="Editar la matrícula escolar de este estudiante"
-                            >
-                              <Edit className="w-2.5 h-2.5 shrink-0" />
-                              <span>Editar Matrícula</span>
-                            </button>
+                            <div className="mt-1 flex items-center space-x-1 text-[10px] text-gray-400 font-medium select-none" title="Matrícula oficial protegida contra edición y reemplazo">
+                              <Lock className="w-2.5 h-2.5 text-gray-500 shrink-0" />
+                              <span>Matrícula oficial</span>
+                            </div>
                           </td>
                           <td className="p-3.5">
                             <div className="font-bold text-white">
@@ -4252,7 +4228,7 @@ export default function AdminDashboardPage() {
             <div className="flex items-center justify-between border-b border-white/10 pb-4">
               <h3 className="text-lg font-bold text-white flex items-center space-x-2">
                 <Users className="w-5 h-5 text-blue-400" />
-                <span>{editingId ? 'Editar Matrícula' : 'Matricular Nuevo Estudiante'}</span>
+                <span>{editingId ? 'Editar Expediente de Alumno' : 'Matricular Nuevo Estudiante'}</span>
               </h3>
               <button onClick={() => setModalType(null)} className="text-gray-400 hover:text-white">
                 <X className="w-5 h-5" />
@@ -4262,15 +4238,32 @@ export default function AdminDashboardPage() {
             <form onSubmit={handleSaveAlumno} className="space-y-4 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-gray-400 block mb-1">Matrícula Escolar</label>
+                  <label className="text-gray-400 block mb-1 flex items-center justify-between">
+                    <span>Matrícula Escolar</span>
+                    {editingId && (
+                      <span className="text-[10px] text-amber-400/90 font-medium flex items-center space-x-1">
+                        <Lock className="w-2.5 h-2.5" />
+                        <span>Inmutable</span>
+                      </span>
+                    )}
+                  </label>
                   <input
                     type="text"
                     required
+                    disabled={!!editingId}
+                    readOnly={!!editingId}
                     value={alumnoForm.matricula}
-                    onChange={(e) =>
-                      setAlumnoForm({ ...alumnoForm, matricula: e.target.value })
-                    }
-                    className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white font-mono"
+                    onChange={(e) => {
+                      if (!editingId) {
+                        setAlumnoForm({ ...alumnoForm, matricula: e.target.value });
+                      }
+                    }}
+                    className={`w-full px-3 py-2 rounded-xl border font-mono transition-all ${
+                      editingId
+                        ? 'bg-blue-950/30 border-blue-500/20 text-blue-300/80 cursor-not-allowed select-none'
+                        : 'bg-white/5 border-white/10 text-white focus:border-blue-500'
+                    }`}
+                    title={editingId ? 'La matrícula oficial no se puede modificar' : 'Ingresa la matrícula del estudiante'}
                   />
                 </div>
                 <div>

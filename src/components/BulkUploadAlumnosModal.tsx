@@ -249,7 +249,7 @@ export default function BulkUploadAlumnosModal({
 
   const [showMappingSettings, setShowMappingSettings] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [updateExisting, setUpdateExisting] = useState(true);
+  const [updateExisting, setUpdateExisting] = useState(false);
   const [filterView, setFilterView] = useState<'all' | 'valid' | 'exists' | 'error'>('all');
   const [dragActive, setDragActive] = useState(false);
 
@@ -1896,17 +1896,16 @@ export default function BulkUploadAlumnosModal({
 
               {/* Duplicate Handling Option */}
               {existsCount > 0 && (
-                <div className="flex items-center space-x-3 p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-200">
+                <div className="flex items-center space-x-3 p-3 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-200">
                   <input
                     type="checkbox"
                     id="updateExistingCheckbox"
                     checked={updateExisting}
                     onChange={(e) => setUpdateExisting(e.target.checked)}
-                    className="w-4 h-4 rounded text-amber-500 focus:ring-amber-500 bg-black/40 border-amber-500/40 cursor-pointer"
+                    className="w-4 h-4 rounded text-blue-500 focus:ring-blue-500 bg-black/40 border-blue-500/40 cursor-pointer"
                   />
                   <label htmlFor="updateExistingCheckbox" className="text-xs cursor-pointer select-none">
-                    <strong>Actualizar datos de las {existsCount} matrículas ya registradas</strong> (si se
-                    desmarca, estas filas serán ignoradas para evitar sobrescribir).
+                    <strong>Actualizar datos secundarios de las {existsCount} matrículas ya registradas</strong> (por defecto no se reemplazan; se conservan intactos y sus matrículas no se modifican).
                   </label>
                 </div>
               )}

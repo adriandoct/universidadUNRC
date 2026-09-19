@@ -1917,7 +1917,7 @@ export const db = {
 
   addAlumnosBulk: async (
     alumnos: (Omit<Alumno, 'id' | 'created_at'> & { id?: string; created_at?: string })[],
-    options: { updateExisting?: boolean } = { updateExisting: true }
+    options: { updateExisting?: boolean } = { updateExisting: false }
   ): Promise<{ added: number; updated: number; items: Alumno[] }> => {
     initLocalStorage();
     const current = await db.getAlumnos();
@@ -1925,30 +1925,14 @@ export const db = {
     let addedCount = 0;
     let updatedCount = 0;
 
-    const normalizeStudentName = (nom?: string, pat?: string, mat?: string) => {
-      return `${nom || ''} ${pat || ''} ${mat || ''}`
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[\s_.-]+/g, ' ')
-        .trim();
-    };
-
     for (let idx = 0; idx < alumnos.length; idx++) {
       const al = alumnos[idx];
       const matriculaClean = (al.matricula || '').trim();
       if (!matriculaClean) continue;
 
-      const newStudentFullName = normalizeStudentName(al.nombre, al.apellido_paterno, al.apellido_materno);
-
-      // Match by exact matricula OR by full student name (to allow updating existing mock UNRC-2026-XXX with the real spreadsheet ID)
+      // Match strictly by exact matrícula: never match loosely by name to overwrite/replace another student's identity
       const existingIndex = current.findIndex((a) => {
-        if ((a.matricula || '').trim().toLowerCase() === matriculaClean.toLowerCase()) return true;
-        const existingFullName = normalizeStudentName(a.nombre, a.apellido_paterno, a.apellido_materno);
-        if (newStudentFullName && existingFullName && newStudentFullName === existingFullName && newStudentFullName.length > 5) {
-          return true;
-        }
-        return false;
+        return (a.matricula || '').trim().toLowerCase() === matriculaClean.toLowerCase();
       });
 
       const resolvedPassword =
@@ -1959,27 +1943,25 @@ export const db = {
       const resolvedQRCode = al.qr_code && al.qr_code.trim() ? al.qr_code.trim() : matriculaClean;
 
       if (existingIndex >= 0) {
-        if (options.updateExisting !== false) {
+        // QUE NO SE REEMPLACEN: Si ya existe y no se autoriza actualización, no se reemplaza
+        if (options.updateExisting === true) {
           const existing = current[existingIndex];
-          const oldMatricula = existing.matricula;
           const updatedItem: Alumno = {
             ...existing,
             ...al,
             id: existing.id,
-            matricula: matriculaClean, // Strictly preserves and applies the spreadsheet's matrícula!
+            matricula: existing.matricula, // INMUTABLE: Jamás reemplazar la matrícula original del alumno
             password: al.password?.trim() || existing.password || resolvedPassword,
-            qr_code: resolvedQRCode,
+            qr_code: existing.qr_code || existing.matricula,
             estado_matricula: al.estado_matricula || existing.estado_matricula || 'activo',
             created_at: existing.created_at || new Date().toISOString()
           };
           current[existingIndex] = updatedItem;
           processedItems.push(updatedItem);
           updatedCount++;
-
-          // Clean up old synthetic matrícula from Supabase if changed
-          if (supabase && oldMatricula && oldMatricula !== matriculaClean && oldMatricula.startsWith('UNRC-2026-')) {
-            supabase.from('alumnos').delete().eq('matricula', oldMatricula).then();
-          }
+        } else {
+          // No reemplazar ni modificar el estudiante existente
+          continue;
         }
       } else {
         const newItem: Alumno = {
@@ -2198,13 +2180,15 @@ export const db = {
     const oldMatricula = list[index].matricula;
     const targetId = list[index].id;
 
-    list[index] = { ...list[index], ...updates };
+    // MATRÍCULA INMUTABLE: Nunca permitir editar la matrícula oficial de un alumno
+    const { matricula: _ignoredMatricula, ...safeUpdates } = updates;
+    list[index] = { ...list[index], ...safeUpdates, matricula: oldMatricula };
     localStorage.setItem('unrc_alumnos', JSON.stringify(list));
 
     if (supabase) {
       try {
         const supabasePayload: Record<string, any> = {};
-        if (updates.matricula !== undefined) supabasePayload.matricula = updates.matricula;
+        // Proteger matrícula: nunca sobreescribir la columna matrícula en la base de datos
         if (updates.nombre !== undefined) supabasePayload.nombre = updates.nombre;
         if (updates.apellido_paterno !== undefined) supabasePayload.apellido_paterno = updates.apellido_paterno;
         if (updates.apellido_materno !== undefined) supabasePayload.apellido_materno = updates.apellido_materno;
