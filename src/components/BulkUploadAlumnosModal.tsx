@@ -738,14 +738,22 @@ export default function BulkUploadAlumnosModal({
       h.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[\s_.-]+/g, '')
     );
 
-    // Smart Column Matcher
+    // Smart Column Matcher with Exact & Safe Contains
+    const findExact = (...aliases: string[]) => {
+      for (const alias of aliases) {
+        const idx = normHeaders.findIndex((h) => h === alias);
+        if (idx !== -1) return idx;
+      }
+      return -1;
+    };
+
     const findExactOrIncludes = (...aliases: string[]) => {
       // First pass: exact match
       for (const alias of aliases) {
         const idx = normHeaders.findIndex((h) => h === alias);
         if (idx !== -1) return idx;
       }
-      // Second pass: contains
+      // Second pass: safe contains
       for (const alias of aliases) {
         const idx = normHeaders.findIndex((h) => h.includes(alias));
         if (idx !== -1) return idx;
@@ -754,61 +762,81 @@ export default function BulkUploadAlumnosModal({
     };
 
     // Specific mapping for Matrícula: Priority for explicit identifiers
-    let colMat = findExactOrIncludes(
-      'matricula',
-      'matriculaescolar',
-      'matriculaoficial',
-      'matriculaestudiante',
-      'matriculaalumno',
-      'matriculas',
-      'matriculafolio',
-      'mat',
-      'nocontrol',
-      'nodecontrol',
-      'numcontrol',
-      'numerocontrol',
-      'numerodecontrol',
-      'control',
-      'nocuenta',
-      'nodecuenta',
-      'numcuenta',
-      'cuenta',
-      'noexpediente',
-      'numexpediente',
-      'expediente',
-      'noboleta',
-      'numboleta',
-      'boleta',
-      'clavealumno',
-      'clavedealumno',
-      'cvealumno',
-      'cve.alumno',
-      'cve_alumno',
-      'codigoalumno',
-      'codalumno',
-      'codigo',
-      'cod',
-      'idalumno',
-      'idestudiante',
-      'id_alumno',
-      'id_estudiante',
-      'studentcode',
-      'studentid',
-      'curp',
-      'folio',
-      'nofolio',
-      'numfolio',
-      'registro',
-      'numregistro',
-      'noregistro'
-    );
+    // 1. Exact matches (prevent short aliases like 'mat' from matching 'materno' or 'materia')
+    const exactMatriculaAliases = [
+      'matricula', 'matriculaescolar', 'matriculaoficial', 'matriculaestudiante', 'matriculaalumno', 'matriculas', 'matriculafolio',
+      'mat', 'matric',
+      'nocontrol', 'nodecontrol', 'numcontrol', 'numerocontrol', 'numerodecontrol', 'control',
+      'nocuenta', 'nodecuenta', 'numcuenta', 'numerocuenta', 'numerodecuenta', 'cuenta',
+      'noexpediente', 'nodeexpediente', 'numexpediente', 'numeroexpediente', 'numerodeexpediente', 'expediente',
+      'noboleta', 'nodeboleta', 'numboleta', 'numeroboleta', 'numerodeboleta', 'boleta',
+      'clavealumno', 'clavedealumno', 'claveestudiante', 'cvealumno', 'cve.alumno', 'cve_alumno', 'clave', 'cve',
+      'codigoalumno', 'codigodealumno', 'codigoestudiante', 'codalumno', 'codigo', 'cod',
+      'idalumno', 'idestudiante', 'id_alumno', 'id_estudiante', 'id',
+      'studentcode', 'studentid', 'student_id', 'student_code',
+      'curp', 'folio', 'nofolio', 'numfolio', 'registro', 'numregistro', 'noregistro',
+      'credencial', 'nocredencial', 'numcredencial', 'carne', 'carnet'
+    ];
 
+    let colMat = findExact(...exactMatriculaAliases);
+
+    // 2. Safe partial includes (ONLY check for unambiguous keywords and NEVER match materno/materia/paterno/nombre)
     if (colMat === -1) {
-      // Fallback only if no explicit column
-      colMat = findExactOrIncludes('clave', 'cve', 'id');
+      const safeIncludeAliases = ['matricula', 'control', 'cuenta', 'expediente', 'boleta', 'student', 'credencial', 'folio'];
+      for (const alias of safeIncludeAliases) {
+        const idx = normHeaders.findIndex((h) => {
+          if (
+            h.includes('matern') ||
+            h.includes('materi') ||
+            h.includes('patern') ||
+            h.includes('nombre') ||
+            h.includes('carrera') ||
+            h.includes('grupo') ||
+            h.includes('sede') ||
+            h.includes('correo') ||
+            h.includes('email') ||
+            h.includes('tel')
+          ) {
+            return false;
+          }
+          return h.includes(alias);
+        });
+        if (idx !== -1) {
+          colMat = idx;
+          break;
+        }
+      }
     }
 
-    // Data-driven Matrícula Column Fallback:
+    // 3. Fallback for generic identifiers (clave, cve, id, cod) with strict exclusions
+    if (colMat === -1) {
+      const genericAliases = ['clave', 'cve', 'id', 'cod', 'codigo'];
+      for (const alias of genericAliases) {
+        const idx = normHeaders.findIndex((h) => {
+          if (
+            h.includes('matern') ||
+            h.includes('materi') ||
+            h.includes('patern') ||
+            h.includes('nombre') ||
+            h.includes('carrera') ||
+            h.includes('grupo') ||
+            h.includes('sede') ||
+            h.includes('correo') ||
+            h.includes('email') ||
+            h.includes('tel')
+          ) {
+            return false;
+          }
+          return h === alias || h.includes(alias);
+        });
+        if (idx !== -1) {
+          colMat = idx;
+          break;
+        }
+      }
+    }
+
+    // 4. Data-driven Matrícula Column Fallback:
     // If headers didn't have "matricula", inspect actual row values for student codes
     if (colMat === -1 && matrix.length > headerIdx + 1) {
       const sampleLimit = Math.min(matrix.length, headerIdx + 25);
@@ -825,12 +853,12 @@ export default function BulkUploadAlumnosModal({
           const rawVal = String(matrix[r]?.[c] ?? '').trim().replace(/\.0+$/, '').replace(/^["']|["']$/g, '');
           if (!rawVal) continue;
 
-          // Matrícula pattern: alphanumeric, length 4-25, not row sequence 1..N, not space-separated name
+          // Matrícula pattern: alphanumeric/numeric, length 4-25, not row sequence 1..N, not space-separated name
           const isRowCounter = /^\d{1,3}$/.test(rawVal) && Number(rawVal) <= totalSampleRows + 5;
           const isMatriculaFormat =
             rawVal.length >= 4 &&
             rawVal.length <= 25 &&
-            /^[A-Za-z0-9\-_]+$/.test(rawVal) &&
+            /^[A-Za-z0-9\-_/]+$/.test(rawVal) &&
             !isRowCounter &&
             !/\s/.test(rawVal) &&
             !/^(?:101|102|201|202|203|301|302|401|402|501|502|601|602)$/.test(rawVal);
@@ -1735,11 +1763,16 @@ export default function BulkUploadAlumnosModal({
                         className="w-full px-2.5 py-1.5 rounded-xl bg-black/40 border border-emerald-500/50 text-emerald-300 text-xs cursor-pointer font-bold focus:ring-1 focus:ring-emerald-400"
                       >
                         <option value={-1}>Auto-generar (solo si viene vacía en el archivo)</option>
-                        {detectedHeaders.map((h, i) => (
-                          <option key={i} value={i}>
-                            Columna {i + 1}: {h || `(sin encabezado)`}
-                          </option>
-                        ))}
+                        {detectedHeaders.map((h, i) => {
+                          const sampleVal = currentMatrix.slice(headerRowIdx + 1, headerRowIdx + 5)
+                            .map(r => String(r?.[i] ?? '').trim().replace(/\.0+$/, ''))
+                            .find(v => v.length > 0);
+                          return (
+                            <option key={i} value={i}>
+                              Columna {i + 1}: {h || `(sin encabezado)`}{sampleVal ? ` [Ej: "${sampleVal}"]` : ''}
+                            </option>
+                          );
+                        })}
                       </select>
                     </div>
 
@@ -1758,11 +1791,16 @@ export default function BulkUploadAlumnosModal({
                         className="w-full px-2.5 py-1.5 rounded-xl bg-black/40 border border-white/10 text-white text-xs cursor-pointer"
                       >
                         <option value={-1}>Seleccionar columna...</option>
-                        {detectedHeaders.map((h, i) => (
-                          <option key={i} value={i}>
-                            Col {i + 1}: {h || `(vacía)`}
-                          </option>
-                        ))}
+                        {detectedHeaders.map((h, i) => {
+                          const sampleVal = currentMatrix.slice(headerRowIdx + 1, headerRowIdx + 5)
+                            .map(r => String(r?.[i] ?? '').trim())
+                            .find(v => v.length > 0);
+                          return (
+                            <option key={i} value={i}>
+                              Col {i + 1}: {h || `(vacía)`}{sampleVal ? ` [Ej: "${sampleVal}"]` : ''}
+                            </option>
+                          );
+                        })}
                       </select>
                     </div>
 
@@ -1780,11 +1818,16 @@ export default function BulkUploadAlumnosModal({
                         className="w-full px-2.5 py-1.5 rounded-xl bg-black/40 border border-white/10 text-white text-xs cursor-pointer"
                       >
                         <option value={-1}>Separar desde Nombre</option>
-                        {detectedHeaders.map((h, i) => (
-                          <option key={i} value={i}>
-                            Col {i + 1}: {h || `(vacía)`}
-                          </option>
-                        ))}
+                        {detectedHeaders.map((h, i) => {
+                          const sampleVal = currentMatrix.slice(headerRowIdx + 1, headerRowIdx + 5)
+                            .map(r => String(r?.[i] ?? '').trim())
+                            .find(v => v.length > 0);
+                          return (
+                            <option key={i} value={i}>
+                              Col {i + 1}: {h || `(vacía)`}{sampleVal ? ` [Ej: "${sampleVal}"]` : ''}
+                            </option>
+                          );
+                        })}
                       </select>
                     </div>
                   </div>

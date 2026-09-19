@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Docente, Carrera, Sede, Grupo, Materia, db } from '@/lib/db';
+import { areCarrerasCompatible, getCarreraDisplayName } from '@/lib/horarioDocenteUtils';
 
 interface ParsedHorarioRow {
   index: number;
@@ -217,6 +218,11 @@ export default function BulkUploadHorariosModal({
       } else if (!grupoRaw) {
         status = 'error';
         errorMessage = 'Falta especificar el grupo';
+      } else if (!areCarrerasCompatible(materiaRaw, grupoRaw)) {
+        status = 'error';
+        const matCarrera = getCarreraDisplayName(materiaRaw);
+        const gpoCarrera = getCarreraDisplayName(grupoRaw);
+        errorMessage = `Incompatibilidad de Carrera: "${materiaRaw}" (${matCarrera}) no corresponde al grupo "${grupoRaw}" (${gpoCarrera})`;
       } else if (!matchedDoc) {
         status = 'warning';
         errorMessage = `Docente "${docRaw}" no encontrado en catálogo (se registrará con su nombre)`;

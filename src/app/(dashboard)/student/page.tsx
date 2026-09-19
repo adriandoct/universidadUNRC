@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useAuth } from '@/lib/AuthContext';
 import { db, Alumno, Grupo, Docente, Asistencia, HorarioDocenteItem } from '@/lib/db';
 import { DIAS_FESTIVOS_UNRC, DiaFestivo, getProximoDiaFestivo } from '@/lib/holidays';
+import { areCarrerasCompatible, getCanonicalCarreraKey, getCarreraDisplayName } from '@/lib/horarioDocenteUtils';
 import { 
   User, 
   Calendar, 
@@ -60,15 +61,6 @@ function isGroupMatch(slotGrupo?: string, studentGrupo?: string): boolean {
   const cleanStg = stg.replace(/[\s-_]/g, '');
   if (cleanSg === cleanStg) return true;
 
-  // Campus-specific cross-campus protection:
-  // ONLY block if one group belongs to another campus (MC, JS, COY, AZC)
-  const otherCampuses = ['mc', 'contreras', 'justo', 'js', 'coyoacan', 'coy', 'azcapotzalco', 'azc'];
-  const sgHasOther = otherCampuses.some((c) => sg.includes(c));
-  const stgHasOther = otherCampuses.some((c) => stg.includes(c));
-  if (sgHasOther !== stgHasOther) {
-    return false;
-  }
-
   // Career protection:
   const sgIsTur = sg.includes('tur');
   const stgIsTur = stg.includes('tur');
@@ -82,6 +74,14 @@ function isGroupMatch(slotGrupo?: string, studentGrupo?: string): boolean {
     return false;
   }
 
+  // Campus-specific cross-campus protection
+  const otherCampuses = ['mc', 'contreras', 'justo', 'js', 'coyoacan', 'coy', 'azcapotzalco', 'azc'];
+  const sgHasOther = otherCampuses.some((c) => sg.includes(c));
+  const stgHasOther = otherCampuses.some((c) => stg.includes(c));
+  if (sgHasOther !== stgHasOther) {
+    return false;
+  }
+
   // Compare numeric group code (e.g. 401, 203, 101)
   const sgDigits = sg.match(/\d+/)?.[0];
   const stgDigits = stg.match(/\d+/)?.[0];
@@ -92,45 +92,17 @@ function isGroupMatch(slotGrupo?: string, studentGrupo?: string): boolean {
   return cleanSg.includes(cleanStg) || cleanStg.includes(cleanSg);
 }
 
-function isCarreraMatch(slotCarrera?: string, studentCarrera?: string, teacherCarreras?: string[]): boolean {
-  const checkSingle = (c1?: string, c2?: string): boolean => {
-    if (!c1 || !c2) return false;
-    const a = c1.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    const b = c2.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    if (a === b) return true;
-    if (a.includes(b) || b.includes(a)) return true;
-
-    // Data Science / AI aliases
-    const isA_Data = a.includes('dato') || a.includes('data') || a.includes('lcdn') || a.includes('cdia') || a.includes('inteligencia artificial') || a.includes('ia') || a.includes('negocio');
-    const isB_Data = b.includes('dato') || b.includes('data') || b.includes('lcdn') || b.includes('cdia') || b.includes('inteligencia artificial') || b.includes('ia') || b.includes('negocio');
-    if (isA_Data && isB_Data) return true;
-
-    // Turismo aliases
-    const isA_Tur = a.includes('turis') || /\b(tur|lic-tur)\b/i.test(a) || a.includes('hospedaje');
-    const isB_Tur = b.includes('turis') || /\b(tur|lic-tur)\b/i.test(b) || b.includes('hospedaje');
-    if (isA_Tur && isB_Tur) return true;
-
-    // Administración aliases
-    const isA_Adm = a.includes('administra') || a.includes('admin') || /\b(adm|lic-adm|la|lac|phlac)\b/i.test(a);
-    const isB_Adm = b.includes('administra') || b.includes('admin') || /\b(adm|lic-adm|la|lac|phlac)\b/i.test(b);
-    if (isA_Adm && isB_Adm) return true;
-
-    // TIC aliases
-    const isA_Tic = a.includes('tic') || a.includes('tecnolog') || a.includes('comput');
-    const isB_Tic = b.includes('tic') || b.includes('tecnolog') || b.includes('comput');
-    if (isA_Tic && isB_Tic) return true;
-
-    // Ciberseguridad aliases
-    const isA_Cib = a.includes('ciber') || a.includes('seguridad') || a.includes('cib');
-    const isB_Cib = b.includes('ciber') || b.includes('seguridad') || b.includes('cib');
-    if (isA_Cib && isB_Cib) return true;
-
+function isCarreraMatch(slotCarrera?: string, studentCarrera?: string, slotMateria?: string): boolean {
+  if (!studentCarrera) return true;
+  // Validar compatibilidad estricta de la materia con la carrera del alumno
+  if (slotMateria && !areCarrerasCompatible(slotMateria, studentCarrera)) {
     return false;
-  };
-
-  if (checkSingle(slotCarrera, studentCarrera)) return true;
-  if (teacherCarreras && teacherCarreras.some(tc => checkSingle(tc, studentCarrera))) return true;
-  return false;
+  }
+  // Validar compatibilidad de la carrera del bloque
+  if (slotCarrera && !areCarrerasCompatible(slotCarrera, studentCarrera)) {
+    return false;
+  }
+  return true;
 }
 
 function isSedeMatch(slotAula?: string, slotSede?: string, teacherSede?: string, studentSede?: string, isOnline?: boolean): boolean {
@@ -260,16 +232,16 @@ export default function StudentDashboardPage() {
             doc.horarios.forEach((h: HorarioDocenteItem, idx: number) => {
               const isOnline = Boolean(h.es_en_linea || h.aula?.toLowerCase().includes('virtual') || h.aula?.toLowerCase().includes('meet') || h.aula?.toLowerCase().includes('linea'));
               const groupMatches = isGroupMatch(h.grupo, currentStudent.grupo);
-              const carreraMatches = isCarreraMatch(h.carrera, currentStudent.carrera, doc.carreras_asignadas);
+              const carreraMatches = isCarreraMatch(h.carrera, currentStudent.carrera, h.materia);
               const sedeMatches = isSedeMatch(h.aula, h.sede || doc.sede_nombre, doc.sede_nombre, currentStudent.sede_nombre, isOnline);
 
               // STRICT VALIDATION:
               // Must match Group AND Career.
               // If in-person, it MUST strictly match the student's campus!
-              if (groupMatches && (carreraMatches || !h.carrera) && (isOnline || sedeMatches)) {
+              if (groupMatches && carreraMatches && (isOnline || sedeMatches)) {
                 const displaySede = isOnline 
-                  ? (currentStudent.sede_nombre || h.sede || doc.sede_nombre || 'Campus UNRC')
-                  : (h.sede || currentStudent.sede_nombre || doc.sede_nombre || 'Campus UNRC');
+                  ? (currentStudent.sede_nombre || h.sede || doc.sede_nombre || 'Campus Tijuana')
+                  : (h.sede || currentStudent.sede_nombre || doc.sede_nombre || 'Campus Tijuana');
 
                 const displayAula = isOnline
                   ? (h.aula || 'Aula Virtual UNRC (Google Meet)')
@@ -284,7 +256,7 @@ export default function StudentDashboardPage() {
                   docente_nombre: `${doc.nombre} ${doc.apellido_paterno} ${doc.apellido_materno || ''}`.trim(),
                   aula: displayAula,
                   sede: displaySede,
-                  grupo: currentStudent.grupo || h.grupo,
+                  grupo: h.grupo || currentStudent.grupo,
                   es_en_linea: isOnline
                 });
               }
@@ -296,9 +268,10 @@ export default function StudentDashboardPage() {
         allGrupos.forEach((g: Grupo, gIdx: number) => {
           const isOnline = Boolean(g.aula?.toLowerCase().includes('virtual') || g.aula?.toLowerCase().includes('meet') || g.aula?.toLowerCase().includes('linea'));
           const groupMatches = isGroupMatch(g.clave_grupo, currentStudent.grupo);
+          const carreraMatches = areCarrerasCompatible(g.materia?.nombre || g.clave_grupo, currentStudent.carrera);
           const sedeMatches = isSedeMatch(g.aula, g.sede_nombre, undefined, currentStudent.sede_nombre, isOnline);
 
-          if (groupMatches && (isOnline || sedeMatches)) {
+          if (groupMatches && carreraMatches && (isOnline || sedeMatches)) {
             const assignedDoc = allDocentes.find(d => 
               d.id === g.docente_id || 
               (g.docente_nombre && `${d.nombre} ${d.apellido_paterno}`.toLowerCase().includes(g.docente_nombre.toLowerCase()))

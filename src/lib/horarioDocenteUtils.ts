@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Docente, HorarioDocenteItem } from './db';
+import type { Docente, HorarioDocenteItem } from './db';
 
 const DIAS_ORDEN: Record<string, number> = {
   Lunes: 1,
@@ -453,4 +453,141 @@ export function generateDocenteHorarioPDF(docente: Docente): void {
   // Guardar archivo
   const safeName = (docente.num_empleado || 'DOCENTE').replace(/[^a-zA-Z0-9-_]/g, '_');
   doc.save(`Horario_Docente_${safeName}_UNRC.pdf`);
+}
+
+/**
+ * ============================================================================
+ * VALIDACIONES CANÓNICAS DE COHERENCIA ENTRE CARRERA, MATERIA Y GRUPO
+ * ============================================================================
+ */
+export type CarreraCanon = 'turismo' | 'administracion' | 'datos_ia' | 'tic' | 'ciberseguridad' | 'general';
+
+const KNOWN_SUBJECTS_MAP: Record<string, CarreraCanon> = {
+  'administracion de empresas de hospedaje': 'turismo',
+  'gestion de servicios turisticos y hoteleria': 'turismo',
+  'turismo sustentable y patrimonio': 'turismo',
+  'matematicas para la administracion': 'administracion',
+  'administracion y gestion estrategica': 'administracion',
+  'contabilidad y finanzas aplicadas': 'administracion',
+  'programacion web y bases de datos': 'datos_ia',
+  'inteligencia artificial y aprendizaje automatico': 'datos_ia',
+  'mineria de datos y modelado predictivo': 'datos_ia',
+  'programacion para la ciencia de datos': 'datos_ia',
+  'estructura de datos y algoritmos': 'tic',
+  'ingenieria de software y sistemas web': 'tic',
+  'ciberseguridad y auditoria de sistemas': 'ciberseguridad',
+};
+
+const KNOWN_GROUPS_MAP: Record<string, CarreraCanon> = {
+  '201-tur': 'turismo',
+  'phlac-203-tij': 'administracion',
+  '203-adm': 'administracion',
+  '401-lcdn': 'datos_ia',
+  '101': 'datos_ia',
+  '102': 'datos_ia',
+  '201': 'tic',
+  '301': 'tic',
+  '501': 'ciberseguridad',
+};
+
+/**
+ * Identifica la clave canónica de carrera a partir del texto de una materia, grupo o carrera.
+ */
+export function getCanonicalCarreraKey(text?: string): CarreraCanon {
+  if (!text) return 'general';
+  const clean = text.toLowerCase().trim();
+  const s = clean.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+  if (KNOWN_SUBJECTS_MAP[s]) return KNOWN_SUBJECTS_MAP[s];
+  if (KNOWN_GROUPS_MAP[s]) return KNOWN_GROUPS_MAP[s];
+
+  // 1. Turismo (Prioridad para evitar colisión con 'administración' en Hospedaje)
+  if (
+    s.includes('hospedaje') ||
+    s.includes('turis') ||
+    s.includes('hotel') ||
+    /\b(tur|lic-tur|201-tur|phltur)\b/i.test(s)
+  ) {
+    return 'turismo';
+  }
+
+  // 2. Administración y Comercio
+  if (
+    s.includes('administra') ||
+    s.includes('admin') ||
+    /\b(adm|lic-adm|la|lac|phlac|203-adm|phlac-203)\b/i.test(s)
+  ) {
+    return 'administracion';
+  }
+
+  // 3. Ciencias de Datos e IA
+  if (
+    s.includes('dato') ||
+    s.includes('data') ||
+    s.includes('lcdn') ||
+    s.includes('cdia') ||
+    s.includes('inteligencia artificial') ||
+    s.includes('predictivo') ||
+    /\b(101|102|401-lcdn)\b/i.test(s)
+  ) {
+    return 'datos_ia';
+  }
+
+  // 4. TIC
+  if (
+    s.includes('tic') ||
+    s.includes('tecnolog') ||
+    s.includes('comput') ||
+    s.includes('software') ||
+    /\b(201|301)\b/i.test(s)
+  ) {
+    return 'tic';
+  }
+
+  // 5. Ciberseguridad
+  if (
+    s.includes('ciber') ||
+    s.includes('seguridad') ||
+    s.includes('auditoria') ||
+    /\b(501|cib)\b/i.test(s)
+  ) {
+    return 'ciberseguridad';
+  }
+
+  return 'general';
+}
+
+/**
+ * Nombre oficial para desplegar en la interfaz
+ */
+export function getCarreraDisplayName(key: CarreraCanon | string): string {
+  const canon = typeof key === 'string' && ['turismo', 'administracion', 'datos_ia', 'tic', 'ciberseguridad'].includes(key)
+    ? (key as CarreraCanon)
+    : getCanonicalCarreraKey(key);
+
+  switch (canon) {
+    case 'turismo':
+      return 'Licenciatura en Turismo';
+    case 'administracion':
+      return 'Licenciatura en Administración';
+    case 'datos_ia':
+      return 'Licenciatura en Ciencias de Datos e Inteligencia Artificial';
+    case 'tic':
+      return 'Licenciatura en Tecnologías de la Información y Comunicación';
+    case 'ciberseguridad':
+      return 'Licenciatura en Ciberseguridad';
+    default:
+      return 'Licenciatura UNRC';
+  }
+}
+
+/**
+ * Valida si dos cadenas (materia y grupo, materia y carrera, grupo y carrera) pertenecen a la misma carrera.
+ */
+export function areCarrerasCompatible(first?: string, second?: string): boolean {
+  if (!first || !second) return true;
+  const k1 = getCanonicalCarreraKey(first);
+  const k2 = getCanonicalCarreraKey(second);
+  if (k1 === 'general' || k2 === 'general') return true;
+  return k1 === k2;
 }

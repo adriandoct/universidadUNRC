@@ -551,9 +551,9 @@ const initLocalStorage = () => {
         telefono: d.telefono,
         password: d.password || getDefaultUserPassword(d.num_empleado, '2026-2')
       }));
-      supabase.from('docentes').upsert(docPayloads, { onConflict: 'num_empleado' }).then(() => {
+      (supabase.from('docentes').upsert(docPayloads, { onConflict: 'num_empleado' }) as any).then(() => {
         localStorage.setItem('unrc_docentes_supabase_synced_v1', 'true');
-      }).catch(err => {
+      }).catch((err: any) => {
         console.warn('Docentes initial sync to Supabase notice:', err);
       });
     } catch (e) {
@@ -612,6 +612,48 @@ const initLocalStorage = () => {
       console.warn('Error during auto-migration of tutor/docente fix:', e);
     }
     localStorage.setItem('unrc_alumnos_v6_tutor_fix', 'true');
+  }
+
+  // Auto-migration: Corregir integridad de carrera y grupo en horarios docentes (Turismo vs Administración)
+  if (!localStorage.getItem('unrc_docentes_carrera_integrity_v2')) {
+    try {
+      const raw = localStorage.getItem('unrc_docentes');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          let modified = false;
+          const fixed = parsed.map((d: Docente) => {
+            if (d.horarios && d.horarios.length > 0) {
+              const updatedHorarios = d.horarios.map((h: HorarioDocenteItem) => {
+                if (
+                  (h.materia?.toLowerCase().includes('hospedaje') || h.materia?.toLowerCase().includes('hotel')) &&
+                  (h.grupo?.toLowerCase().includes('phlac') || h.grupo?.toLowerCase().includes('203'))
+                ) {
+                  modified = true;
+                  return {
+                    ...h,
+                    carrera: 'Lic. en Turismo',
+                    grupo: '201-TUR',
+                    materia: 'Administración de Empresas de Hospedaje',
+                    aula: h.aula || 'Aula Virtual UNRC (Google Meet)',
+                    es_en_linea: Boolean(h.es_en_linea || h.dia?.toLowerCase().includes('sab') || h.dia?.toLowerCase().includes('sáb'))
+                  };
+                }
+                return h;
+              });
+              return { ...d, horarios: updatedHorarios };
+            }
+            return d;
+          });
+          if (modified) {
+            localStorage.setItem('unrc_docentes', JSON.stringify(fixed));
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Error during auto-migration of docentes carrera integrity:', e);
+    }
+    localStorage.setItem('unrc_docentes_carrera_integrity_v2', 'true');
   }
 
   // Seed Participaciones if empty
@@ -988,6 +1030,23 @@ export const db = {
       (docenteId.includes('03') && (d.num_empleado === 'DOC-UNRC-03' || d.id === 'docente-3' || d.id === 'd0000003-0000-0000-0000-000000000003'))
     );
 
+    const cleanHorarios = (params.horarios || []).map(h => {
+      if (
+        (h.materia?.toLowerCase().includes('hospedaje') || h.materia?.toLowerCase().includes('hotel')) &&
+        (h.grupo?.toLowerCase().includes('phlac') || h.grupo?.toLowerCase().includes('203') || !h.grupo)
+      ) {
+        return {
+          ...h,
+          carrera: 'Lic. en Turismo',
+          grupo: '201-TUR',
+          materia: 'Administración de Empresas de Hospedaje',
+          aula: h.aula || 'Aula Virtual UNRC (Google Meet)',
+          es_en_linea: Boolean(h.es_en_linea || h.dia?.toLowerCase().includes('sab') || h.dia?.toLowerCase().includes('sáb'))
+        };
+      }
+      return h;
+    });
+
     if (index === -1) {
       const mock = MOCK_DOCENTES.find(m => m.id === docenteId || m.num_empleado === docenteId) || MOCK_DOCENTES[0];
       const newDoc: Docente = {
@@ -996,7 +1055,7 @@ export const db = {
         carreras_asignadas: params.carreras_asignadas,
         materias: params.materias,
         horario_resumen: params.horario_resumen,
-        horarios: params.horarios,
+        horarios: cleanHorarios,
         sede_nombre: params.sede_nombre || mock.sede_nombre
       };
       docentes.push(newDoc);
@@ -1007,7 +1066,7 @@ export const db = {
         carreras_asignadas: params.carreras_asignadas,
         materias: params.materias,
         horario_resumen: params.horario_resumen,
-        horarios: params.horarios,
+        horarios: cleanHorarios,
         sede_nombre: params.sede_nombre || docentes[index].sede_nombre
       };
     }
@@ -1866,14 +1925,31 @@ export const db = {
     let addedCount = 0;
     let updatedCount = 0;
 
+    const normalizeStudentName = (nom?: string, pat?: string, mat?: string) => {
+      return `${nom || ''} ${pat || ''} ${mat || ''}`
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[\s_.-]+/g, ' ')
+        .trim();
+    };
+
     for (let idx = 0; idx < alumnos.length; idx++) {
       const al = alumnos[idx];
       const matriculaClean = (al.matricula || '').trim();
       if (!matriculaClean) continue;
 
-      const existingIndex = current.findIndex(
-        (a) => (a.matricula || '').trim().toLowerCase() === matriculaClean.toLowerCase()
-      );
+      const newStudentFullName = normalizeStudentName(al.nombre, al.apellido_paterno, al.apellido_materno);
+
+      // Match by exact matricula OR by full student name (to allow updating existing mock UNRC-2026-XXX with the real spreadsheet ID)
+      const existingIndex = current.findIndex((a) => {
+        if ((a.matricula || '').trim().toLowerCase() === matriculaClean.toLowerCase()) return true;
+        const existingFullName = normalizeStudentName(a.nombre, a.apellido_paterno, a.apellido_materno);
+        if (newStudentFullName && existingFullName && newStudentFullName === existingFullName && newStudentFullName.length > 5) {
+          return true;
+        }
+        return false;
+      });
 
       const resolvedPassword =
         al.password && al.password.trim()
@@ -1885,11 +1961,12 @@ export const db = {
       if (existingIndex >= 0) {
         if (options.updateExisting !== false) {
           const existing = current[existingIndex];
+          const oldMatricula = existing.matricula;
           const updatedItem: Alumno = {
             ...existing,
             ...al,
             id: existing.id,
-            matricula: matriculaClean,
+            matricula: matriculaClean, // Strictly preserves and applies the spreadsheet's matrícula!
             password: al.password?.trim() || existing.password || resolvedPassword,
             qr_code: resolvedQRCode,
             estado_matricula: al.estado_matricula || existing.estado_matricula || 'activo',
@@ -1898,6 +1975,11 @@ export const db = {
           current[existingIndex] = updatedItem;
           processedItems.push(updatedItem);
           updatedCount++;
+
+          // Clean up old synthetic matrícula from Supabase if changed
+          if (supabase && oldMatricula && oldMatricula !== matriculaClean && oldMatricula.startsWith('UNRC-2026-')) {
+            supabase.from('alumnos').delete().eq('matricula', oldMatricula).then();
+          }
         }
       } else {
         const newItem: Alumno = {
@@ -2113,6 +2195,9 @@ export const db = {
     const index = list.findIndex(a => a.id === id || a.matricula === id);
     if (index === -1) return null;
 
+    const oldMatricula = list[index].matricula;
+    const targetId = list[index].id;
+
     list[index] = { ...list[index], ...updates };
     localStorage.setItem('unrc_alumnos', JSON.stringify(list));
 
@@ -2140,7 +2225,13 @@ export const db = {
         if (updates.password !== undefined) supabasePayload.password = updates.password;
 
         if (Object.keys(supabasePayload).length > 0) {
-          await supabase.from('alumnos').update(supabasePayload).eq('matricula', list[index].matricula);
+          const { error } = await supabase
+            .from('alumnos')
+            .update(supabasePayload)
+            .or(`id.eq.${targetId},matricula.eq.${oldMatricula}`);
+          if (error) {
+            console.warn('Supabase update alumno notice:', error.message);
+          }
         }
       } catch (e) {
         console.warn('Supabase update alumno notice:', e);
@@ -2533,10 +2624,33 @@ export const db = {
       }
     }
 
+    const sanitizeDocenteIntegrity = (list: Docente[]): Docente[] => {
+      return list.map(d => {
+        if (!d.horarios || d.horarios.length === 0) return d;
+        const sanitizedHorarios = d.horarios.map(h => {
+          if (
+            (h.materia?.toLowerCase().includes('hospedaje') || h.materia?.toLowerCase().includes('hotel')) &&
+            (h.grupo?.toLowerCase().includes('phlac') || h.grupo?.toLowerCase().includes('203') || !h.grupo)
+          ) {
+            return {
+              ...h,
+              carrera: 'Lic. en Turismo',
+              grupo: '201-TUR',
+              materia: 'Administración de Empresas de Hospedaje',
+              aula: h.aula || 'Aula Virtual UNRC (Google Meet)',
+              es_en_linea: Boolean(h.es_en_linea || h.dia?.toLowerCase().includes('sab') || h.dia?.toLowerCase().includes('sáb'))
+            };
+          }
+          return h;
+        });
+        return { ...d, horarios: sanitizedHorarios };
+      });
+    };
+
     let finalList: Docente[] = [];
 
     if (remoteList && remoteList.length > 0) {
-      finalList = [...remoteList];
+      finalList = sanitizeDocenteIntegrity([...remoteList]);
       // Check if any local teacher was added locally and is not in remote
       localList.forEach((ld) => {
         const inRemoteIdx = finalList.findIndex((rd) => rd.num_empleado === ld.num_empleado || rd.id === ld.id);
@@ -2550,19 +2664,21 @@ export const db = {
           }
         }
       });
+      finalList = sanitizeDocenteIntegrity(finalList);
       localStorage.setItem('unrc_docentes', JSON.stringify(finalList));
       return finalList;
     }
 
     if (localList.length > 0) {
-      return localList;
+      const sanitized = sanitizeDocenteIntegrity(localList);
+      return sanitized;
     }
 
     // Fallback seed
-    const seeded = MOCK_DOCENTES.map(d => ({
+    const seeded = sanitizeDocenteIntegrity(MOCK_DOCENTES.map(d => ({
       ...d,
       password: d.password || getDefaultUserPassword(d.num_empleado, '2026-2')
-    }));
+    })));
     localStorage.setItem('unrc_docentes', JSON.stringify(seeded));
     return seeded;
   },

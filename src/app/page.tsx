@@ -88,9 +88,9 @@ export default function HomePage() {
         window.location.href = '/admin';
       } else {
         const res = await loginWithCredentials(
+          selectedRole === 'teacher' ? 'docente' : 'alumno',
           credentialInput,
-          passwordInput === '••••••••••••' ? '2026-2' : passwordInput,
-          selectedRole === 'teacher' ? 'docente' : 'alumno'
+          passwordInput === '••••••••••••' ? '2026-2' : passwordInput
         );
         if (!res.success) throw new Error(res.error || 'Credenciales incorrectas');
         window.location.href = selectedRole === 'teacher' ? '/teacher' : '/student';

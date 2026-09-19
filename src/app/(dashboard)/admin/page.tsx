@@ -52,7 +52,10 @@ import { useAuth } from '@/lib/AuthContext';
 import {
   generateDocenteHorarioPDF,
   downloadDocenteICS,
-  createGoogleCalendarUrl
+  createGoogleCalendarUrl,
+  areCarrerasCompatible,
+  getCanonicalCarreraKey,
+  getCarreraDisplayName
 } from '@/lib/horarioDocenteUtils';
 import { getTijuanaDateString } from '@/lib/tijuanaTime';
 import BulkUploadAlumnosModal from '@/components/BulkUploadAlumnosModal';
@@ -701,13 +704,19 @@ export default function AdminDashboardPage() {
     setAssignedHorarios(doc.horarios || []);
     setAssignedSede(doc.sede_nombre || 'Campus Tijuana');
     setEditingHorarioIndex(null);
+
+    const firstCarrera = doc.carreras_asignadas?.[0] || doc.departamento || 'Lic. en Turismo';
+    const matchingSec = secciones.find((s) => areCarrerasCompatible(s.nombre, firstCarrera)) || secciones[0];
+    const initialGrp = matchingSec?.nombre || '201-TUR';
+    const matchingMat = materias.find((m) => areCarrerasCompatible(m.nombre, initialGrp)) || materias[0];
+
     setNewHorarioSlot({
       dia: 'Miércoles',
       hora_inicio: '09:00',
       hora_fin: '11:00',
-      carrera: doc.carreras_asignadas?.[0] || doc.departamento || 'Lic. en Turismo',
-      materia: doc.materias?.[0] || 'Administración de Empresas de Hospedaje',
-      grupo: secciones[0]?.nombre || '201-TUR',
+      carrera: getCarreraDisplayName(initialGrp),
+      materia: matchingMat?.nombre || 'Administración de Empresas de Hospedaje',
+      grupo: initialGrp,
       aula: 'Edificio A - Aula Magna 2',
       es_en_linea: false,
     });
@@ -741,13 +750,18 @@ export default function AdminDashboardPage() {
 
   const handleCancelEditHorarioSlot = () => {
     setEditingHorarioIndex(null);
+    const firstCarrera = selectedDocente?.carreras_asignadas?.[0] || selectedDocente?.departamento || 'Lic. en Turismo';
+    const matchingSec = secciones.find((s) => areCarrerasCompatible(s.nombre, firstCarrera)) || secciones[0];
+    const initialGrp = matchingSec?.nombre || '201-TUR';
+    const matchingMat = materias.find((m) => areCarrerasCompatible(m.nombre, initialGrp)) || materias[0];
+
     setNewHorarioSlot({
       dia: 'Miércoles',
       hora_inicio: '09:00',
       hora_fin: '11:00',
-      carrera: selectedDocente?.carreras_asignadas?.[0] || selectedDocente?.departamento || 'Lic. en Turismo',
-      materia: selectedDocente?.materias?.[0] || 'Administración de Empresas de Hospedaje',
-      grupo: secciones[0]?.nombre || '201-TUR',
+      carrera: getCarreraDisplayName(initialGrp),
+      materia: matchingMat?.nombre || 'Administración de Empresas de Hospedaje',
+      grupo: initialGrp,
       aula: 'Edificio A - Aula Magna 2',
       es_en_linea: false,
     });
@@ -759,10 +773,58 @@ export default function AdminDashboardPage() {
       return;
     }
 
-    // Resolve matching carrera from materia if possible
+    // 1. VALIDACIÓN ESTRICTA: Coherencia de Carrera entre Materia y Grupo
+    if (!areCarrerasCompatible(newHorarioSlot.materia, newHorarioSlot.grupo)) {
+      const matCarrera = getCarreraDisplayName(newHorarioSlot.materia);
+      const gpoCarrera = getCarreraDisplayName(newHorarioSlot.grupo);
+      showToast(
+        `Incompatibilidad de Carrera: La materia "${newHorarioSlot.materia}" (${matCarrera}) no corresponde al grupo "${newHorarioSlot.grupo}" (${gpoCarrera}). Ambas deben pertenecer a la misma carrera.`,
+        'error'
+      );
+      return;
+    }
+
+    // 2. VALIDACIÓN DE HORARIOS: Hora inicio menor que fin
+    if (newHorarioSlot.hora_inicio >= newHorarioSlot.hora_fin) {
+      showToast('La hora de inicio debe ser anterior a la hora de fin de la sesión.', 'error');
+      return;
+    }
+
+    // 3. VALIDACIÓN DE SOLAPAMIENTO DEL DOCENTE
+    const teacherConflict = assignedHorarios.some((h, idx) => {
+      if (editingHorarioIndex !== null && idx === editingHorarioIndex) return false;
+      if (h.dia !== newHorarioSlot.dia) return false;
+      return (h.hora_inicio < newHorarioSlot.hora_fin && h.hora_fin > newHorarioSlot.hora_inicio);
+    });
+    if (teacherConflict) {
+      showToast(
+        `Conflicto con el Docente: Ya tiene clase asignada el ${newHorarioSlot.dia} en ese intervalo de horario.`,
+        'error'
+      );
+      return;
+    }
+
+    // 4. VALIDACIÓN DE SOLAPAMIENTO DEL GRUPO (con otros docentes)
+    const otherTeacherGroupConflict = docentes.find((d) =>
+      (d.horarios || []).some((h) => {
+        if (d.id === selectedDocente?.id && editingHorarioIndex !== null) return false;
+        if (h.dia !== newHorarioSlot.dia) return false;
+        if (h.grupo.toLowerCase().trim() !== newHorarioSlot.grupo.toLowerCase().trim()) return false;
+        return (h.hora_inicio < newHorarioSlot.hora_fin && h.hora_fin > newHorarioSlot.hora_inicio);
+      })
+    );
+    if (otherTeacherGroupConflict) {
+      showToast(
+        `Conflicto con el Grupo: La sección "${newHorarioSlot.grupo}" ya tiene asignada clase el ${newHorarioSlot.dia} con ${otherTeacherGroupConflict.nombre} ${otherTeacherGroupConflict.apellido_paterno}.`,
+        'error'
+      );
+      return;
+    }
+
+    // Resolve matching carrera from materia
     const matObj = materias.find((m) => m.nombre === newHorarioSlot.materia);
     const carObj = matObj?.carrera_id ? carreras.find((c) => c.id === matObj.carrera_id) : null;
-    const finalCarrera = carObj?.nombre || newHorarioSlot.carrera || selectedDocente?.carreras_asignadas?.[0] || 'Licenciatura';
+    const finalCarrera = carObj?.nombre || getCarreraDisplayName(newHorarioSlot.materia) || newHorarioSlot.carrera || 'Licenciatura';
 
     const slotToSave = {
       ...newHorarioSlot,
@@ -2297,6 +2359,7 @@ export default function AdminDashboardPage() {
                       sede_id: defaultSede,
                       ciclo_id: activeCiclo?.id || '',
                       estado_matricula: 'activo',
+                      docente_nombre: 'Dr. Adrian Silva',
                       tutor: 'Tutor UNRC',
                       telefono: '+525500000000',
                       password: getDefaultUserPassword(newMat, '2026-2'),
@@ -2505,14 +2568,36 @@ export default function AdminDashboardPage() {
                       return (
                         <tr key={al.id} className="hover:bg-white/5 transition-colors">
                           <td className="p-3.5 font-mono text-xs">
-                            <div className="font-bold text-blue-400">{al.matricula}</div>
-                            <div
-                              className="mt-1 flex items-center space-x-1 text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/25 max-w-fit font-bold"
-                              title="Acceso institucional protegido"
+                            <div className="font-bold text-blue-400 text-sm tracking-wide">{al.matricula}</div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingId(al.id);
+                                setAlumnoForm({
+                                  matricula: al.matricula,
+                                  nombre: al.nombre,
+                                  apellido_paterno: al.apellido_paterno,
+                                  apellido_materno: al.apellido_materno || '',
+                                  grado: al.grado,
+                                  grupo: al.grupo,
+                                  carrera_id: al.carrera_id || '',
+                                  sede_id: al.sede_id || '',
+                                  ciclo_id: al.ciclo_id || '',
+                                  estado_matricula: al.estado_matricula || 'activo',
+                                  docente_nombre: al.docente_nombre || 'Dr. Adrian Silva',
+                                  tutor: al.tutor,
+                                  telefono: al.telefono,
+                                  password: al.password || getDefaultUserPassword(al.matricula, '2026-2'),
+                                });
+                                setShowAlumnoPassword(false);
+                                setModalType('alumno');
+                              }}
+                              className="mt-1 flex items-center space-x-1 text-[10px] text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 px-2 py-0.5 rounded-md border border-blue-500/25 max-w-fit font-medium transition-all"
+                              title="Editar la matrícula escolar de este estudiante"
                             >
-                              <KeyRound className="w-3 h-3 text-emerald-400 shrink-0" />
-                              <span>Protegida</span>
-                            </div>
+                              <Edit className="w-2.5 h-2.5 shrink-0" />
+                              <span>Editar Matrícula</span>
+                            </button>
                           </td>
                           <td className="p-3.5">
                             <div className="font-bold text-white">
@@ -3574,10 +3659,19 @@ export default function AdminDashboardPage() {
                     <label className="text-gray-400 block text-[10px] mb-1">Grupo / Sección</label>
                     <select
                       value={newHorarioSlot.grupo}
-                      onChange={(e) =>
-                        setNewHorarioSlot({ ...newHorarioSlot, grupo: e.target.value })
-                      }
-                      className="w-full px-2 py-1.5 rounded-lg bg-[#090E1A] border border-white/10 text-white font-mono"
+                      onChange={(e) => {
+                        const nextGpo = e.target.value;
+                        const compatibleMats = materias.filter((m) => areCarrerasCompatible(m.nombre, nextGpo));
+                        const isCurrentMatComp = areCarrerasCompatible(newHorarioSlot.materia, nextGpo);
+                        const nextMat = isCurrentMatComp ? newHorarioSlot.materia : (compatibleMats[0]?.nombre || newHorarioSlot.materia);
+                        setNewHorarioSlot({
+                          ...newHorarioSlot,
+                          grupo: nextGpo,
+                          materia: nextMat,
+                          carrera: getCarreraDisplayName(nextGpo),
+                        });
+                      }}
+                      className="w-full px-2 py-1.5 rounded-lg bg-[#090E1A] border border-white/10 text-white font-mono text-xs"
                     >
                       {Array.from(
                         new Set([
@@ -3591,9 +3685,10 @@ export default function AdminDashboardPage() {
                         .sort()
                         .map((grupoName) => {
                           const sec = secciones.find((s) => s.nombre === grupoName);
+                          const gCarrera = getCarreraDisplayName(grupoName);
                           return (
                             <option key={grupoName} value={grupoName}>
-                              {grupoName} {sec?.turno ? `(${sec.turno})` : ''}
+                              {grupoName} • {gCarrera.replace('Licenciatura en ', 'Lic. ')} {sec?.turno ? `(${sec.turno})` : ''}
                             </option>
                           );
                         })}
@@ -3615,7 +3710,7 @@ export default function AdminDashboardPage() {
                       onChange={(e) =>
                         setNewHorarioSlot({ ...newHorarioSlot, aula: e.target.value })
                       }
-                      className={`w-full px-2 py-1.5 rounded-lg bg-white/5 border text-white transition-all ${
+                      className={`w-full px-2 py-1.5 rounded-lg bg-white/5 border text-white transition-all text-xs ${
                         newHorarioSlot.es_en_linea ? 'border-cyan-500/50' : 'border-white/10'
                       }`}
                     />
@@ -3623,7 +3718,12 @@ export default function AdminDashboardPage() {
                 </div>
 
                 <div>
-                  <label className="text-gray-400 block text-[10px] mb-1">Asignatura a impartir en este horario</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-gray-400 block text-[10px]">Asignatura a impartir en este horario</label>
+                    <span className="text-[10px] text-amber-400 font-mono">
+                      Carrera: {getCarreraDisplayName(newHorarioSlot.grupo)}
+                    </span>
+                  </div>
                   <select
                     value={newHorarioSlot.materia}
                     onChange={(e) => {
@@ -3633,18 +3733,66 @@ export default function AdminDashboardPage() {
                       setNewHorarioSlot({
                         ...newHorarioSlot,
                         materia: matName,
-                        carrera: carObj?.nombre || newHorarioSlot.carrera,
+                        carrera: carObj?.nombre || getCarreraDisplayName(matName),
                       });
                     }}
-                    className="w-full px-2 py-1.5 rounded-lg bg-[#090E1A] border border-white/10 text-white"
+                    className="w-full px-2 py-1.5 rounded-lg bg-[#090E1A] border border-white/10 text-white text-xs"
                   >
-                    {materias.map((m) => (
-                      <option key={m.id} value={m.nombre}>
-                        {m.nombre}
-                      </option>
-                    ))}
+                    {materias.map((m) => {
+                      const isComp = areCarrerasCompatible(m.nombre, newHorarioSlot.grupo);
+                      const cName = getCarreraDisplayName(m.nombre).replace('Licenciatura en ', 'Lic. ');
+                      return (
+                        <option key={m.id} value={m.nombre}>
+                          {isComp ? '✅' : '⚠️'} {m.nombre} [{cName}]
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
+
+                {/* Indicador visual de Coherencia de Carrera y Grupo */}
+                {(() => {
+                  const isComp = areCarrerasCompatible(newHorarioSlot.materia, newHorarioSlot.grupo);
+                  const matCarrera = getCarreraDisplayName(newHorarioSlot.materia);
+                  const gpoCarrera = getCarreraDisplayName(newHorarioSlot.grupo);
+                  return (
+                    <div
+                      className={`p-2.5 rounded-xl border flex items-center justify-between text-xs transition-all ${
+                        isComp
+                          ? 'bg-emerald-950/30 border-emerald-500/40 text-emerald-200'
+                          : 'bg-rose-950/40 border-rose-500/50 text-rose-200 ring-1 ring-rose-500/40 shadow-lg shadow-rose-950/40'
+                      }`}
+                    >
+                      <div className="flex items-start space-x-2.5">
+                        {isComp ? (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                        ) : (
+                          <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5 animate-pulse" />
+                        )}
+                        <div>
+                          <div className="font-bold flex items-center space-x-1.5">
+                            <span>{isComp ? 'Coherencia de Carrera Válida' : 'Incompatibilidad de Carrera'}</span>
+                            <span
+                              className={`px-1.5 py-0.2 rounded text-[9px] uppercase font-mono font-extrabold ${
+                                isComp ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/30 text-rose-300'
+                              }`}
+                            >
+                              {isComp ? 'Válido' : 'No Permitido'}
+                            </span>
+                          </div>
+                          <div className="text-[10px] opacity-80 mt-0.5">
+                            Grupo: <strong>{newHorarioSlot.grupo}</strong> ({gpoCarrera}) • Asignatura: <strong>{newHorarioSlot.materia}</strong> ({matCarrera})
+                          </div>
+                          {!isComp && (
+                            <p className="text-[10px] text-rose-300 font-semibold mt-1">
+                              ⚠️ No se puede asignar una asignatura de {matCarrera} al grupo {newHorarioSlot.grupo}. Selecciona una materia correspondiente a su carrera.
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* CHECKBOX: Identificar si la clase es En Línea o Presencial */}
                 <div className="p-2.5 rounded-xl bg-gradient-to-r from-cyan-950/40 via-blue-950/30 to-slate-900 border border-cyan-500/30 flex items-center justify-between transition-all">
@@ -5170,7 +5318,7 @@ export default function AdminDashboardPage() {
         grupos={grupos}
         materias={materias}
         sedes={sedes}
-        showToast={showToast}
+        showToast={(title, msg, type) => showToast(msg ? `${title}: ${msg}` : title, type)}
       />
 
       {/* Modal de Confirmación para Borrar Alumnos */}

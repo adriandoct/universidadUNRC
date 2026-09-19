@@ -1,4 +1,5 @@
 import { SupabaseClient } from '@supabase/supabase-js';
+import { areCarrerasCompatible, getCanonicalCarreraKey, getCarreraDisplayName } from '@/lib/horarioDocenteUtils';
 
 export type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
 
@@ -17,7 +18,7 @@ export interface TimetableEntryDTO {
 export class TimetableConflictError extends Error {
   constructor(
     message: string,
-    public code: 'TEACHER_CONFLICT' | 'SECTION_CONFLICT' | 'INVALID_TIME'
+    public code: 'TEACHER_CONFLICT' | 'SECTION_CONFLICT' | 'INVALID_TIME' | 'CAREER_MISMATCH'
   ) {
     super(message);
     this.name = 'TimetableConflictError';
@@ -91,10 +92,39 @@ export class TimetableService {
   }
 
   /**
+   * Valida que la materia y la sección/grupo correspondan a la misma carrera.
+   */
+  async validateCareerAffiliation(sectionId: string, subjectId: string): Promise<void> {
+    try {
+      const [{ data: sec }, { data: sub }] = await Promise.all([
+        this.supabase.from('sections').select('name, code, grade_level').eq('id', sectionId).maybeSingle(),
+        this.supabase.from('subjects').select('name, code').eq('id', subjectId).maybeSingle()
+      ]);
+
+      if (sec && sub) {
+        const secIdentifier = sec.name || sec.code || '';
+        const subIdentifier = sub.name || sub.code || '';
+        if (!areCarrerasCompatible(subIdentifier, secIdentifier)) {
+          const matCarrera = getCarreraDisplayName(subIdentifier);
+          const secCarrera = getCarreraDisplayName(secIdentifier);
+          throw new TimetableConflictError(
+            `Incompatibilidad de Carrera: La materia "${sub.name}" (${matCarrera}) no corresponde a la carrera del grupo "${sec.name}" (${secCarrera}).`,
+            'CAREER_MISMATCH'
+          );
+        }
+      }
+    } catch (err: any) {
+      if (err instanceof TimetableConflictError) throw err;
+      console.warn('validateCareerAffiliation notice:', err?.message);
+    }
+  }
+
+  /**
    * Guarda o actualiza un bloque de horario con validación atómica.
    */
   async upsertTimetableEntry(dto: TimetableEntryDTO) {
     await this.validateNoScheduleConflicts(dto);
+    await this.validateCareerAffiliation(dto.sectionId, dto.subjectId);
 
     const payload = {
       ...(dto.id ? { id: dto.id } : {}),
