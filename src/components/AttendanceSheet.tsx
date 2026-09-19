@@ -42,6 +42,16 @@ export default function AttendanceSheet({
     return initial;
   });
 
+  // Re-sync attendance entries whenever students or courseId change
+  React.useEffect(() => {
+    const initial: Record<string, { status: AttendanceStatusType; notes: string }> = {};
+    students.forEach((s) => {
+      initial[s.id] = { status: 'present', notes: '' };
+    });
+    setAttendanceState(initial);
+    setFeedback(null);
+  }, [students, courseId]);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 

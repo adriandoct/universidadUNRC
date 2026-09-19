@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import AttendanceSheet, { StudentItem } from '../../../components/AttendanceSheet';
 import {
   BookOpen,
@@ -14,20 +14,36 @@ import {
   Clock,
   MapPin,
   ExternalLink,
-  Download
+  Download,
+  Users,
+  Layers
 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
-import { db, Docente, HorarioDocenteItem } from '@/lib/db';
+import { db, Docente, HorarioDocenteItem, Alumno, Grupo } from '@/lib/db';
 import {
   generateDocenteHorarioPDF,
   downloadDocenteICS,
   createGoogleCalendarUrl
 } from '@/lib/horarioDocenteUtils';
 
+export interface AssignedCourseItem {
+  id: string;
+  grupo: string;
+  materia: string;
+  carrera: string;
+  aula?: string;
+  dias: string[];
+  scheduleDescription: string;
+  modalidad: 'Presencial' | 'En Línea' | 'Mixta';
+  sesionesCount: number;
+}
+
 export default function TeacherDashboardPage() {
   const { user, role, isLoading: authLoading } = useAuth();
-  const [selectedCourseId, setSelectedCourseId] = useState<string>('c-tur-201');
+  const [selectedCourseId, setSelectedCourseId] = useState<string>('');
   const [currentDocente, setCurrentDocente] = useState<Docente | null>(null);
+  const [allAlumnos, setAllAlumnos] = useState<Alumno[]>([]);
+  const [allGrupos, setAllGrupos] = useState<Grupo[]>([]);
   const [calendarBannerDismissed, setCalendarBannerDismissed] = useState(false);
 
   // Strict Authentication Guard
@@ -37,11 +53,18 @@ export default function TeacherDashboardPage() {
     }
   }, [user, role, authLoading]);
 
-  // Load Docente's official profile and schedules from database
+  // Load Docente's official profile, alumnos, and schedules from database
   useEffect(() => {
     async function loadDocenteProfile() {
       try {
-        const allDocs = await db.getDocentes();
+        const [allDocs, alumnosList, gruposList] = await Promise.all([
+          db.getDocentes(),
+          db.getAlumnos(),
+          db.getGrupos()
+        ]);
+        setAllAlumnos(alumnosList || []);
+        setAllGrupos(gruposList || []);
+
         const found =
           allDocs.find(
             (d) =>
@@ -62,7 +85,7 @@ export default function TeacherDashboardPage() {
     loadDocenteProfile();
   }, [user]);
 
-  // Turismo Group 201-TUR Demo Students
+  // Fallback Turismo Group 201-TUR Demo Students (used if DB records not yet populated)
   const turismoStudents: StudentItem[] = [
     { id: 'al-1', name: 'Dayanna Gissel Buitimea Garma', student_code: 'UNRC-2026-005' },
     { id: 'al-2', name: 'Astrid Cristina Diaz Moreno', student_code: 'UNRC-2026-006' },
@@ -72,7 +95,7 @@ export default function TeacherDashboardPage() {
     { id: 'al-6', name: 'Alejandra Garcia Hernandez', student_code: 'UNRC-2026-010' },
   ];
 
-  // Administración Group 203-ADM Demo Students
+  // Fallback Administración Group 203-ADM Demo Students (used if DB records not yet populated)
   const admStudents: StudentItem[] = [
     { id: 'al-19', name: 'Gabriela Erandi Capilla Manuel', student_code: 'UNRC-2026-023' },
     { id: 'al-20', name: 'Angélica Altamirano Solórzano', student_code: 'UNRC-2026-024' },
@@ -80,14 +103,216 @@ export default function TeacherDashboardPage() {
     { id: 'al-22', name: 'Michell Evelin Cruz Alcantara', student_code: 'UNRC-2026-026' },
   ];
 
-  const activeStudents = selectedCourseId === 'c-tur-201' ? turismoStudents : admStudents;
-  const activeCourseName = selectedCourseId === 'c-tur-201'
-    ? 'Lic. en Turismo - Administración de Empresas de Hospedaje (Grupo 201-TUR)'
-    : 'Lic. en Administración - Matemáticas para la Administración (Grupo 203-ADM)';
-  
-  const activeSchedule = selectedCourseId === 'c-tur-201'
-    ? 'Miércoles (09:00 - 11:00 hrs) y Sábados (07:00 - 09:00 hrs)'
-    : 'Lunes a Sábado (07:00 - 13:00 hrs)';
+  // Extract ALL Assigned Courses dynamically for this Docente
+  const assignedCourses: AssignedCourseItem[] = useMemo(() => {
+    if (!currentDocente) return [];
+
+    const courseMap = new Map<string, {
+      id: string;
+      grupo: string;
+      materia: string;
+      carrera: string;
+      aulas: Set<string>;
+      sesiones: { dia: string; inicio: string; fin: string; online: boolean }[];
+    }>();
+
+    // 1. Process docente's schedules
+    if (currentDocente.horarios && currentDocente.horarios.length > 0) {
+      currentDocente.horarios.forEach((h) => {
+        const grupo = (h.grupo || 'Sin grupo').trim();
+        const materia = (h.materia || 'Materia sin asignar').trim();
+        const carrera = (h.carrera || currentDocente.departamento || 'Licenciatura').trim();
+        const key = `${grupo}____${materia}`.toLowerCase();
+
+        if (!courseMap.has(key)) {
+          const courseId = `course-${grupo.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${materia.toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 25)}`;
+          courseMap.set(key, {
+            id: courseId,
+            grupo,
+            materia,
+            carrera,
+            aulas: new Set(h.aula ? [h.aula] : []),
+            sesiones: [{ dia: h.dia, inicio: h.hora_inicio, fin: h.hora_fin, online: Boolean(h.es_en_linea) }]
+          });
+        } else {
+          const existing = courseMap.get(key)!;
+          if (h.aula) existing.aulas.add(h.aula);
+          const isDuplicate = existing.sesiones.some(
+            (s) => s.dia === h.dia && s.inicio === h.hora_inicio && s.fin === h.hora_fin
+          );
+          if (!isDuplicate) {
+            existing.sesiones.push({ dia: h.dia, inicio: h.hora_inicio, fin: h.hora_fin, online: Boolean(h.es_en_linea) });
+          }
+        }
+      });
+    }
+
+    // 2. Add any additional materias registered for docente that don't have explicit horario blocks yet
+    if (currentDocente.materias && Array.isArray(currentDocente.materias)) {
+      currentDocente.materias.forEach((mat) => {
+        const matClean = mat.trim();
+        if (!matClean) return;
+        const alreadyExists = Array.from(courseMap.values()).some(
+          (c) => c.materia.toLowerCase() === matClean.toLowerCase()
+        );
+        if (!alreadyExists) {
+          const matchingGrupo = allGrupos.find(
+            (g) =>
+              g.docente_nombre?.toLowerCase().includes(currentDocente.nombre.toLowerCase()) ||
+              g.docente_id === currentDocente.id
+          );
+          const grupoName = matchingGrupo?.clave_grupo || currentDocente.horarios?.[0]?.grupo || 'PHLAC-203-TIJ';
+          const carreraName = currentDocente.carreras_asignadas?.[0] || currentDocente.departamento || 'Licenciatura';
+          const key = `${grupoName}____${matClean}`.toLowerCase();
+
+          if (!courseMap.has(key)) {
+            courseMap.set(key, {
+              id: `course-${grupoName.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${matClean.toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 25)}`,
+              grupo: grupoName,
+              materia: matClean,
+              carrera: carreraName,
+              aulas: new Set(),
+              sesiones: []
+            });
+          }
+        }
+      });
+    }
+
+    // 3. Fallback default courses if none found
+    if (courseMap.size === 0) {
+      return [
+        {
+          id: 'c-tur-201',
+          grupo: '201-TUR',
+          materia: 'Administración de Empresas de Hospedaje',
+          carrera: 'Licenciatura en Turismo',
+          aula: 'Campus Tijuana - Aula Magna TIJ',
+          dias: ['Miércoles', 'Sábado'],
+          scheduleDescription: 'Miércoles (09:00 - 11:00 hrs) y Sábados (07:00 - 09:00 hrs)',
+          modalidad: 'Mixta',
+          sesionesCount: 2
+        },
+        {
+          id: 'c-adm-203',
+          grupo: 'PHLAC-203-TIJ',
+          materia: 'Matemáticas para la Administración',
+          carrera: 'Licenciatura en Administración',
+          aula: 'Campus Tijuana - Aula 203',
+          dias: ['Lunes'],
+          scheduleDescription: 'Lunes (07:00 - 09:00 hrs)',
+          modalidad: 'Presencial',
+          sesionesCount: 1
+        }
+      ];
+    }
+
+    // Convert map to array with nice formatted schedule string and modality
+    const dayOrder: Record<string, number> = {
+      'Lunes': 1, 'Martes': 2, 'Miércoles': 3, 'Jueves': 4, 'Viernes': 5, 'Sábado': 6, 'Domingo': 7
+    };
+
+    return Array.from(courseMap.values()).map((entry) => {
+      const hasOnline = entry.sesiones.some((s) => s.online);
+      const hasPresencial = entry.sesiones.some((s) => !s.online);
+      const modalidad: 'Presencial' | 'En Línea' | 'Mixta' =
+        hasOnline && hasPresencial ? 'Mixta' : hasOnline ? 'En Línea' : 'Presencial';
+
+      const sortedSesiones = [...entry.sesiones].sort(
+        (a, b) => (dayOrder[a.dia] || 99) - (dayOrder[b.dia] || 99)
+      );
+
+      const scheduleDescription = sortedSesiones.length > 0
+        ? sortedSesiones.map((s) => `${s.dia} (${s.inicio} - ${s.fin} hrs${s.online ? ' • En Línea' : ''})`).join(', ')
+        : 'Horario semestral programado';
+
+      return {
+        id: entry.id,
+        grupo: entry.grupo,
+        materia: entry.materia,
+        carrera: entry.carrera,
+        aula: Array.from(entry.aulas).join(', ') || undefined,
+        dias: Array.from(new Set(sortedSesiones.map((s) => s.dia))),
+        scheduleDescription,
+        modalidad,
+        sesionesCount: sortedSesiones.length
+      };
+    });
+  }, [currentDocente, allGrupos]);
+
+  // Keep selected course ID valid
+  useEffect(() => {
+    if (assignedCourses.length > 0) {
+      const exists = assignedCourses.some((c) => c.id === selectedCourseId);
+      if (!exists) {
+        setSelectedCourseId(assignedCourses[0].id);
+      }
+    }
+  }, [assignedCourses, selectedCourseId]);
+
+  const selectedCourse = useMemo(() => {
+    return assignedCourses.find((c) => c.id === selectedCourseId) || assignedCourses[0];
+  }, [assignedCourses, selectedCourseId]);
+
+  // Dynamically resolve students enrolled in the selected course's group
+  const activeStudents: StudentItem[] = useMemo(() => {
+    if (!selectedCourse) return turismoStudents;
+
+    const cleanCourseGrupo = selectedCourse.grupo.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const isTurismoCourse =
+      cleanCourseGrupo.includes('201') ||
+      cleanCourseGrupo.includes('tur') ||
+      selectedCourse.carrera.toLowerCase().includes('turismo');
+    const isAdmCourse =
+      cleanCourseGrupo.includes('203') ||
+      cleanCourseGrupo.includes('adm') ||
+      cleanCourseGrupo.includes('phlac') ||
+      selectedCourse.carrera.toLowerCase().includes('administra');
+
+    // Filter matching students from database
+    const matched = allAlumnos.filter((al) => {
+      const alGroupClean = (al.grupo || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const alCarrera = (al.carrera || '').toLowerCase();
+
+      // 1. Exact or sanitized group match
+      if (alGroupClean && (alGroupClean === cleanCourseGrupo || cleanCourseGrupo.includes(alGroupClean) || alGroupClean.includes(cleanCourseGrupo))) {
+        return true;
+      }
+
+      // 2. Administración cross-matching (PHLAC-203-TIJ / 203-ADM / 203)
+      if (isAdmCourse && (alGroupClean.includes('203') || alCarrera.includes('administra'))) {
+        return true;
+      }
+
+      // 3. Turismo cross-matching (201-TUR / 201)
+      if (isTurismoCourse && (alGroupClean.includes('201') || alCarrera.includes('turismo'))) {
+        return true;
+      }
+
+      return false;
+    });
+
+    if (matched.length > 0) {
+      return matched.map((al) => ({
+        id: al.id || al.matricula,
+        name: `${al.nombre} ${al.apellido_paterno} ${al.apellido_materno || ''}`.trim(),
+        student_code: al.matricula,
+        notes: `${al.grado || ''} • ${al.carrera || selectedCourse.carrera}`.trim()
+      }));
+    }
+
+    // Fallbacks if no specific database records found
+    if (isTurismoCourse) return turismoStudents;
+    if (isAdmCourse) return admStudents;
+
+    return [];
+  }, [selectedCourse, allAlumnos]);
+
+  const activeCourseName = selectedCourse
+    ? `${selectedCourse.materia} (Grupo ${selectedCourse.grupo} • ${selectedCourse.carrera})`
+    : 'Curso UNRC';
+
+  const activeSchedule = selectedCourse?.scheduleDescription || 'Lunes a Sábado';
 
   const horarios = currentDocente?.horarios || [];
   const presencialesCount = horarios.filter((h) => !h.es_en_linea).length;
@@ -305,22 +530,55 @@ export default function TeacherDashboardPage() {
             </p>
           </div>
 
-          {/* Course Selector Dropdown */}
-          <div className="bg-black/40 p-3 rounded-2xl border border-white/10 space-y-1 w-full sm:w-auto">
-            <label className="text-[10px] uppercase font-bold text-gray-400 block">Seleccionar Curso Asignado:</label>
+          {/* Course Selector Dropdown - Dynamic for ALL assigned courses */}
+          <div className="bg-black/50 p-3.5 rounded-2xl border border-blue-500/20 shadow-xl space-y-2 w-full sm:w-auto min-w-[340px] max-w-full">
+            <div className="flex items-center justify-between gap-2">
+              <label className="text-[10px] uppercase font-bold text-blue-400 tracking-wider flex items-center space-x-1.5">
+                <BookOpen className="w-3.5 h-3.5 text-blue-400" />
+                <span>Cursos Asignados ({assignedCourses.length}):</span>
+              </label>
+              {selectedCourse && (
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-semibold flex items-center space-x-1">
+                  <Users className="w-3 h-3 text-emerald-400" />
+                  <span>{activeStudents.length} Alumnos</span>
+                </span>
+              )}
+            </div>
+
             <select
               value={selectedCourseId}
               onChange={(e) => setSelectedCourseId(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl bg-[#090E1A] border border-white/10 text-white text-xs font-bold focus:outline-none focus:border-blue-500"
+              className="w-full px-3 py-2.5 rounded-xl bg-[#090E1A] border border-blue-500/30 text-white text-xs font-bold focus:outline-none focus:border-blue-400 transition-colors shadow-inner"
             >
-              <option value="c-tur-201">Grupo 201-TUR (Turismo - Hospedaje)</option>
-              <option value="c-adm-203">Grupo 203-ADM (Administración - Mates)</option>
+              {assignedCourses.map((c) => (
+                <option key={c.id} value={c.id}>
+                  Grupo {c.grupo} • {c.materia} ({c.modalidad})
+                </option>
+              ))}
             </select>
+
+            {selectedCourse && (
+              <div className="text-[11px] text-gray-400 pt-0.5 flex flex-col space-y-0.5">
+                <div className="flex items-center space-x-1.5 text-gray-300">
+                  <span className="font-semibold">{selectedCourse.carrera}</span>
+                  {selectedCourse.aula && (
+                    <>
+                      <span>•</span>
+                      <span className="text-gray-400">{selectedCourse.aula}</span>
+                    </>
+                  )}
+                </div>
+                <div className="text-amber-400/90 font-mono text-[10px]">
+                  {selectedCourse.scheduleDescription}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Attendance Sheet Component */}
         <AttendanceSheet
+          key={selectedCourseId}
           courseId={selectedCourseId}
           courseName={activeCourseName}
           scheduleDescription={activeSchedule}
