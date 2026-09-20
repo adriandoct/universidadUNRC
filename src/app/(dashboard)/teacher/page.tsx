@@ -87,9 +87,33 @@ export default function TeacherDashboardPage() {
 
 
 
-  // Extract ALL Assigned Courses dynamically for this Docente
+  // Helper to canonicalize group codes so PHLAC-203-TIJ and 203-ADM merge cleanly
+  const getCanonicalGroup = (rawGrupo?: string, materiaOrCarrera: string = ''): string => {
+    const g = (rawGrupo || '').trim();
+    const clean = g.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const mat = (materiaOrCarrera || '').toLowerCase();
+
+    if (clean.includes('203') || clean.includes('phlac') || mat.includes('matemáticas') || mat.includes('administración')) {
+      if (!mat.includes('turismo') && !mat.includes('hospedaje')) {
+        return '203-ADM';
+      }
+    }
+    if (clean.includes('201') || clean.includes('tur') || mat.includes('hospedaje') || mat.includes('turismo')) {
+      if (!clean.includes('tic') && !clean.includes('lcdn')) {
+        return '201-TUR';
+      }
+    }
+    if (clean.includes('401') || mat.includes('predictivo') || clean.includes('lcdn')) {
+      return '401-LCDN';
+    }
+    return g || 'Sin grupo';
+  };
+
+  // Extract ALL Assigned Courses dynamically for this Docente STRICTLY from active schedule (horarios)
   const assignedCourses: AssignedCourseItem[] = useMemo(() => {
-    if (!currentDocente) return [];
+    if (!currentDocente || !currentDocente.horarios || currentDocente.horarios.length === 0) {
+      return [];
+    }
 
     const courseMap = new Map<string, {
       id: string;
@@ -100,70 +124,46 @@ export default function TeacherDashboardPage() {
       sesiones: { dia: string; inicio: string; fin: string; online: boolean }[];
     }>();
 
-    // 1. Process docente's schedules
-    if (currentDocente.horarios && currentDocente.horarios.length > 0) {
-      currentDocente.horarios.forEach((h) => {
-        const grupo = (h.grupo || 'Sin grupo').trim();
-        const materia = (h.materia || 'Materia sin asignar').trim();
-        const carrera = (h.carrera || currentDocente.departamento || 'Licenciatura').trim();
-        const key = `${grupo}____${materia}`.toLowerCase();
+    // Process docente's schedules - EXCLUSIVELY based on currentDocente.horarios
+    currentDocente.horarios.forEach((h) => {
+      const rawGrupo = (h.grupo || 'Sin grupo').trim();
+      const materia = (h.materia || 'Materia sin asignar').trim();
+      if (!materia) return;
 
-        if (!courseMap.has(key)) {
-          const courseId = `course-${grupo.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${materia.toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 25)}`;
-          courseMap.set(key, {
-            id: courseId,
-            grupo,
-            materia,
-            carrera,
-            aulas: new Set(h.aula ? [h.aula] : []),
-            sesiones: [{ dia: h.dia, inicio: h.hora_inicio, fin: h.hora_fin, online: Boolean(h.es_en_linea) }]
-          });
-        } else {
-          const existing = courseMap.get(key)!;
-          if (h.aula) existing.aulas.add(h.aula);
+      const canonicalGrupo = getCanonicalGroup(rawGrupo, materia);
+      const carrera = (h.carrera || currentDocente.departamento || 'Licenciatura').trim();
+      const key = `${canonicalGrupo}____${materia}`.toLowerCase();
+
+      if (!courseMap.has(key)) {
+        const courseId = `course-${canonicalGrupo.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${materia.toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 25)}`;
+        courseMap.set(key, {
+          id: courseId,
+          grupo: canonicalGrupo,
+          materia,
+          carrera,
+          aulas: new Set(h.aula ? [h.aula] : []),
+          sesiones: h.dia ? [{ dia: h.dia, inicio: h.hora_inicio, fin: h.hora_fin, online: Boolean(h.es_en_linea) }] : []
+        });
+      } else {
+        const existing = courseMap.get(key)!;
+        if (h.aula) existing.aulas.add(h.aula);
+        if (h.dia) {
           const isDuplicate = existing.sesiones.some(
             (s) => s.dia === h.dia && s.inicio === h.hora_inicio && s.fin === h.hora_fin
           );
           if (!isDuplicate) {
-            existing.sesiones.push({ dia: h.dia, inicio: h.hora_inicio, fin: h.hora_fin, online: Boolean(h.es_en_linea) });
-          }
-        }
-      });
-    }
-
-    // 2. Add any additional materias registered for docente that don't have explicit horario blocks yet
-    if (currentDocente.materias && Array.isArray(currentDocente.materias)) {
-      currentDocente.materias.forEach((mat) => {
-        const matClean = mat.trim();
-        if (!matClean) return;
-        const alreadyExists = Array.from(courseMap.values()).some(
-          (c) => c.materia.toLowerCase() === matClean.toLowerCase()
-        );
-        if (!alreadyExists) {
-          const matchingGrupo = allGrupos.find(
-            (g) =>
-              g.docente_nombre?.toLowerCase().includes(currentDocente.nombre.toLowerCase()) ||
-              g.docente_id === currentDocente.id
-          );
-          const grupoName = matchingGrupo?.clave_grupo || currentDocente.horarios?.[0]?.grupo || 'PHLAC-203-TIJ';
-          const carreraName = currentDocente.carreras_asignadas?.[0] || currentDocente.departamento || 'Licenciatura';
-          const key = `${grupoName}____${matClean}`.toLowerCase();
-
-          if (!courseMap.has(key)) {
-            courseMap.set(key, {
-              id: `course-${grupoName.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${matClean.toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 25)}`,
-              grupo: grupoName,
-              materia: matClean,
-              carrera: carreraName,
-              aulas: new Set(),
-              sesiones: []
+            existing.sesiones.push({
+              dia: h.dia,
+              inicio: h.hora_inicio,
+              fin: h.hora_fin,
+              online: Boolean(h.es_en_linea)
             });
           }
         }
-      });
-    }
+      }
+    });
 
-    // 3. Fallback default courses if none found
+    // Fallback default courses only if schedule is completely empty
     if (courseMap.size === 0) {
       return [
         {
@@ -179,7 +179,7 @@ export default function TeacherDashboardPage() {
         },
         {
           id: 'c-adm-203',
-          grupo: 'PHLAC-203-TIJ',
+          grupo: '203-ADM',
           materia: 'Matemáticas para la Administración',
           carrera: 'Licenciatura en Administración',
           aula: 'Campus Tijuana - Aula 203',
@@ -222,7 +222,7 @@ export default function TeacherDashboardPage() {
         sesionesCount: sortedSesiones.length
       };
     });
-  }, [currentDocente, allGrupos]);
+  }, [currentDocente]);
 
   // Keep selected course ID valid
   useEffect(() => {
@@ -242,50 +242,82 @@ export default function TeacherDashboardPage() {
   const activeStudents: StudentItem[] = useMemo(() => {
     if (!selectedCourse) return [];
 
-    const cleanCourseGrupo = selectedCourse.grupo.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const isTurismoCourse =
-      cleanCourseGrupo.includes('201') ||
-      cleanCourseGrupo.includes('tur') ||
-      selectedCourse.carrera.toLowerCase().includes('turismo');
-    const isAdmCourse =
-      cleanCourseGrupo.includes('203') ||
-      cleanCourseGrupo.includes('adm') ||
-      cleanCourseGrupo.includes('phlac') ||
-      selectedCourse.carrera.toLowerCase().includes('administra');
+    const courseGrupo = (selectedCourse.grupo || '').trim().toLowerCase();
+    const courseGroupClean = courseGrupo.replace(/[^a-z0-9]/g, '');
+    const courseMateria = (selectedCourse.materia || '').trim().toLowerCase();
+    const courseCarrera = (selectedCourse.carrera || '').trim().toLowerCase();
+
+    // Extract numbers from course group (e.g. 203 from PHLAC-203-TIJ or 203-ADM)
+    const courseGroupNum = courseGrupo.match(/\b([1-9][0-9]{2})\b/)?.[1] ||
+      (courseGroupClean.includes('203') ? '203' :
+       courseGroupClean.includes('201') ? '201' :
+       courseGroupClean.includes('301') ? '301' :
+       courseGroupClean.includes('401') ? '401' :
+       courseGroupClean.includes('501') ? '501' :
+       courseGroupClean.includes('101') ? '101' : '');
+
+    const isCourseTurismo = courseCarrera.includes('turis') || courseMateria.includes('hospedaje') || courseGroupClean.includes('tur');
+    const isCourseAdm = courseCarrera.includes('admin') || courseGroupClean.includes('adm') || courseGroupClean.includes('phlac') || courseMateria.includes('matemáticas');
+    const isCourseDatos = courseCarrera.includes('dato') || courseCarrera.includes('cdia') || courseCarrera.includes('lcdn') || courseGroupClean.includes('lcdn');
 
     // Filter matching students from database
     const matched = allAlumnos.filter((al) => {
-      const alGroupClean = (al.grupo || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-      const alCarrera = (al.carrera || '').toLowerCase();
+      // Exclude fake/mock matriculas
+      if (al.matricula && al.matricula.startsWith('UNRC-2026-')) return false;
+
+      const alGrupo = (al.grupo || '').trim().toLowerCase();
+      const alGroupClean = alGrupo.replace(/[^a-z0-9]/g, '');
+      const alCarrera = (al.carrera || '').trim().toLowerCase();
+
+      // Student group number (e.g. 203, 201, 301, 401)
+      const alGroupNum = alGrupo.match(/\b([1-9][0-9]{2})\b/)?.[1] ||
+        (alGroupClean.includes('203') ? '203' :
+         alGroupClean.includes('201') ? '201' :
+         alGroupClean.includes('301') ? '301' :
+         alGroupClean.includes('401') ? '401' :
+         alGroupClean.includes('501') ? '501' :
+         alGroupClean.includes('101') ? '101' : '');
+
+      const isAlTurismo = alCarrera.includes('turis') || alGroupClean.includes('tur');
+      const isAlAdm = alCarrera.includes('admin') || alGroupClean.includes('adm') || alGroupClean.includes('phlac');
+      const isAlDatos = alCarrera.includes('dato') || alGroupClean.includes('lcdn');
 
       // 1. Exact or sanitized group match
-      if (alGroupClean && (alGroupClean === cleanCourseGrupo || cleanCourseGrupo.includes(alGroupClean) || alGroupClean.includes(cleanCourseGrupo))) {
+      if (alGroupClean && (alGroupClean === courseGroupClean || alGrupo === courseGrupo)) {
         return true;
       }
 
-      // 2. Administración cross-matching (PHLAC-203-TIJ / 203-ADM / 203)
-      if (isAdmCourse && (alGroupClean.includes('203') || alCarrera.includes('administra'))) {
+      // 2. Administración 203 group match (PHLAC-203-TIJ <=> 203-ADM)
+      if (isCourseAdm && isAlAdm && courseGroupNum === '203' && alGroupNum === '203') {
         return true;
       }
 
-      // 3. Turismo cross-matching (201-TUR / 201)
-      if (isTurismoCourse && (alGroupClean.includes('201') || alCarrera.includes('turismo'))) {
+      // 3. Turismo 201 group match (PHLTUR-201-TIJ <=> 201-TUR)
+      if (isCourseTurismo && isAlTurismo && courseGroupNum === '201' && alGroupNum === '201') {
         return true;
+      }
+
+      // 4. Datos 401 group match (PHLCDN-401-TIJ <=> 401-LCDN)
+      if (isCourseDatos && isAlDatos && courseGroupNum === '401' && alGroupNum === '401') {
+        return true;
+      }
+
+      // 5. Match by same group number AND same career
+      if (courseGroupNum && alGroupNum && courseGroupNum === alGroupNum) {
+        if (isCourseAdm && isAlAdm) return true;
+        if (isCourseTurismo && isAlTurismo) return true;
+        if (isCourseDatos && isAlDatos) return true;
       }
 
       return false;
     });
 
-    if (matched.length > 0) {
-      return matched.map((al) => ({
-        id: al.id || al.matricula,
-        name: `${al.nombre} ${al.apellido_paterno} ${al.apellido_materno || ''}`.trim(),
-        student_code: al.matricula,
-        notes: `${al.grado || ''} • ${al.carrera || selectedCourse.carrera}`.trim()
-      }));
-    }
-
-    return [];
+    return matched.map((al) => ({
+      id: al.id || al.matricula,
+      name: `${al.nombre} ${al.apellido_paterno} ${al.apellido_materno || ''}`.trim(),
+      student_code: al.matricula,
+      notes: `${al.grado || ''} • ${al.carrera || selectedCourse.carrera}`.trim()
+    }));
   }, [selectedCourse, allAlumnos]);
 
   const activeCourseName = selectedCourse

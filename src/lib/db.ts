@@ -1594,6 +1594,64 @@ export const db = {
   // Alumnos operations
   getAlumnos: async (): Promise<Alumno[]> => {
     initLocalStorage();
+
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('alumnos')
+          .select('*')
+          .order('apellido_paterno', { ascending: true });
+        if (!error && data && data.length > 0) {
+          const valid = data.filter((sa: any) => !sa.matricula?.startsWith('UNRC-2026-'));
+          if (valid.length > 0) {
+            const list: Alumno[] = valid.map((sa: any) => {
+              const cName = (sa.carrera || '').toLowerCase();
+              const cId = (sa.carrera_id || '').toLowerCase();
+              const grp = (sa.grupo || '').toLowerCase();
+              const isTurismo = cName.includes('turis') || cId.includes('c4') || grp.includes('tur');
+              const isAdm = (cName.includes('admin') || cId.includes('c5') || grp.includes('phlac') || grp.includes('203')) && !grp.includes('lcdn');
+              const isCdIA = cName.includes('datos') || cName.includes('negocios') || grp.includes('lcdn') || cId.includes('c1');
+
+              return {
+                id: sa.id,
+                matricula: sa.matricula,
+                nombre: sa.nombre,
+                apellido_paterno: sa.apellido_paterno,
+                apellido_materno: sa.apellido_materno || '',
+                grado: sa.grado || '2° Semestre',
+                grupo: sa.grupo || (isTurismo ? 'PHLTUR-201-TIJ' : isAdm ? 'PHLAC-203-TIJ' : '401-LCDN'),
+                carrera: isTurismo
+                  ? 'Licenciatura en Turismo'
+                  : isAdm
+                  ? 'Licenciatura en Administración'
+                  : isCdIA
+                  ? 'Licenciatura en Ciencias de Datos e Inteligencia Artificial'
+                  : sa.carrera || 'Licenciatura UNRC',
+                carrera_id: sa.carrera_id,
+                grupo_id: sa.grupo_id,
+                sede_id: sa.sede_id || 'sede-tij',
+                sede_nombre: sa.sede_nombre || 'Campus Tijuana',
+                ciclo_id: sa.ciclo_id || '2026-2',
+                estado_matricula: sa.estado_matricula || 'activo',
+                tutor: sa.tutor || 'Tutor UNRC',
+                telefono: sa.telefono || '+525500000000',
+                foto_url: sa.foto_url,
+                qr_code: sa.qr_code || sa.matricula,
+                docente_nombre: sa.docente_nombre || 'Dr. Adrian Silva',
+                docente_id: sa.docente_id || 'docente-3',
+                password: sa.password || getDefaultUserPassword(sa.matricula, '2026-2'),
+                created_at: sa.created_at
+              };
+            });
+            localStorage.setItem('unrc_alumnos', JSON.stringify(list));
+            return list;
+          }
+        }
+      } catch (e) {
+        console.warn('Supabase getAlumnos notice:', e);
+      }
+    }
+
     const raw = localStorage.getItem('unrc_alumnos');
     if (raw !== null) {
       try {
