@@ -85,23 +85,7 @@ export default function TeacherDashboardPage() {
     loadDocenteProfile();
   }, [user]);
 
-  // Fallback Turismo Group 201-TUR Demo Students (used if DB records not yet populated)
-  const turismoStudents: StudentItem[] = [
-    { id: 'al-1', name: 'Dayanna Gissel Buitimea Garma', student_code: 'UNRC-2026-005' },
-    { id: 'al-2', name: 'Astrid Cristina Diaz Moreno', student_code: 'UNRC-2026-006' },
-    { id: 'al-3', name: 'Julibeth Hernandez Herrera', student_code: 'UNRC-2026-007' },
-    { id: 'al-4', name: 'Blanca Estela Lopez Pablo', student_code: 'UNRC-2026-008' },
-    { id: 'al-5', name: 'Cecilia Todd Ambriz', student_code: 'UNRC-2026-009' },
-    { id: 'al-6', name: 'Alejandra Garcia Hernandez', student_code: 'UNRC-2026-010' },
-  ];
 
-  // Fallback Administración Group 203-ADM Demo Students (used if DB records not yet populated)
-  const admStudents: StudentItem[] = [
-    { id: 'al-19', name: 'Gabriela Erandi Capilla Manuel', student_code: 'UNRC-2026-023' },
-    { id: 'al-20', name: 'Angélica Altamirano Solórzano', student_code: 'UNRC-2026-024' },
-    { id: 'al-21', name: 'Magali Arce Garcia', student_code: 'UNRC-2026-025' },
-    { id: 'al-22', name: 'Michell Evelin Cruz Alcantara', student_code: 'UNRC-2026-026' },
-  ];
 
   // Extract ALL Assigned Courses dynamically for this Docente
   const assignedCourses: AssignedCourseItem[] = useMemo(() => {
@@ -256,7 +240,7 @@ export default function TeacherDashboardPage() {
 
   // Dynamically resolve students enrolled in the selected course's group
   const activeStudents: StudentItem[] = useMemo(() => {
-    if (!selectedCourse) return turismoStudents;
+    if (!selectedCourse) return [];
 
     const cleanCourseGrupo = selectedCourse.grupo.toLowerCase().replace(/[^a-z0-9]/g, '');
     const isTurismoCourse =
@@ -300,10 +284,6 @@ export default function TeacherDashboardPage() {
         notes: `${al.grado || ''} • ${al.carrera || selectedCourse.carrera}`.trim()
       }));
     }
-
-    // Fallbacks if no specific database records found
-    if (isTurismoCourse) return turismoStudents;
-    if (isAdmCourse) return admStudents;
 
     return [];
   }, [selectedCourse, allAlumnos]);

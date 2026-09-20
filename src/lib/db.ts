@@ -349,64 +349,8 @@ const MOCK_GRUPOS: Grupo[] = [
   { id: 'g501', clave_grupo: '501', carrera_id: 'c3', materia_id: 'm5', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', turno: 'Matutino', periodo: '2026-2', horario: 'Lunes a Sábado (07:00 - 13:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Tutor UNRC', aula: 'Campus Tijuana - Lab Ciberseguridad' }
 ];
 
-// Initial mock data for UNRC Alumnos (All students correspond to Campus Tijuana)
-const MOCK_ALUMNOS: Alumno[] = [
-  // Group 201-TUR (Turismo - 6 Alumnos - Docente: Dr. Adrian Silva)
-  { id: 'al-1', matricula: 'UNRC-2026-005', nombre: 'Dayanna Gissel', apellido_paterno: 'Buitimea', apellido_materno: 'Garma', grado: '2° Semestre', grupo: '201-TUR', carrera: 'Licenciatura en Turismo', carrera_id: 'c4444444-4444-4444-4444-444444444444', grupo_id: 'g201-tur', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000001', qr_code: 'UNRC-2026-005' },
-  { id: 'al-2', matricula: 'UNRC-2026-006', nombre: 'Astrid Cristina', apellido_paterno: 'Diaz', apellido_materno: 'Moreno', grado: '2° Semestre', grupo: '201-TUR', carrera: 'Licenciatura en Turismo', carrera_id: 'c4444444-4444-4444-4444-444444444444', grupo_id: 'g201-tur', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000002', qr_code: 'UNRC-2026-006' },
-  { id: 'al-3', matricula: 'UNRC-2026-007', nombre: 'Julibeth', apellido_paterno: 'Hernandez', apellido_materno: 'Herrera', grado: '2° Semestre', grupo: '201-TUR', carrera: 'Licenciatura en Turismo', carrera_id: 'c4444444-4444-4444-4444-444444444444', grupo_id: 'g201-tur', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000003', qr_code: 'UNRC-2026-007' },
-  { id: 'al-4', matricula: 'UNRC-2026-008', nombre: 'Blanca Estela', apellido_paterno: 'Lopez', apellido_materno: 'Pablo', grado: '2° Semestre', grupo: '201-TUR', carrera: 'Licenciatura en Turismo', carrera_id: 'c4444444-4444-4444-4444-444444444444', grupo_id: 'g201-tur', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000004', qr_code: 'UNRC-2026-008' },
-  { id: 'al-5', matricula: 'UNRC-2026-009', nombre: 'Cecilia', apellido_paterno: 'Todd', apellido_materno: 'Ambriz', grado: '2° Semestre', grupo: '201-TUR', carrera: 'Licenciatura en Turismo', carrera_id: 'c4444444-4444-4444-4444-444444444444', grupo_id: 'g201-tur', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000005', qr_code: 'UNRC-2026-009' },
-  { id: 'al-6', matricula: 'UNRC-2026-010', nombre: 'Alejandra', apellido_paterno: 'Garcia', apellido_materno: 'Hernandez', grado: '2° Semestre', grupo: '201-TUR', carrera: 'Licenciatura en Turismo', carrera_id: 'c4444444-4444-4444-4444-444444444444', grupo_id: 'g201-tur', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000006', qr_code: 'UNRC-2026-010' },
-
-  // Group 102
-  { id: 'al-7', matricula: 'UNRC-2026-011', nombre: 'Stephanie', apellido_paterno: 'Morales', apellido_materno: 'Flores', grado: '1° Semestre', grupo: '102', carrera: 'Licenciatura en Ciencias de Datos e Inteligencia Artificial', carrera_id: 'c1111111-1111-1111-1111-111111111111', grupo_id: 'g102', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000007', qr_code: 'UNRC-2026-011' },
-  { id: 'al-8', matricula: 'UNRC-2026-012', nombre: 'Daniel', apellido_paterno: 'Cruz', apellido_materno: 'Mendoza', grado: '1° Semestre', grupo: '102', carrera: 'Licenciatura en Ciencias de Datos e Inteligencia Artificial', carrera_id: 'c1111111-1111-1111-1111-111111111111', grupo_id: 'g102', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000008', qr_code: 'UNRC-2026-012' },
-  { id: 'al-9', matricula: 'UNRC-2026-013', nombre: 'Giovanni', apellido_paterno: 'Espinoza', apellido_materno: 'Ríos', grado: '1° Semestre', grupo: '102', carrera: 'Licenciatura en Ciencias de Datos e Inteligencia Artificial', carrera_id: 'c1111111-1111-1111-1111-111111111111', grupo_id: 'g102', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000009', qr_code: 'UNRC-2026-013' },
-  { id: 'al-10', matricula: 'UNRC-2026-014', nombre: 'Edith', apellido_paterno: 'Reyes', apellido_materno: 'Torres', grado: '1° Semestre', grupo: '102', carrera: 'Licenciatura en Ciencias de Datos e Inteligencia Artificial', carrera_id: 'c1111111-1111-1111-1111-111111111111', grupo_id: 'g102', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000010', qr_code: 'UNRC-2026-014' },
-  { id: 'al-11', matricula: 'UNRC-2026-015', nombre: 'Jose Alberto', apellido_paterno: 'Robles', apellido_materno: 'Anguiano', grado: '1° Semestre', grupo: '102', carrera: 'Licenciatura en Ciencias de Datos e Inteligencia Artificial', carrera_id: 'c1111111-1111-1111-1111-111111111111', grupo_id: 'g102', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000011', qr_code: 'UNRC-2026-015' },
-  { id: 'al-12', matricula: 'UNRC-2026-016', nombre: 'Daniel', apellido_paterno: 'Ruffo', apellido_materno: 'Vázquez', grado: '1° Semestre', grupo: '102', carrera: 'Licenciatura en Ciencias de Datos e Inteligencia Artificial', carrera_id: 'c1111111-1111-1111-1111-111111111111', grupo_id: 'g102', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000012', qr_code: 'UNRC-2026-016' },
-
-  // Group 201
-  { id: 'al-13', matricula: 'UNRC-2026-017', nombre: 'Emili Janeht', apellido_paterno: 'Armenta', apellido_materno: 'Mancinas', grado: '3° Semestre', grupo: '201', carrera: 'Licenciatura en Tecnologías de la Información y Comunicación', carrera_id: 'c2222222-2222-2222-2222-222222222222', grupo_id: 'g201', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000013', qr_code: 'UNRC-2026-017' },
-  { id: 'al-14', matricula: 'UNRC-2026-018', nombre: 'Quintero Jacobo', apellido_paterno: 'Chrissier', apellido_materno: 'Magdiel', grado: '3° Semestre', grupo: '201', carrera: 'Licenciatura en Tecnologías de la Información y Comunicación', carrera_id: 'c2222222-2222-2222-2222-222222222222', grupo_id: 'g201', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000014', qr_code: 'UNRC-2026-018' },
-  { id: 'al-15', matricula: 'UNRC-2026-019', nombre: 'Ivan', apellido_paterno: 'Medina', apellido_materno: 'Silva', grado: '3° Semestre', grupo: '201', carrera: 'Licenciatura en Tecnologías de la Información y Comunicación', carrera_id: 'c2222222-2222-2222-2222-222222222222', grupo_id: 'g201', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000015', qr_code: 'UNRC-2026-019' },
-  { id: 'al-16', matricula: 'UNRC-2026-020', nombre: 'Bardo', apellido_paterno: 'Rojo', apellido_materno: 'Castillo', grado: '3° Semestre', grupo: '201', carrera: 'Licenciatura en Tecnologías de la Información y Comunicación', carrera_id: 'c2222222-2222-2222-2222-222222222222', grupo_id: 'g201', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000016', qr_code: 'UNRC-2026-020' },
-  { id: 'al-17', matricula: 'UNRC-2026-021', nombre: 'Roselvina Mayeth', apellido_paterno: 'Sanchez', apellido_materno: 'Dominguez', grado: '3° Semestre', grupo: '201', carrera: 'Licenciatura en Tecnologías de la Información y Comunicación', carrera_id: 'c2222222-2222-2222-2222-222222222222', grupo_id: 'g201', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000017', qr_code: 'UNRC-2026-021' },
-  { id: 'al-18', matricula: 'UNRC-2026-022', nombre: 'Luis Armando', apellido_paterno: 'Triche', apellido_materno: 'Ramirez', grado: '3° Semestre', grupo: '201', carrera: 'Licenciatura en Tecnologías de la Información y Comunicación', carrera_id: 'c2222222-2222-2222-2222-222222222222', grupo_id: 'g201', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000018', qr_code: 'UNRC-2026-022' },
-
-  // Group 203-ADM (Lic. en Administración - Docente: Dr. Adrian Silva - 22 Alumnos)
-  { id: 'al-19', matricula: 'UNRC-2026-023', nombre: 'Gabriela Erandi', apellido_paterno: 'Capilla', apellido_materno: 'Manuel', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Licenciatura en Administración', carrera_id: 'c5555555-5555-5555-5555-555555555555', grupo_id: 'g203-adm', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000019', qr_code: 'UNRC-2026-023' },
-  { id: 'al-20', matricula: 'UNRC-2026-024', nombre: 'Angélica', apellido_paterno: 'Altamirano', apellido_materno: 'Solórzano', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Licenciatura en Administración', carrera_id: 'c5555555-5555-5555-5555-555555555555', grupo_id: 'g203-adm', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000020', qr_code: 'UNRC-2026-024' },
-  { id: 'al-21', matricula: 'UNRC-2026-025', nombre: 'Magali', apellido_paterno: 'Arce', apellido_materno: 'Garcia', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Licenciatura en Administración', carrera_id: 'c5555555-5555-5555-5555-555555555555', grupo_id: 'g203-adm', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000021', qr_code: 'UNRC-2026-025' },
-  { id: 'al-22', matricula: 'UNRC-2026-026', nombre: 'Michell Evelin', apellido_paterno: 'Cruz', apellido_materno: 'Alcantara', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Licenciatura en Administración', carrera_id: 'c5555555-5555-5555-5555-555555555555', grupo_id: 'g203-adm', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000022', qr_code: 'UNRC-2026-026' },
-  { id: 'al-23', matricula: 'UNRC-2026-027', nombre: 'Michel Monserrat', apellido_paterno: 'De anda', apellido_materno: 'Montalvo', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Licenciatura en Administración', carrera_id: 'c5555555-5555-5555-5555-555555555555', grupo_id: 'g203-adm', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000023', qr_code: 'UNRC-2026-027' },
-  { id: 'al-24', matricula: 'UNRC-2026-028', nombre: 'Samuel Anthony', apellido_paterno: 'De la cruz', apellido_materno: 'López', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Licenciatura en Administración', carrera_id: 'c5555555-5555-5555-5555-555555555555', grupo_id: 'g203-adm', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000024', qr_code: 'UNRC-2026-028' },
-  { id: 'al-25', matricula: 'UNRC-2026-029', nombre: 'Estefanía', apellido_paterno: 'Espinosa', apellido_materno: 'Aguilar', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Licenciatura en Administración', carrera_id: 'c5555555-5555-5555-5555-555555555555', grupo_id: 'g203-adm', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000025', qr_code: 'UNRC-2026-029' },
-  { id: 'al-26', matricula: 'UNRC-2026-030', nombre: 'Maria Dolores', apellido_paterno: 'Garcia', apellido_materno: 'Delgado', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Licenciatura en Administración', carrera_id: 'c5555555-5555-5555-5555-555555555555', grupo_id: 'g203-adm', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000026', qr_code: 'UNRC-2026-030' },
-  { id: 'al-27', matricula: 'UNRC-2026-031', nombre: 'Ana Maria', apellido_paterno: 'Jimenez', apellido_materno: 'Ramirez', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Licenciatura en Administración', carrera_id: 'c5555555-5555-5555-5555-555555555555', grupo_id: 'g203-adm', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000027', qr_code: 'UNRC-2026-031' },
-  { id: 'al-28', matricula: 'UNRC-2026-032', nombre: 'Jaciel Berenice', apellido_paterno: 'Mendoza', apellido_materno: 'Hacho', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Licenciatura en Administración', carrera_id: 'c5555555-5555-5555-5555-555555555555', grupo_id: 'g203-adm', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000028', qr_code: 'UNRC-2026-032' },
-  { id: 'al-29', matricula: 'UNRC-2026-033', nombre: 'Sherlyn de Jesus', apellido_paterno: 'Vergara', apellido_materno: 'Puga', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Licenciatura en Administración', carrera_id: 'c5555555-5555-5555-5555-555555555555', grupo_id: 'g203-adm', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000029', qr_code: 'UNRC-2026-033' },
-  { id: 'al-30', matricula: 'UNRC-2026-034', nombre: 'Francisco Raul', apellido_paterno: 'Riego', apellido_materno: 'Manzano', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Licenciatura en Administración', carrera_id: 'c5555555-5555-5555-5555-555555555555', grupo_id: 'g203-adm', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000030', qr_code: 'UNRC-2026-034' },
-  { id: 'al-31', matricula: 'UNRC-2026-035', nombre: 'Juan Carlos', apellido_paterno: 'Román', apellido_materno: 'Perez', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Licenciatura en Administración', carrera_id: 'c5555555-5555-5555-5555-555555555555', grupo_id: 'g203-adm', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000031', qr_code: 'UNRC-2026-035' },
-  { id: 'al-32', matricula: 'UNRC-2026-036', nombre: 'Diana', apellido_paterno: 'Cruz', apellido_materno: 'Soriano', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Licenciatura en Administración', carrera_id: 'c5555555-5555-5555-5555-555555555555', grupo_id: 'g203-adm', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000032', qr_code: 'UNRC-2026-036' },
-  { id: 'al-33', matricula: 'UNRC-2026-037', nombre: 'Cristian Jeova', apellido_paterno: 'Trejo', apellido_materno: 'Flores', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Licenciatura en Administración', carrera_id: 'c5555555-5555-5555-5555-555555555555', grupo_id: 'g203-adm', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000033', qr_code: 'UNRC-2026-037' },
-  { id: 'al-34', matricula: 'UNRC-2026-038', nombre: 'Jackelyn', apellido_paterno: 'Uribe', apellido_materno: 'Zuñiga', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Licenciatura en Administración', carrera_id: 'c5555555-5555-5555-5555-555555555555', grupo_id: 'g203-adm', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000034', qr_code: 'UNRC-2026-038' },
-  { id: 'al-35', matricula: 'UNRC-2026-039', nombre: 'Angel Alfredo', apellido_paterno: 'Zarate', apellido_materno: 'Cobilt', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Licenciatura en Administración', carrera_id: 'c5555555-5555-5555-5555-555555555555', grupo_id: 'g203-adm', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000035', qr_code: 'UNRC-2026-039' },
-  { id: 'al-36', matricula: 'UNRC-2026-040', nombre: 'Hector', apellido_paterno: 'Rivera', apellido_materno: 'Murillo', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Licenciatura en Administración', carrera_id: 'c5555555-5555-5555-5555-555555555555', grupo_id: 'g203-adm', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000036', qr_code: 'UNRC-2026-040' },
-  { id: 'al-37', matricula: 'UNRC-2026-041', nombre: 'Miguel Ángel', apellido_paterno: 'Romo', apellido_materno: 'Sandoval', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Licenciatura en Administración', carrera_id: 'c5555555-5555-5555-5555-555555555555', grupo_id: 'g203-adm', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000041', qr_code: 'UNRC-2026-041' },
-  { id: 'al-38', matricula: 'UNRC-2026-042', nombre: 'Jessica Lizeth', apellido_paterno: 'Mata', apellido_materno: 'Bautista', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Licenciatura en Administración', carrera_id: 'c5555555-5555-5555-5555-555555555555', grupo_id: 'g203-adm', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000042', qr_code: 'UNRC-2026-042' },
-  { id: 'al-39', matricula: 'UNRC-2026-043', nombre: 'Berenice Malena', apellido_paterno: 'Torres', apellido_materno: 'Reyes', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Licenciatura en Administración', carrera_id: 'c5555555-5555-5555-5555-555555555555', grupo_id: 'g203-adm', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000043', qr_code: 'UNRC-2026-043' },
-  { id: 'al-40', matricula: 'UNRC-2026-044', nombre: 'Lizbeth', apellido_paterno: 'Magallon', apellido_materno: 'Vázquez', grado: '2° Semestre', grupo: '203-ADM', carrera: 'Licenciatura en Administración', carrera_id: 'c5555555-5555-5555-5555-555555555555', grupo_id: 'g203-adm', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000044', qr_code: 'UNRC-2026-044' },
-
-  // Group 501
-  { id: 'al-41', matricula: 'UNRC-2026-045', nombre: 'Carlos', apellido_paterno: 'Alcantar', apellido_materno: 'Sanchez', grado: '5° Semestre', grupo: '501', carrera: 'Licenciatura en Ciberseguridad', carrera_id: 'c3333333-3333-3333-3333-333333333333', grupo_id: 'g501', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000045', qr_code: 'UNRC-2026-045' },
-  { id: 'al-42', matricula: 'UNRC-2026-046', nombre: 'Oscar', apellido_paterno: 'Cendejas', apellido_materno: 'Flores', grado: '5° Semestre', grupo: '501', carrera: 'Licenciatura en Ciberseguridad', carrera_id: 'c3333333-3333-3333-3333-333333333333', grupo_id: 'g501', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000046', qr_code: 'UNRC-2026-046' },
-  { id: 'al-43', matricula: 'UNRC-2026-047', nombre: 'José Daniel', apellido_paterno: 'Pérez', apellido_materno: 'Gómez', grado: '5° Semestre', grupo: '501', carrera: 'Licenciatura en Ciberseguridad', carrera_id: 'c3333333-3333-3333-3333-333333333333', grupo_id: 'g501', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000047', qr_code: 'UNRC-2026-047' },
-  { id: 'al-44', matricula: 'UNRC-2026-048', nombre: 'Jazmin', apellido_paterno: 'Guzman', apellido_materno: 'López', grado: '5° Semestre', grupo: '501', carrera: 'Licenciatura en Ciberseguridad', carrera_id: 'c3333333-3333-3333-3333-333333333333', grupo_id: 'g501', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000048', qr_code: 'UNRC-2026-048' },
-  { id: 'al-45', matricula: 'UNRC-2026-049', nombre: 'Dani', apellido_paterno: 'Herrera', apellido_materno: 'Martínez', grado: '5° Semestre', grupo: '501', carrera: 'Licenciatura en Ciberseguridad', carrera_id: 'c3333333-3333-3333-3333-333333333333', grupo_id: 'g501', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000049', qr_code: 'UNRC-2026-049' },
-  { id: 'al-46', matricula: 'UNRC-2026-050', nombre: 'Adad', apellido_paterno: 'Sanchez', apellido_materno: 'Ortiz', grado: '5° Semestre', grupo: '501', carrera: 'Licenciatura en Ciberseguridad', carrera_id: 'c3333333-3333-3333-3333-333333333333', grupo_id: 'g501', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', ciclo_id: 'ciclo-2026-2', estado_matricula: 'activo', tutor: 'Tutor UNRC', telefono: '+525510000050', qr_code: 'UNRC-2026-050' }
-];
+// Initial data for UNRC Alumnos: Empty by default so official imported students and matriculas are respected
+const MOCK_ALUMNOS: Alumno[] = [];
 
 // Initial Mock Seed for Docentes y Personal Institucional
 const MOCK_DOCENTES: Docente[] = [
@@ -563,9 +507,9 @@ const initLocalStorage = () => {
     }
   }
 
-  // Seed or normalize all alumnos: All students correspond to Campus Tijuana
+  // Seed or normalize all alumnos: Empty default so imported official data is preserved
   if (!localStorage.getItem('unrc_alumnos')) {
-    localStorage.setItem('unrc_alumnos', JSON.stringify(MOCK_ALUMNOS));
+    localStorage.setItem('unrc_alumnos', JSON.stringify([]));
     localStorage.setItem('unrc_alumnos_v5_tijuana', 'true');
   } else if (!localStorage.getItem('unrc_alumnos_v5_tijuana')) {
     try {
@@ -585,6 +529,68 @@ const initLocalStorage = () => {
       console.warn('Error during auto-migration of alumnos to Campus Tijuana:', e);
     }
     localStorage.setItem('unrc_alumnos_v5_tijuana', 'true');
+  }
+
+  // Auto-migration: Purge all mock/demo matriculas (al-1..al-46, UNRC-2026-001..UNRC-2026-050)
+  // and their associated demo asistencias and participaciones so user can insert/import real students.
+  if (!localStorage.getItem('unrc_mock_matriculas_purged_v2')) {
+    try {
+      const rawAlumnos = localStorage.getItem('unrc_alumnos');
+      if (rawAlumnos) {
+        const parsed = JSON.parse(rawAlumnos);
+        if (Array.isArray(parsed)) {
+          const purgedIds = new Set<string>();
+          const purgedMatriculas = new Set<string>();
+          
+          const realAlumnos = parsed.filter((a: Alumno) => {
+            const isMockId = typeof a.id === 'string' && /^al-\d+$/i.test(a.id);
+            const isMockMatricula = typeof a.matricula === 'string' && /^UNRC-2026-0(?:0[1-9]|[1-4][0-9]|50)$/i.test(a.matricula.trim());
+            if (isMockId || isMockMatricula) {
+              if (a.id) purgedIds.add(a.id);
+              if (a.matricula) purgedMatriculas.add(a.matricula.trim().toUpperCase());
+              return false;
+            }
+            return true;
+          });
+
+          localStorage.setItem('unrc_alumnos', JSON.stringify(realAlumnos));
+
+          // Also purge associated asistencias
+          const rawAsist = localStorage.getItem('unrc_asistencias');
+          if (rawAsist) {
+            const asistList = JSON.parse(rawAsist);
+            if (Array.isArray(asistList)) {
+              const cleanAsist = asistList.filter((as: Asistencia) => {
+                if (as.id && as.id.startsWith('as-tur-')) return false;
+                if (purgedIds.has(as.alumno_id)) return false;
+                if (typeof as.alumno_id === 'string' && /^al-\d+$/i.test(as.alumno_id)) return false;
+                if (typeof as.alumno_id === 'string' && purgedMatriculas.has(as.alumno_id.toUpperCase())) return false;
+                return true;
+              });
+              localStorage.setItem('unrc_asistencias', JSON.stringify(cleanAsist));
+            }
+          }
+
+          // Also purge associated participaciones
+          const rawPart = localStorage.getItem('unrc_participaciones');
+          if (rawPart) {
+            const partList = JSON.parse(rawPart);
+            if (Array.isArray(partList)) {
+              const cleanPart = partList.filter((p: Participacion) => {
+                if (purgedIds.has(p.alumno_id)) return false;
+                if (typeof p.alumno_id === 'string' && /^al-\d+$/i.test(p.alumno_id)) return false;
+                if (typeof p.alumno_id === 'string' && purgedMatriculas.has(p.alumno_id.toUpperCase())) return false;
+                return true;
+              });
+              localStorage.setItem('unrc_participaciones', JSON.stringify(cleanPart));
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Error during auto-migration of mock matriculas purge:', e);
+    }
+    localStorage.setItem('unrc_mock_matriculas_purged_v2', 'true');
   }
 
   // Auto-migration: Dr. Adrian Silva is Docente, not Tutor
@@ -660,64 +666,12 @@ const initLocalStorage = () => {
 
   // Seed Participaciones if empty
   if (!localStorage.getItem('unrc_participaciones')) {
-    const mockParticipaciones: Participacion[] = [
-      { id: 'p1', alumno_id: 'al-2', grupo_id: 'g201-tur', fecha: '2026-09-05', tipo: 'AP', puntos: 10, observaciones: 'Aprobada: Excelente aportación en clase de Hospedaje' },
-      { id: 'p2', alumno_id: 'al-5', grupo_id: 'g201-tur', fecha: '2026-09-05', tipo: 'AP', puntos: 10, observaciones: 'Aprobada: Aportación activa en gestión hotelera' },
-      { id: 'p3', alumno_id: 'al-6', grupo_id: 'g201-tur', fecha: '2026-09-05', tipo: 'RP', puntos: 5, observaciones: 'Requerido: Repaso de empresas de hospedaje' },
-      { id: 'p4', alumno_id: 'al-7', grupo_id: 'g102', fecha: '2026-09-10', tipo: 'AP', puntos: 10, observaciones: 'Aprobada: Exposición clara de conceptos' },
-      { id: 'p5', alumno_id: 'al-8', grupo_id: 'g102', fecha: '2026-09-10', tipo: 'AP', puntos: 10, observaciones: 'Aprobada: Resolución de ejercicio en pizarrón' },
-      { id: 'p6', alumno_id: 'al-9', grupo_id: 'g102', fecha: '2026-09-10', tipo: 'AP', puntos: 10, observaciones: 'Aprobada: Participación en debate de IA' },
-      { id: 'p7', alumno_id: 'al-10', grupo_id: 'g102', fecha: '2026-09-10', tipo: 'AP', puntos: 10, observaciones: 'Aprobada: Aportación activa' },
-      { id: 'p8', alumno_id: 'al-14', grupo_id: 'g201', fecha: '2026-09-10', tipo: 'AP', puntos: 10, observaciones: 'Aprobada: Explicación de algoritmos' },
-      { id: 'p9', alumno_id: 'al-15', grupo_id: 'g201', fecha: '2026-09-10', tipo: 'AP', puntos: 10, observaciones: 'Aprobada: Aportación activa' },
-      { id: 'p10', alumno_id: 'al-16', grupo_id: 'g201', fecha: '2026-09-10', tipo: 'RP', puntos: 5, observaciones: 'Requerido: Repaso recomendado' },
-      { id: 'p11', alumno_id: 'al-18', grupo_id: 'g201', fecha: '2026-09-10', tipo: 'AP', puntos: 10, observaciones: 'Aprobada: Trabajo colaborativo' }
-    ];
-    localStorage.setItem('unrc_participaciones', JSON.stringify(mockParticipaciones));
+    localStorage.setItem('unrc_participaciones', JSON.stringify([]));
   }
 
-  // Seed Asistencias if empty or refresh for Turismo Wednesdays & Saturdays
-  if (!localStorage.getItem('unrc_asistencias_v2')) {
-    const mockAsistencias: Asistencia[] = [
-      // Turismo (Grupo 201-TUR) - Wednesday 09-11am & Saturday 07-09am
-      { id: 'as-tur-1', alumno_id: 'al-1', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'A', fecha: '2026-09-02', hora: '09:02:00', observaciones: 'Miércoles (09:00 - 11:00) Presente' },
-      { id: 'as-tur-2', alumno_id: 'al-1', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'A', fecha: '2026-09-05', hora: '07:01:00', observaciones: 'Sábado (07:00 - 09:00) Presente' },
-      { id: 'as-tur-3', alumno_id: 'al-1', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'A', fecha: '2026-09-09', hora: '09:05:00', observaciones: 'Miércoles (09:00 - 11:00) Presente' },
-      { id: 'as-tur-4', alumno_id: 'al-1', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'A', fecha: '2026-09-12', hora: '07:00:00', observaciones: 'Sábado (07:00 - 09:00) Presente' },
-
-      { id: 'as-tur-5', alumno_id: 'al-2', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'A', fecha: '2026-09-02', hora: '09:00:00', observaciones: 'Miércoles Presente' },
-      { id: 'as-tur-6', alumno_id: 'al-2', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'A', fecha: '2026-09-05', hora: '07:05:00', observaciones: 'Sábado Presente' },
-      { id: 'as-tur-7', alumno_id: 'al-2', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'A', fecha: '2026-09-09', hora: '09:01:00', observaciones: 'Miércoles Presente' },
-      { id: 'as-tur-8', alumno_id: 'al-2', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'R', fecha: '2026-09-12', hora: '07:18:00', observaciones: 'Sábado Retardo' },
-
-      { id: 'as-tur-9', alumno_id: 'al-3', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'A', fecha: '2026-09-02', hora: '09:00:00', observaciones: 'Miércoles Presente' },
-      { id: 'as-tur-10', alumno_id: 'al-3', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'A', fecha: '2026-09-05', hora: '07:00:00', observaciones: 'Sábado Presente' },
-      { id: 'as-tur-11', alumno_id: 'al-3', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'A', fecha: '2026-09-09', hora: '09:00:00', observaciones: 'Miércoles Presente' },
-      { id: 'as-tur-12', alumno_id: 'al-3', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'A', fecha: '2026-09-12', hora: '07:02:00', observaciones: 'Sábado Presente' },
-
-      { id: 'as-tur-13', alumno_id: 'al-4', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'A', fecha: '2026-09-02', hora: '09:04:00', observaciones: 'Miércoles Presente' },
-      { id: 'as-tur-14', alumno_id: 'al-4', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'A', fecha: '2026-09-05', hora: '07:00:00', observaciones: 'Sábado Presente' },
-      { id: 'as-tur-15', alumno_id: 'al-4', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'R', fecha: '2026-09-09', hora: '09:16:00', observaciones: 'Miércoles Retardo' },
-      { id: 'as-tur-16', alumno_id: 'al-4', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'A', fecha: '2026-09-12', hora: '07:01:00', observaciones: 'Sábado Presente' },
-
-      { id: 'as-tur-17', alumno_id: 'al-5', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'A', fecha: '2026-09-02', hora: '09:00:00', observaciones: 'Miércoles Presente' },
-      { id: 'as-tur-18', alumno_id: 'al-5', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'A', fecha: '2026-09-05', hora: '07:02:00', observaciones: 'Sábado Presente' },
-      { id: 'as-tur-19', alumno_id: 'al-5', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'A', fecha: '2026-09-09', hora: '09:00:00', observaciones: 'Miércoles Presente' },
-      { id: 'as-tur-20', alumno_id: 'al-5', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'A', fecha: '2026-09-12', hora: '07:00:00', observaciones: 'Sábado Presente' },
-
-      { id: 'as-tur-21', alumno_id: 'al-6', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'A', fecha: '2026-09-02', hora: '09:01:00', observaciones: 'Miércoles Presente' },
-      { id: 'as-tur-22', alumno_id: 'al-6', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'A', fecha: '2026-09-05', hora: '07:03:00', observaciones: 'Sábado Presente' },
-      { id: 'as-tur-23', alumno_id: 'al-6', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'J', fecha: '2026-09-09', hora: '09:00:00', observaciones: 'Miércoles Justificado' },
-      { id: 'as-tur-24', alumno_id: 'al-6', grupo_id: 'g201-tur', tipo: 'entrada', estado: 'A', fecha: '2026-09-12', hora: '07:00:00', observaciones: 'Sábado Presente' },
-
-      // Other groups
-      { id: 'as-5', alumno_id: 'al-9', grupo_id: 'g102', tipo: 'entrada', estado: 'R', fecha: '2026-09-08', hora: '07:22:00', observaciones: 'Retardo' },
-      { id: 'as-6', alumno_id: 'al-10', grupo_id: 'g102', tipo: 'entrada', estado: 'J', fecha: '2026-09-08', hora: '07:00:00', observaciones: 'Justificante médico' },
-      { id: 'as-7', alumno_id: 'al-16', grupo_id: 'g201', tipo: 'entrada', estado: 'R', fecha: '2026-09-08', hora: '07:18:00', observaciones: 'Retardo' },
-      { id: 'as-8', alumno_id: 'al-16', grupo_id: 'g201', tipo: 'entrada', estado: 'R', fecha: '2026-09-10', hora: '07:15:00', observaciones: 'Retardo' },
-      { id: 'as-9', alumno_id: 'al-45', grupo_id: 'g501', tipo: 'entrada', estado: 'J', fecha: '2026-09-11', hora: '07:00:00', observaciones: 'Justificado' }
-    ];
-    localStorage.setItem('unrc_asistencias', JSON.stringify(mockAsistencias));
+  // Seed Asistencias if empty
+  if (!localStorage.getItem('unrc_asistencias')) {
+    localStorage.setItem('unrc_asistencias', JSON.stringify([]));
     localStorage.setItem('unrc_asistencias_v2', 'true');
   }
 
@@ -2157,20 +2111,92 @@ export const db = {
     return deletedCount;
   },
 
-  restoreDefaultAlumnos: async (): Promise<Alumno[]> => {
-    const seeded = MOCK_ALUMNOS.map(a => ({
-      ...a,
-      password: a.password || getDefaultUserPassword(a.matricula, '2026-2')
-    }));
-    localStorage.setItem('unrc_alumnos', JSON.stringify(seeded));
-    localStorage.setItem('unrc_alumnos_v4', 'true');
+  limpiarMatriculasFalsas: async (): Promise<{ alumnosEliminados: number; asistenciasEliminadas: number; participacionesEliminadas: number }> => {
+    initLocalStorage();
+    let alumnos = await db.getAlumnos();
+    const purgedIds = new Set<string>();
+    const purgedMatriculas = new Set<string>();
+
+    const realAlumnos = alumnos.filter(a => {
+      const isMockId = typeof a.id === 'string' && /^al-\d+$/i.test(a.id);
+      const isMockMatricula = typeof a.matricula === 'string' && /^UNRC-2026-0(?:0[1-9]|[1-4][0-9]|50)$/i.test(a.matricula.trim());
+      if (isMockId || isMockMatricula) {
+        if (a.id) purgedIds.add(a.id);
+        if (a.matricula) purgedMatriculas.add(a.matricula.trim().toUpperCase());
+        return false;
+      }
+      return true;
+    });
+
+    const alumnosEliminados = alumnos.length - realAlumnos.length;
+    localStorage.setItem('unrc_alumnos', JSON.stringify(realAlumnos));
+
+    // Clean asistencias
+    let asistenciasEliminadas = 0;
+    const rawAsist = localStorage.getItem('unrc_asistencias');
+    if (rawAsist) {
+      try {
+        const asistList = JSON.parse(rawAsist);
+        if (Array.isArray(asistList)) {
+          const cleanAsist = asistList.filter((as: Asistencia) => {
+            if (as.id && as.id.startsWith('as-tur-')) return false;
+            if (purgedIds.has(as.alumno_id)) return false;
+            if (typeof as.alumno_id === 'string' && /^al-\d+$/i.test(as.alumno_id)) return false;
+            if (typeof as.alumno_id === 'string' && purgedMatriculas.has(as.alumno_id.toUpperCase())) return false;
+            return true;
+          });
+          asistenciasEliminadas = asistList.length - cleanAsist.length;
+          localStorage.setItem('unrc_asistencias', JSON.stringify(cleanAsist));
+        }
+      } catch (e) {
+        console.warn('Error cleaning asistencias:', e);
+      }
+    }
+
+    // Clean participaciones
+    let participacionesEliminadas = 0;
+    const rawPart = localStorage.getItem('unrc_participaciones');
+    if (rawPart) {
+      try {
+        const partList = JSON.parse(rawPart);
+        if (Array.isArray(partList)) {
+          const cleanPart = partList.filter((p: Participacion) => {
+            if (purgedIds.has(p.alumno_id)) return false;
+            if (typeof p.alumno_id === 'string' && /^al-\d+$/i.test(p.alumno_id)) return false;
+            if (typeof p.alumno_id === 'string' && purgedMatriculas.has(p.alumno_id.toUpperCase())) return false;
+            return true;
+          });
+          participacionesEliminadas = partList.length - cleanPart.length;
+          localStorage.setItem('unrc_participaciones', JSON.stringify(cleanPart));
+        }
+      } catch (e) {
+        console.warn('Error cleaning participaciones:', e);
+      }
+    }
+
+    if (supabase && purgedMatriculas.size > 0) {
+      try {
+        const matriculaArray = Array.from(purgedMatriculas);
+        await supabase.from('alumnos').delete().in('matricula', matriculaArray);
+      } catch (e) {
+        console.warn('Supabase delete mock matriculas notice:', e);
+      }
+    }
+
     await db.addAuditoria(
-      'RESTAURACION_ALUMNOS_DEMO',
+      'PURGA_MATRICULAS_DEMO',
       'Servicios Escolares / Matrículas',
-      `Se restauraron los ${seeded.length} expedientes demo de alumnos`,
-      'Control Escolar'
+      `Se purgaron ${alumnosEliminados} expedientes demo de prueba y sus registros asociados (${asistenciasEliminadas} asistencias, ${participacionesEliminadas} participaciones)`,
+      'Administrador'
     );
-    return seeded;
+
+    return { alumnosEliminados, asistenciasEliminadas, participacionesEliminadas };
+  },
+
+  restoreDefaultAlumnos: async (): Promise<Alumno[]> => {
+    localStorage.setItem('unrc_alumnos', JSON.stringify([]));
+    await db.limpiarMatriculasFalsas();
+    return [];
   },
 
   updateAlumno: async (id: string, updates: Partial<Alumno>): Promise<Alumno | null> => {
@@ -2181,16 +2207,49 @@ export const db = {
 
     const oldMatricula = list[index].matricula;
     const targetId = list[index].id;
+    const newMatricula = updates.matricula ? updates.matricula.trim() : oldMatricula;
 
-    // MATRÍCULA INMUTABLE: Nunca permitir editar la matrícula oficial de un alumno
-    const { matricula: _ignoredMatricula, ...safeUpdates } = updates;
-    list[index] = { ...list[index], ...safeUpdates, matricula: oldMatricula };
+    // Permitir editar matrícula libremente para asignar la matrícula oficial
+    list[index] = { ...list[index], ...updates, matricula: newMatricula };
     localStorage.setItem('unrc_alumnos', JSON.stringify(list));
+
+    // Si cambió la matrícula, actualizar referencias en asistencias y participaciones
+    if (newMatricula !== oldMatricula) {
+      try {
+        const rawAsist = localStorage.getItem('unrc_asistencias');
+        if (rawAsist) {
+          const asistList = JSON.parse(rawAsist);
+          let asChanged = false;
+          asistList.forEach((as: any) => {
+            if (as.alumno_id === oldMatricula || as.alumno_id === targetId) {
+              as.alumno_id = newMatricula;
+              asChanged = true;
+            }
+          });
+          if (asChanged) localStorage.setItem('unrc_asistencias', JSON.stringify(asistList));
+        }
+
+        const rawPart = localStorage.getItem('unrc_participaciones');
+        if (rawPart) {
+          const partList = JSON.parse(rawPart);
+          let pChanged = false;
+          partList.forEach((p: any) => {
+            if (p.alumno_id === oldMatricula || p.alumno_id === targetId) {
+              p.alumno_id = newMatricula;
+              pChanged = true;
+            }
+          });
+          if (pChanged) localStorage.setItem('unrc_participaciones', JSON.stringify(partList));
+        }
+      } catch (syncErr) {
+        console.warn('Sync matricula notice:', syncErr);
+      }
+    }
 
     if (supabase) {
       try {
         const supabasePayload: Record<string, any> = {};
-        // Proteger matrícula: nunca sobreescribir la columna matrícula en la base de datos
+        if (updates.matricula !== undefined) supabasePayload.matricula = newMatricula;
         if (updates.nombre !== undefined) supabasePayload.nombre = updates.nombre;
         if (updates.apellido_paterno !== undefined) supabasePayload.apellido_paterno = updates.apellido_paterno;
         if (updates.apellido_materno !== undefined) supabasePayload.apellido_materno = updates.apellido_materno;

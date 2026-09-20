@@ -2319,6 +2319,23 @@ export default function AdminDashboardPage() {
 
                 <button
                   type="button"
+                  onClick={async () => {
+                    if (window.confirm('¿Deseas purgar todas las matrículas demo de prueba (UNRC-2026-005 a UNRC-2026-050) y sus asistencias/participaciones para dejar el sistema listo para tus datos oficiales?')) {
+                      const res = await (db as any).limpiarMatriculasFalsas();
+                      const fresh = await db.getAlumnos();
+                      setAlumnos(fresh);
+                      alert(`Se purgaron ${res.alumnosEliminados} alumnos demo de prueba y sus registros asociados (${res.asistenciasEliminadas} asistencias, ${res.participacionesEliminadas} participaciones). El sistema está limpio para insertar tus matrículas oficiales.`);
+                    }
+                  }}
+                  className="px-4 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-600 text-amber-300 hover:text-white border border-amber-500/30 shadow-lg shadow-amber-950/20 font-bold text-xs transition-all flex items-center space-x-1.5 whitespace-nowrap"
+                  title="Eliminar matrículas de prueba demo y sus registros para insertar datos oficiales"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>Purgar Matrículas Demo</span>
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => setIsCsvModalOpen(true)}
                   className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/30 transition-all flex items-center space-x-1.5 whitespace-nowrap"
                   title="Cargar masivamente expedientes de alumnos desde archivo Excel (.xls, .xlsx) o CSV"
@@ -2570,9 +2587,9 @@ export default function AdminDashboardPage() {
                         <tr key={al.id} className="hover:bg-white/5 transition-colors">
                           <td className="p-3.5 font-mono text-xs">
                             <div className="font-bold text-blue-400 text-sm tracking-wide">{al.matricula}</div>
-                            <div className="mt-1 flex items-center space-x-1 text-[10px] text-gray-400 font-medium select-none" title="Matrícula oficial protegida contra edición y reemplazo">
-                              <Lock className="w-2.5 h-2.5 text-gray-500 shrink-0" />
-                              <span>Matrícula oficial</span>
+                            <div className="mt-1 flex items-center space-x-1 text-[10px] text-blue-400/80 font-medium select-none">
+                              <span className="w-1.5 h-1.5 rounded-full bg-blue-400 inline-block"></span>
+                              <span>Matrícula escolar</span>
                             </div>
                           </td>
                           <td className="p-3.5">
@@ -4240,30 +4257,18 @@ export default function AdminDashboardPage() {
                 <div>
                   <label className="text-gray-400 block mb-1 flex items-center justify-between">
                     <span>Matrícula Escolar</span>
-                    {editingId && (
-                      <span className="text-[10px] text-amber-400/90 font-medium flex items-center space-x-1">
-                        <Lock className="w-2.5 h-2.5" />
-                        <span>Inmutable</span>
-                      </span>
-                    )}
+                    <span className="text-[10px] text-blue-400 font-medium">Editable</span>
                   </label>
                   <input
                     type="text"
                     required
-                    disabled={!!editingId}
-                    readOnly={!!editingId}
                     value={alumnoForm.matricula}
                     onChange={(e) => {
-                      if (!editingId) {
-                        setAlumnoForm({ ...alumnoForm, matricula: e.target.value });
-                      }
+                      setAlumnoForm({ ...alumnoForm, matricula: e.target.value });
                     }}
-                    className={`w-full px-3 py-2 rounded-xl border font-mono transition-all ${
-                      editingId
-                        ? 'bg-blue-950/30 border-blue-500/20 text-blue-300/80 cursor-not-allowed select-none'
-                        : 'bg-white/5 border-white/10 text-white focus:border-blue-500'
-                    }`}
-                    title={editingId ? 'La matrícula oficial no se puede modificar' : 'Ingresa la matrícula del estudiante'}
+                    className="w-full px-3 py-2 rounded-xl border font-mono transition-all bg-white/5 border-white/10 text-white focus:border-blue-500"
+                    placeholder="Ej. UNRC-2026-001 o ID oficial"
+                    title="Matrícula oficial del estudiante"
                   />
                 </div>
                 <div>
