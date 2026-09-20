@@ -227,6 +227,12 @@ export default function AdminDashboardPage() {
   const [assignedHorarios, setAssignedHorarios] = useState<HorarioDocenteItem[]>([]);
   const [assignedSede, setAssignedSede] = useState('');
   const [editingHorarioIndex, setEditingHorarioIndex] = useState<number | null>(null);
+  const [horarioSlotFeedback, setHorarioSlotFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [slotConflictInfo, setSlotConflictInfo] = useState<{
+    index: number;
+    conflictingSlot: HorarioDocenteItem;
+    candidateSlot: HorarioDocenteItem;
+  } | null>(null);
   
   // New Horario Slot sub-form
   const [newHorarioSlot, setNewHorarioSlot] = useState<HorarioDocenteItem>({
@@ -567,10 +573,13 @@ export default function AdminDashboardPage() {
   const handleSaveMateria = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const cleanClave = materiaForm.clave.trim();
+      const cleanNombre = materiaForm.nombre.trim();
+
       if (editingId) {
         const updated = await db.updateMateria(editingId, {
-          clave: materiaForm.clave,
-          nombre: materiaForm.nombre,
+          clave: cleanClave,
+          nombre: cleanNombre,
           carrera_id: materiaForm.carrera_id,
           creditos: Number(materiaForm.creditos),
           semestre: materiaForm.semestre,
@@ -578,12 +587,12 @@ export default function AdminDashboardPage() {
         });
         setMaterias((prev) =>
           prev.map((m) =>
-            m.id === editingId || m.clave === editingId || m.clave === materiaForm.clave || (updated && m.id === updated.id)
+            m.id === editingId || m.clave === editingId || (updated && m.id === updated.id)
               ? {
                   ...m,
                   ...(updated || {}),
-                  clave: materiaForm.clave,
-                  nombre: materiaForm.nombre,
+                  clave: cleanClave,
+                  nombre: cleanNombre,
                   carrera_id: materiaForm.carrera_id,
                   creditos: Number(materiaForm.creditos),
                   semestre: materiaForm.semestre,
@@ -592,18 +601,18 @@ export default function AdminDashboardPage() {
               : m
           )
         );
-        showToast(`Asignatura ${materiaForm.nombre} actualizada.`);
+        showToast(`Asignatura "${cleanNombre}" (${cleanClave}) actualizada.`);
       } else {
         const newMat = await db.addMateria({
-          clave: materiaForm.clave,
-          nombre: materiaForm.nombre,
+          clave: cleanClave,
+          nombre: cleanNombre,
           carrera_id: materiaForm.carrera_id,
           creditos: Number(materiaForm.creditos),
           semestre: materiaForm.semestre,
           horas_semana: Number(materiaForm.horas_semana),
         });
         setMaterias((prev) => [...prev, newMat]);
-        showToast(`Asignatura ${materiaForm.nombre} registrada.`);
+        showToast(`Asignatura "${cleanNombre}" (${cleanClave}) registrada.`);
       }
       setModalType(null);
       setEditingId(null);
@@ -615,7 +624,10 @@ export default function AdminDashboardPage() {
         semestre: '1° Semestre',
         horas_semana: 6,
       });
-      await loadData();
+      const refreshedMats = await db.getMaterias();
+      if (refreshedMats && refreshedMats.length > 0) {
+        setMaterias(refreshedMats);
+      }
     } catch (err: any) {
       showToast(`Error: ${err.message}`, 'error');
     }
@@ -696,6 +708,39 @@ export default function AdminDashboardPage() {
     }
   };
 
+  // Helper functions for Time Normalization and Comparison
+  const normalizeTimeString = (t: string): string => {
+    if (!t) return '07:00';
+    const clean = t.trim().replace(/\s+/g, '');
+    const parts = clean.split(':');
+    if (parts.length === 1) {
+      const h = parseInt(parts[0], 10);
+      if (isNaN(h)) return '07:00';
+      return `${String(Math.min(23, Math.max(0, h))).padStart(2, '0')}:00`;
+    }
+    const h = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    const hh = isNaN(h) ? 7 : Math.min(23, Math.max(0, h));
+    const mm = isNaN(m) ? 0 : Math.min(59, Math.max(0, m));
+    return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+  };
+
+  const timeToMinutes = (t: string): number => {
+    if (!t) return 0;
+    const parts = t.trim().split(':');
+    const h = parseInt(parts[0], 10) || 0;
+    const m = parseInt(parts[1], 10) || 0;
+    return h * 60 + m;
+  };
+
+  const checkTimeOverlap = (startA: string, endA: string, startB: string, endB: string): boolean => {
+    const sA = timeToMinutes(normalizeTimeString(startA));
+    const eA = timeToMinutes(normalizeTimeString(endA));
+    const sB = timeToMinutes(normalizeTimeString(startB));
+    const eB = timeToMinutes(normalizeTimeString(endB));
+    return sA < eB && eA > sB;
+  };
+
   // Open Asignación Docente Modal (Audio requirement)
   const handleOpenAsignarDocente = (doc: Docente) => {
     setSelectedDocente(doc);
@@ -704,6 +749,8 @@ export default function AdminDashboardPage() {
     setAssignedHorarios(doc.horarios || []);
     setAssignedSede(doc.sede_nombre || 'Campus Tijuana');
     setEditingHorarioIndex(null);
+    setHorarioSlotFeedback(null);
+    setSlotConflictInfo(null);
 
     const firstCarrera = doc.carreras_asignadas?.[0] || doc.departamento || 'Lic. en Turismo';
     const matchingSec = secciones.find((s) => areCarrerasCompatible(s.nombre, firstCarrera)) || secciones[0];
@@ -741,6 +788,8 @@ export default function AdminDashboardPage() {
 
   const handleStartEditHorarioSlot = (index: number) => {
     setEditingHorarioIndex(index);
+    setHorarioSlotFeedback(null);
+    setSlotConflictInfo(null);
     const targetSlot = assignedHorarios[index];
     if (targetSlot) {
       setNewHorarioSlot({ ...targetSlot });
@@ -750,6 +799,8 @@ export default function AdminDashboardPage() {
 
   const handleCancelEditHorarioSlot = () => {
     setEditingHorarioIndex(null);
+    setHorarioSlotFeedback(null);
+    setSlotConflictInfo(null);
     const firstCarrera = selectedDocente?.carreras_asignadas?.[0] || selectedDocente?.departamento || 'Lic. en Turismo';
     const matchingSec = secciones.find((s) => areCarrerasCompatible(s.nombre, firstCarrera)) || secciones[0];
     const initialGrp = matchingSec?.nombre || '201-TUR';
@@ -768,8 +819,12 @@ export default function AdminDashboardPage() {
   };
 
   const handleSaveHorarioSlot = () => {
+    setSlotConflictInfo(null);
+
     if (!newHorarioSlot.materia || !newHorarioSlot.grupo) {
-      showToast('Selecciona materia y grupo para el bloque de horario', 'error');
+      const msg = 'Selecciona materia y grupo para el bloque de horario';
+      setHorarioSlotFeedback({ type: 'error', message: msg });
+      showToast(msg, 'error');
       return;
     }
 
@@ -777,63 +832,81 @@ export default function AdminDashboardPage() {
     if (!areCarrerasCompatible(newHorarioSlot.materia, newHorarioSlot.grupo)) {
       const matCarrera = getCarreraDisplayName(newHorarioSlot.materia);
       const gpoCarrera = getCarreraDisplayName(newHorarioSlot.grupo);
-      showToast(
-        `Incompatibilidad de Carrera: La materia "${newHorarioSlot.materia}" (${matCarrera}) no corresponde al grupo "${newHorarioSlot.grupo}" (${gpoCarrera}). Ambas deben pertenecer a la misma carrera.`,
-        'error'
-      );
+      const msg = `Incompatibilidad de Carrera: La materia "${newHorarioSlot.materia}" (${matCarrera}) no corresponde al grupo "${newHorarioSlot.grupo}" (${gpoCarrera}). Ambas deben pertenecer a la misma carrera.`;
+      setHorarioSlotFeedback({ type: 'error', message: msg });
+      showToast(msg, 'error');
       return;
     }
+
+    // Normalización de horas (e.g. "9:00" -> "09:00")
+    const normInicio = normalizeTimeString(newHorarioSlot.hora_inicio);
+    const normFin = normalizeTimeString(newHorarioSlot.hora_fin);
+    const minInicio = timeToMinutes(normInicio);
+    const minFin = timeToMinutes(normFin);
 
     // 2. VALIDACIÓN DE HORARIOS: Hora inicio menor que fin
-    if (newHorarioSlot.hora_inicio >= newHorarioSlot.hora_fin) {
-      showToast('La hora de inicio debe ser anterior a la hora de fin de la sesión.', 'error');
+    if (minInicio >= minFin) {
+      const msg = `La hora de inicio (${normInicio}) debe ser anterior a la hora de fin (${normFin}) de la sesión.`;
+      setHorarioSlotFeedback({ type: 'error', message: msg });
+      showToast(msg, 'error');
       return;
     }
 
-    // 3. VALIDACIÓN DE SOLAPAMIENTO DEL DOCENTE
-    const teacherConflict = assignedHorarios.some((h, idx) => {
-      if (editingHorarioIndex !== null && idx === editingHorarioIndex) return false;
-      if (h.dia !== newHorarioSlot.dia) return false;
-      return (h.hora_inicio < newHorarioSlot.hora_fin && h.hora_fin > newHorarioSlot.hora_inicio);
-    });
-    if (teacherConflict) {
-      showToast(
-        `Conflicto con el Docente: Ya tiene clase asignada el ${newHorarioSlot.dia} en ese intervalo de horario.`,
-        'error'
-      );
-      return;
-    }
-
-    // 4. VALIDACIÓN DE SOLAPAMIENTO DEL GRUPO (con otros docentes)
-    const otherTeacherGroupConflict = docentes.find((d) =>
-      (d.horarios || []).some((h) => {
-        if (d.id === selectedDocente?.id && editingHorarioIndex !== null) return false;
-        if (h.dia !== newHorarioSlot.dia) return false;
-        if (h.grupo.toLowerCase().trim() !== newHorarioSlot.grupo.toLowerCase().trim()) return false;
-        return (h.hora_inicio < newHorarioSlot.hora_fin && h.hora_fin > newHorarioSlot.hora_inicio);
-      })
-    );
-    if (otherTeacherGroupConflict) {
-      showToast(
-        `Conflicto con el Grupo: La sección "${newHorarioSlot.grupo}" ya tiene asignada clase el ${newHorarioSlot.dia} con ${otherTeacherGroupConflict.nombre} ${otherTeacherGroupConflict.apellido_paterno}.`,
-        'error'
-      );
-      return;
-    }
-
-    // Resolve matching carrera from materia
+    // Resolver carrera correspondiente
     const matObj = materias.find((m) => m.nombre === newHorarioSlot.materia);
     const carObj = matObj?.carrera_id ? carreras.find((c) => c.id === matObj.carrera_id) : null;
     const finalCarrera = carObj?.nombre || getCarreraDisplayName(newHorarioSlot.materia) || newHorarioSlot.carrera || 'Licenciatura';
 
-    const slotToSave = {
+    const slotToSave: HorarioDocenteItem = {
       ...newHorarioSlot,
+      hora_inicio: normInicio,
+      hora_fin: normFin,
       carrera: finalCarrera,
     };
 
+    // 3. VALIDACIÓN DE SOLAPAMIENTO DEL DOCENTE (en los horarios ya configurados en la lista)
+    const teacherConflictIdx = assignedHorarios.findIndex((h, idx) => {
+      if (editingHorarioIndex !== null && idx === editingHorarioIndex) return false;
+      if (h.dia !== slotToSave.dia) return false;
+      return checkTimeOverlap(h.hora_inicio, h.hora_fin, normInicio, normFin);
+    });
+
+    if (teacherConflictIdx !== -1) {
+      const conflictingSlot = assignedHorarios[teacherConflictIdx];
+      setSlotConflictInfo({
+        index: teacherConflictIdx,
+        conflictingSlot,
+        candidateSlot: slotToSave,
+      });
+      const msg = `Horario ocupado: El docente ya tiene la clase "${conflictingSlot.materia}" asignada el ${slotToSave.dia} de ${conflictingSlot.hora_inicio} a ${conflictingSlot.hora_fin} hrs (Grupo: ${conflictingSlot.grupo}). Elige otro día u horario, o reemplaza el bloque existente abajo.`;
+      setHorarioSlotFeedback({ type: 'error', message: msg });
+      showToast(msg, 'error');
+      return;
+    }
+
+    // 4. VALIDACIÓN DE SOLAPAMIENTO DEL GRUPO (con otros docentes)
+    const otherTeacherGroupConflict = docentes.find((d) => {
+      // Ignorar siempre al docente que estamos editando actualmente
+      if (d.id === selectedDocente?.id || (selectedDocente?.num_empleado && d.num_empleado === selectedDocente.num_empleado)) {
+        return false;
+      }
+      return (d.horarios || []).some((h) => {
+        if (h.dia !== slotToSave.dia) return false;
+        if (h.grupo.toLowerCase().trim() !== slotToSave.grupo.toLowerCase().trim()) return false;
+        return checkTimeOverlap(h.hora_inicio, h.hora_fin, normInicio, normFin);
+      });
+    });
+
+    if (otherTeacherGroupConflict) {
+      const msg = `Conflicto con el Grupo: La sección "${slotToSave.grupo}" ya tiene asignada clase el ${slotToSave.dia} (${normInicio} - ${normFin} hrs) con el docente ${otherTeacherGroupConflict.nombre} ${otherTeacherGroupConflict.apellido_paterno}.`;
+      setHorarioSlotFeedback({ type: 'error', message: msg });
+      showToast(msg, 'error');
+      return;
+    }
+
     // Automatically make sure assignedMaterias and assignedCarreras include this materia and carrera
-    if (newHorarioSlot.materia && !assignedMaterias.includes(newHorarioSlot.materia)) {
-      setAssignedMaterias((prev) => [...prev, newHorarioSlot.materia]);
+    if (slotToSave.materia && !assignedMaterias.includes(slotToSave.materia)) {
+      setAssignedMaterias((prev) => [...prev, slotToSave.materia]);
     }
     if (finalCarrera && !assignedCarreras.includes(finalCarrera)) {
       setAssignedCarreras((prev) => [...prev, finalCarrera]);
@@ -846,18 +919,62 @@ export default function AdminDashboardPage() {
         return updated;
       });
       setEditingHorarioIndex(null);
-      showToast(`Bloque de horario actualizado (${slotToSave.es_en_linea ? 'En línea 🌐' : 'Presencial 🏛️'})`);
+      const msg = `Bloque de horario actualizado (${slotToSave.dia} ${slotToSave.hora_inicio}-${slotToSave.hora_fin} • ${slotToSave.es_en_linea ? 'En línea 🌐' : 'Presencial 🏛️'}).`;
+      setHorarioSlotFeedback({
+        type: 'success',
+        message: `${msg} ¡Recuerda pulsar "Guardar Asignación Docente" al fondo para guardar los cambios permanentemente!`
+      });
+      showToast(msg);
     } else {
       setAssignedHorarios((prev) => [...prev, { ...slotToSave, id: `h-${Date.now()}` }]);
+      const msg = `¡Bloque añadido con éxito! (${slotToSave.dia} ${slotToSave.hora_inicio}-${slotToSave.hora_fin} • ${slotToSave.materia} • ${slotToSave.grupo}).`;
+      setHorarioSlotFeedback({
+        type: 'success',
+        message: `${msg} Se agregó a la lista de horarios. Recuerda pulsar "Guardar Asignación Docente" al fondo para confirmar.`
+      });
       showToast(`Bloque de horario añadido (${slotToSave.es_en_linea ? 'En línea 🌐' : 'Presencial 🏛️'})`);
+
+      // Avanzar día sugerido para facilitar ingresar el siguiente bloque y evitar auto-colisión inmediata
+      const diasSemana = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+      const currentIdx = diasSemana.indexOf(slotToSave.dia);
+      const nextDia = currentIdx >= 0 && currentIdx < diasSemana.length - 1 ? diasSemana[currentIdx + 1] : 'Lunes';
+      setNewHorarioSlot((prev) => ({
+        ...prev,
+        dia: nextDia,
+        hora_inicio: normInicio,
+        hora_fin: normFin,
+      }));
     }
+  };
+
+  const handleReplaceConflictingSlot = (conflictIndex: number, replacementSlot: HorarioDocenteItem) => {
+    setAssignedHorarios((prev) => {
+      const updated = [...prev];
+      updated[conflictIndex] = { ...replacementSlot, id: `h-${Date.now()}` };
+      return updated;
+    });
+    if (replacementSlot.materia && !assignedMaterias.includes(replacementSlot.materia)) {
+      setAssignedMaterias((prev) => [...prev, replacementSlot.materia]);
+    }
+    if (replacementSlot.carrera && !assignedCarreras.includes(replacementSlot.carrera)) {
+      setAssignedCarreras((prev) => [...prev, replacementSlot.carrera]);
+    }
+    setSlotConflictInfo(null);
+    const msg = `¡Bloque existente reemplazado con éxito por "${replacementSlot.materia}" (${replacementSlot.dia} ${replacementSlot.hora_inicio}-${replacementSlot.hora_fin})!`;
+    setHorarioSlotFeedback({
+      type: 'success',
+      message: `${msg} Recuerda pulsar "Guardar Asignación Docente" al fondo para guardar todos los cambios.`
+    });
+    showToast(`Bloque reemplazado por ${replacementSlot.materia}`);
   };
 
   const handleRemoveHorarioSlot = (index: number) => {
     if (editingHorarioIndex === index) {
       setEditingHorarioIndex(null);
     }
+    setSlotConflictInfo(null);
     setAssignedHorarios((prev) => prev.filter((_, i) => i !== index));
+    showToast('Bloque de horario eliminado.');
   };
 
   const handleSaveAsignacionDocente = async () => {
@@ -1266,7 +1383,7 @@ export default function AdminDashboardPage() {
       {/* Toast Notification */}
       {toast && (
         <div
-          className={`fixed top-6 right-6 z-50 px-5 py-3 rounded-2xl shadow-2xl flex items-center space-x-3 text-xs font-bold border transition-all animate-bounce ${
+          className={`fixed top-6 right-6 z-[9999] px-5 py-3 rounded-2xl shadow-2xl flex items-center space-x-3 text-xs font-bold border transition-all animate-bounce ${
             toast.type === 'success'
               ? 'bg-emerald-600/90 text-white border-emerald-400'
               : toast.type === 'info'
@@ -3624,11 +3741,16 @@ export default function AdminDashboardPage() {
                     <label className="text-gray-400 block text-[10px] mb-1">Hora Inicio</label>
                     <input
                       type="text"
-                      placeholder="09:00"
+                      placeholder="07:00"
                       value={newHorarioSlot.hora_inicio}
-                      onChange={(e) =>
-                        setNewHorarioSlot({ ...newHorarioSlot, hora_inicio: e.target.value })
-                      }
+                      onChange={(e) => {
+                        setSlotConflictInfo(null);
+                        setNewHorarioSlot({ ...newHorarioSlot, hora_inicio: e.target.value });
+                      }}
+                      onBlur={(e) => {
+                        const formatted = normalizeTimeString(e.target.value);
+                        setNewHorarioSlot((prev) => ({ ...prev, hora_inicio: formatted }));
+                      }}
                       className="w-full px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white font-mono"
                     />
                   </div>
@@ -3637,14 +3759,48 @@ export default function AdminDashboardPage() {
                     <label className="text-gray-400 block text-[10px] mb-1">Hora Fin</label>
                     <input
                       type="text"
-                      placeholder="11:00"
+                      placeholder="09:00"
                       value={newHorarioSlot.hora_fin}
-                      onChange={(e) =>
-                        setNewHorarioSlot({ ...newHorarioSlot, hora_fin: e.target.value })
-                      }
+                      onChange={(e) => {
+                        setSlotConflictInfo(null);
+                        setNewHorarioSlot({ ...newHorarioSlot, hora_fin: e.target.value });
+                      }}
+                      onBlur={(e) => {
+                        const formatted = normalizeTimeString(e.target.value);
+                        setNewHorarioSlot((prev) => ({ ...prev, hora_fin: formatted }));
+                      }}
                       className="w-full px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white font-mono"
                     />
                   </div>
+                </div>
+
+                {/* Atajos de Horarios Habituales */}
+                <div className="flex items-center space-x-1.5 overflow-x-auto py-0.5 text-[10px]">
+                  <span className="text-gray-400 font-semibold shrink-0">Sugerencias:</span>
+                  {[
+                    ['07:00', '09:00'],
+                    ['09:00', '11:00'],
+                    ['11:00', '13:00'],
+                    ['13:00', '15:00'],
+                    ['16:00', '18:00'],
+                    ['18:00', '20:00'],
+                  ].map(([ini, fin]) => (
+                    <button
+                      key={`${ini}-${fin}`}
+                      type="button"
+                      onClick={() => {
+                        setSlotConflictInfo(null);
+                        setNewHorarioSlot((prev) => ({ ...prev, hora_inicio: ini, hora_fin: fin }));
+                      }}
+                      className={`px-2 py-0.5 rounded-md font-mono border transition-all shrink-0 cursor-pointer ${
+                        newHorarioSlot.hora_inicio === ini && newHorarioSlot.hora_fin === fin
+                          ? 'bg-amber-500/30 text-amber-300 border-amber-500/60 font-bold'
+                          : 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10 hover:text-white'
+                      }`}
+                    >
+                      {ini}-{fin}
+                    </button>
+                  ))}
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
@@ -3855,21 +4011,91 @@ export default function AdminDashboardPage() {
                   <button
                     type="button"
                     onClick={handleSaveHorarioSlot}
-                    className="w-full py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow transition-all flex items-center justify-center space-x-1.5 cursor-pointer"
+                    className="w-full py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow-lg shadow-amber-600/20 transition-all flex items-center justify-center space-x-1.5 cursor-pointer hover:scale-[1.01] active:scale-[0.99]"
                   >
-                    <Plus className="w-3.5 h-3.5" />
+                    <Plus className="w-4 h-4" />
                     <span>Agregar Bloque de Horario</span>
                   </button>
+                )}
+
+                {/* Tarjeta de Resolución Rápida de Conflicto de Horario */}
+                {slotConflictInfo && (
+                  <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-950/80 via-slate-900 to-amber-950/80 border border-amber-500/60 text-amber-200 shadow-xl space-y-2.5 animate-fadeIn">
+                    <div className="flex items-start space-x-2.5">
+                      <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                      <div className="space-y-1 text-xs">
+                        <div className="font-extrabold text-amber-300 text-sm flex items-center space-x-1.5 flex-wrap">
+                          <span>Horario Ya Ocupado por este Docente</span>
+                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-200">
+                            {slotConflictInfo.conflictingSlot.dia} {slotConflictInfo.conflictingSlot.hora_inicio} - {slotConflictInfo.conflictingSlot.hora_fin}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-gray-300 leading-relaxed">
+                          El docente ya tiene asignada la materia <strong className="text-white">"{slotConflictInfo.conflictingSlot.materia}"</strong> (Grupo: <strong className="text-amber-200">{slotConflictInfo.conflictingSlot.grupo}</strong>). No puede impartir dos clases al mismo tiempo.
+                        </p>
+                        <p className="text-[10px] text-amber-300 font-semibold">
+                          ¿Deseas reemplazar esa clase por <strong className="text-white">"{slotConflictInfo.candidateSlot.materia}"</strong> ({slotConflictInfo.candidateSlot.grupo}), o elegir otro horario/día?
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => handleReplaceConflictingSlot(slotConflictInfo.index, slotConflictInfo.candidateSlot)}
+                        className="flex-1 py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs shadow-lg shadow-amber-500/30 transition-all flex items-center justify-center space-x-1.5 cursor-pointer hover:scale-[1.01]"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5 text-black" />
+                        <span>Reemplazar bloque existente</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSlotConflictInfo(null)}
+                        className="py-2 px-3 rounded-xl bg-white/10 hover:bg-white/15 text-gray-300 text-xs font-semibold cursor-pointer"
+                      >
+                        Elegir otro horario
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Mensaje de Retroalimentación en el Modal */}
+                {horarioSlotFeedback && (
+                  <div
+                    className={`p-3 rounded-xl border text-xs flex items-start space-x-2.5 transition-all animate-fadeIn ${
+                      horarioSlotFeedback.type === 'success'
+                        ? 'bg-emerald-950/60 border-emerald-500/60 text-emerald-200'
+                        : 'bg-rose-950/70 border-rose-500/60 text-rose-200 ring-1 ring-rose-500/40 shadow-lg shadow-rose-950/30'
+                    }`}
+                  >
+                    {horarioSlotFeedback.type === 'success' ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                    )}
+                    <div className="flex-1 space-y-0.5">
+                      <span className="font-semibold block leading-relaxed">
+                        {horarioSlotFeedback.message}
+                      </span>
+                    </div>
+                  </div>
                 )}
               </div>
 
               {/* List of current assigned slots */}
-              <div className="space-y-2">
-                <span className="text-[11px] font-bold text-gray-400 block">
-                  Horarios configurados para este docente ({assignedHorarios.length}):
-                </span>
+              <div className="space-y-2 pt-1 border-t border-white/10">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-gray-400 block">
+                    Horarios configurados para este docente:
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                    {assignedHorarios.length} {assignedHorarios.length === 1 ? 'bloque' : 'bloques'}
+                  </span>
+                </div>
                 {assignedHorarios.length === 0 ? (
-                  <p className="text-xs text-gray-500 italic">No hay bloques agregados todavía.</p>
+                  <div className="p-4 rounded-xl bg-white/5 border border-dashed border-white/10 text-center">
+                    <p className="text-xs text-gray-400 italic">No hay bloques agregados todavía.</p>
+                    <p className="text-[10px] text-gray-500 mt-1">Completa los campos arriba y haz clic en "+ Agregar Bloque de Horario"</p>
+                  </div>
                 ) : (
                   assignedHorarios.map((h, idx) => (
                     <div

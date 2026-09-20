@@ -1227,6 +1227,45 @@ export const db = {
   // Materias operations
   getMaterias: async (): Promise<Materia[]> => {
     initLocalStorage();
+
+    // 1. Fetch from Supabase if available
+    if (supabase) {
+      try {
+        const { data, error } = await supabase.from('materias').select('*').order('clave', { ascending: true });
+        if (!error && data && data.length > 0) {
+          const raw = localStorage.getItem('unrc_materias');
+          const localList: (Materia & { clave_modificada?: string })[] = raw ? JSON.parse(raw) : [];
+
+          // Merge: remote records with any recent local modifications
+          const list: Materia[] = data.map((sm: any) => {
+            const localMatch = localList.find((lm) => lm.id === sm.id || (lm.id && sm.id && lm.id.slice(0, 8) === sm.id.slice(0, 8)));
+            return {
+              id: sm.id,
+              carrera_id: localMatch?.carrera_id || sm.carrera_id,
+              clave: localMatch?.clave_modificada || localMatch?.clave || sm.clave,
+              nombre: localMatch?.nombre || sm.nombre,
+              creditos: localMatch?.creditos || sm.creditos || 8,
+              semestre: localMatch?.semestre || sm.semestre || '1° Semestre',
+              horas_semana: localMatch?.horas_semana || 6
+            };
+          });
+
+          // Retain custom local materias not yet in remote
+          localList.forEach((lm) => {
+            if (!list.some((m) => m.id === lm.id || m.clave === lm.clave)) {
+              list.push(lm);
+            }
+          });
+
+          localStorage.setItem('unrc_materias', JSON.stringify(list));
+          return list;
+        }
+      } catch (err) {
+        console.warn('Fallback materias from Supabase:', err);
+      }
+    }
+
+    // 2. Fallback to localStorage cache
     const raw = localStorage.getItem('unrc_materias');
     if (raw) {
       try {
@@ -1236,27 +1275,6 @@ export const db = {
         }
       } catch (e) {
         console.warn('Error parsing unrc_materias:', e);
-      }
-    }
-
-    if (supabase) {
-      try {
-        const { data, error } = await supabase.from('materias').select('*');
-        if (!error && data && data.length > 0) {
-          const list: Materia[] = data.map((sm: any) => ({
-            id: sm.id,
-            carrera_id: sm.carrera_id,
-            clave: sm.clave,
-            nombre: sm.nombre,
-            creditos: sm.creditos || 8,
-            semestre: sm.semestre || '1° Semestre',
-            horas_semana: 6
-          }));
-          localStorage.setItem('unrc_materias', JSON.stringify(list));
-          return list;
-        }
-      } catch (err) {
-        console.warn('Fallback materias:', err);
       }
     }
 
@@ -1475,18 +1493,23 @@ export const db = {
   updateMateria: async (id: string, updates: Partial<Materia>): Promise<Materia | null> => {
     initLocalStorage();
     let list = await db.getMaterias();
-    let index = list.findIndex(m =>
-      m.id === id ||
-      m.clave === id ||
-      (updates.clave && m.clave === updates.clave) ||
-      (id.startsWith('f1') && (m.id === 'm1' || m.clave === 'CDIA-101')) ||
-      (id.startsWith('f2') && (m.id === 'm2' || m.clave === 'CDIA-102')) ||
-      (id.startsWith('f3') && (m.id === 'm3' || m.clave === 'TIC-201')) ||
-      (id.startsWith('f4') && (m.id === 'm4' || m.clave === 'TIC-301')) ||
-      (id.startsWith('f5') && (m.id === 'm5' || m.clave === 'CIB-501')) ||
-      (id.startsWith('f6') && (m.id === 'm6' || m.clave === 'TUR-201')) ||
-      (id.startsWith('f7') && (m.id === 'm7' || m.clave === 'ADM-203'))
-    );
+    
+    // Exact search priority: ID first, then current clave
+    let index = list.findIndex(m => m.id === id);
+    if (index === -1) {
+      index = list.findIndex(m => m.clave.toUpperCase().trim() === id.toUpperCase().trim());
+    }
+    if (index === -1) {
+      index = list.findIndex(m =>
+        (id.startsWith('f1') && (m.id === 'm1' || m.clave.includes('CDIA-101') || m.nombre.toLowerCase().includes('web'))) ||
+        (id.startsWith('f2') && (m.id === 'm2' || m.clave.includes('CDIA-102') || m.nombre.toLowerCase().includes('artificial'))) ||
+        (id.startsWith('f3') && (m.id === 'm3' || m.clave.includes('TIC-201') || m.nombre.toLowerCase().includes('datos'))) ||
+        (id.startsWith('f4') && (m.id === 'm4' || m.clave.includes('TIC-301') || m.nombre.toLowerCase().includes('software'))) ||
+        (id.startsWith('f5') && (m.id === 'm5' || m.clave.includes('CIB-501') || m.nombre.toLowerCase().includes('ciber'))) ||
+        (id.startsWith('f6') && (m.id === 'm6' || m.clave.includes('TUR-201') || m.nombre.toLowerCase().includes('hospedaje'))) ||
+        (id.startsWith('f7') && (m.id === 'm7' || m.clave.includes('ADM-203') || m.nombre.toLowerCase().includes('administración')))
+      );
+    }
 
     if (index === -1) {
       const newMat: Materia = {
@@ -1503,8 +1526,35 @@ export const db = {
       index = list.length - 1;
     }
 
-    list[index] = { ...list[index], ...updates };
+    const targetId = list[index].id;
+    const oldClave = list[index].clave;
+    const oldNombre = list[index].nombre;
+    list[index] = {
+      ...list[index],
+      ...updates,
+      ...(updates.clave ? { clave_modificada: updates.clave } : {})
+    };
     localStorage.setItem('unrc_materias', JSON.stringify(list));
+
+    // Propagate clave or name update to docente assignments and grupos
+    if (updates.clave && updates.clave !== oldClave) {
+      try {
+        const rawGrupos = localStorage.getItem('unrc_grupos');
+        if (rawGrupos) {
+          const grupos = JSON.parse(rawGrupos);
+          let changed = false;
+          grupos.forEach((g: any) => {
+            if (g.materia_id === targetId || g.materia === oldNombre) {
+              g.materia_clave = updates.clave;
+              changed = true;
+            }
+          });
+          if (changed) localStorage.setItem('unrc_grupos', JSON.stringify(grupos));
+        }
+      } catch (e) {
+        console.warn('Sync related materia entities:', e);
+      }
+    }
 
     if (supabase) {
       try {
@@ -1516,10 +1566,13 @@ export const db = {
         if (updates.semestre !== undefined) supabasePayload.semestre = updates.semestre;
 
         if (Object.keys(supabasePayload).length > 0) {
-          await supabase
+          const { error } = await supabase
             .from('materias')
             .update(supabasePayload)
-            .eq('id', list[index].id);
+            .eq('id', targetId);
+          if (error) {
+            console.warn('Supabase materia update warning (RLS might require public update policy):', error.message);
+          }
         }
       } catch (e) {
         console.warn('Supabase materia update notice:', e);

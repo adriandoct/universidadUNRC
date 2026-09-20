@@ -613,3 +613,19 @@ CREATE POLICY "Admin manage timetable" ON public.timetable_entries FOR ALL USING
     public.get_user_role() = 'admin'
 );
 
+-- ============================================================================
+-- 7.5 RLS POLICIES PARA CATÁLOGO DE ASIGNATURAS (materias) Y CARRERAS
+-- ============================================================================
+ALTER TABLE IF EXISTS public.materias ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Public read materias" ON public.materias;
+CREATE POLICY "Public read materias" ON public.materias FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Allow all manage materias" ON public.materias;
+CREATE POLICY "Allow all manage materias" ON public.materias FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE IF EXISTS public.carreras ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Public read carreras" ON public.carreras;
+CREATE POLICY "Public read carreras" ON public.carreras FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Allow all manage carreras" ON public.carreras;
+CREATE POLICY "Allow all manage carreras" ON public.carreras FOR ALL USING (true) WITH CHECK (true);
+
+

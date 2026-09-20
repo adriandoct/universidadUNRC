@@ -120,7 +120,7 @@ export default function AttendanceSheet({
         );
 
         nextState[st.id] = {
-          status: existingAtt ? statusReverseMap[existingAtt.estado] || 'present' : 'present',
+          status: existingAtt && existingAtt.estado ? statusReverseMap[existingAtt.estado] || 'present' : 'present',
           participation: existingPart ? existingPart.tipo : 'NINGUNA',
           notes: existingAtt?.observaciones || existingPart?.observaciones || '',
         };
