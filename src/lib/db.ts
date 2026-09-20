@@ -199,6 +199,8 @@ export interface Participacion {
   id: string;
   alumno_id: string;
   grupo_id?: string;
+  curso_id?: string;
+  materia?: string;
   fecha: string;
   tipo: 'AP' | 'RP' | 'REGULAR'; // AP: Aprobado/Excelente, RP: Requerido/Por mejorar, REGULAR
   puntos: number;
@@ -2384,7 +2386,10 @@ export const db = {
   registrarParticipacion: async (
     alumnoId: string,
     tipo: 'AP' | 'RP' | 'REGULAR',
-    observaciones?: string
+    observaciones?: string,
+    fecha?: string,
+    cursoId?: string,
+    materia?: string
   ): Promise<Participacion> => {
     initLocalStorage();
     const alumnos = await db.getAlumnos();
@@ -2392,19 +2397,24 @@ export const db = {
     if (!alumno) throw new Error('Alumno no encontrado');
 
     const puntos = tipo === 'AP' ? 10 : (tipo === 'RP' ? 5 : 7.5);
+    const targetDate = fecha || getTijuanaDateString();
     const newPart: Participacion = {
-      id: `part-${Date.now()}`,
+      id: `part-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       alumno_id: alumno.id,
-      grupo_id: alumno.grupo_id,
-      fecha: getTijuanaDateString(),
+      grupo_id: cursoId || alumno.grupo_id,
+      curso_id: cursoId,
+      materia: materia,
+      fecha: targetDate,
       tipo,
       puntos,
-      observaciones: observaciones || (tipo === 'AP' ? 'Aprobada: Excelente aportación' : 'Requerido: Por mejorar'),
+      observaciones: observaciones || (tipo === 'AP' ? 'Aprobada: Excelente aportación' : (tipo === 'RP' ? 'Requerido: Por mejorar' : 'Regular: Buena intervención')),
       created_at: new Date().toISOString(),
       alumno
     };
 
-    const list: Participacion[] = JSON.parse(localStorage.getItem('unrc_participaciones') || '[]');
+    let list: Participacion[] = JSON.parse(localStorage.getItem('unrc_participaciones') || '[]');
+    // Update existing for this student, date and course, or add
+    list = list.filter(item => !(item.alumno_id === alumno.id && item.fecha === targetDate && (item.curso_id === cursoId || item.grupo_id === cursoId)));
     list.push(newPart);
     localStorage.setItem('unrc_participaciones', JSON.stringify(list));
 
@@ -2412,7 +2422,7 @@ export const db = {
       try {
         await supabase.from('participaciones').insert([{
           alumno_id: alumno.id,
-          grupo_id: alumno.grupo_id,
+          grupo_id: cursoId || alumno.grupo_id,
           fecha: newPart.fecha,
           tipo,
           puntos,
@@ -2424,6 +2434,55 @@ export const db = {
     }
 
     return newPart;
+  },
+
+  registrarParticipacionesLote: async (
+    registros: Array<{
+      alumno_id: string;
+      tipo: 'AP' | 'RP' | 'REGULAR' | 'NINGUNA';
+      fecha: string;
+      curso_id?: string;
+      materia?: string;
+      observaciones?: string;
+    }>
+  ): Promise<number> => {
+    initLocalStorage();
+    const alumnos = await db.getAlumnos();
+    let list: Participacion[] = JSON.parse(localStorage.getItem('unrc_participaciones') || '[]');
+
+    registros.forEach(r => {
+      // Clean existing on that date & course
+      list = list.filter(item => !(item.alumno_id === r.alumno_id && item.fecha === r.fecha && (item.curso_id === r.curso_id || item.grupo_id === r.curso_id)));
+
+      if (r.tipo !== 'NINGUNA') {
+        const alumno = alumnos.find(al => al.id === r.alumno_id || al.matricula === r.alumno_id);
+        const puntos = r.tipo === 'AP' ? 10 : (r.tipo === 'RP' ? 5 : 7.5);
+        list.push({
+          id: `part-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          alumno_id: r.alumno_id,
+          grupo_id: r.curso_id || alumno?.grupo_id,
+          curso_id: r.curso_id,
+          materia: r.materia,
+          fecha: r.fecha,
+          tipo: r.tipo,
+          puntos,
+          observaciones: r.observaciones || (r.tipo === 'AP' ? 'Aprobada: Excelente aportación' : (r.tipo === 'RP' ? 'Requerido: Por mejorar' : 'Regular: Buena intervención')),
+          created_at: new Date().toISOString(),
+          alumno
+        });
+      }
+    });
+
+    localStorage.setItem('unrc_participaciones', JSON.stringify(list));
+    return registros.filter(r => r.tipo !== 'NINGUNA').length;
+  },
+
+  eliminarParticipacion: async (id: string): Promise<boolean> => {
+    initLocalStorage();
+    let list: Participacion[] = JSON.parse(localStorage.getItem('unrc_participaciones') || '[]');
+    list = list.filter(p => p.id !== id);
+    localStorage.setItem('unrc_participaciones', JSON.stringify(list));
+    return true;
   },
 
   // Resumen Académico Calculation
