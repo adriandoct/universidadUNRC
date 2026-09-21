@@ -551,7 +551,7 @@ const initLocalStorage = () => {
     localStorage.setItem('unrc_grupos_tij_v3_nomenclatura', 'true');
   }
   
-  if (!localStorage.getItem('unrc_docentes') || !localStorage.getItem('unrc_docentes_tij_v3_nomenclatura')) {
+  if (!localStorage.getItem('unrc_docentes') || !localStorage.getItem('unrc_docentes_tij_v4_catalogo_sync')) {
     let currentDocs: Docente[] = [];
     const raw = localStorage.getItem('unrc_docentes');
     if (raw) {
@@ -570,9 +570,9 @@ const initLocalStorage = () => {
             const mat = (h.materia || '').toLowerCase();
             if (grp === '201-TUR' || mat.includes('hospedaje') || mat.includes('turismo')) {
               grp = 'PHLTUR-201-TIJ';
-            } else if (grp === '203-ADM' || mat.includes('administración') || mat.includes('matemáticas')) {
+            } else if (grp === '203-ADM' || grp === '203' || mat.includes('administración') || mat.includes('matemáticas')) {
               grp = 'PHLAC-203-TIJ';
-            } else if (grp === '301' || mat.includes('estructura de datos') || mat.includes('algoritmos')) {
+            } else if (grp === '301' || grp === 'TIC-201' || mat.includes('estructura de datos') || mat.includes('algoritmos')) {
               grp = 'PHLCDN-301-TIJ';
             } else if (grp === '401-LCDN' || mat.includes('nosql')) {
               grp = 'PHLCDN-401-TIJ';
@@ -585,7 +585,7 @@ const initLocalStorage = () => {
       });
     }
     localStorage.setItem('unrc_docentes', JSON.stringify(currentDocs));
-    localStorage.setItem('unrc_docentes_tij_v3_nomenclatura', 'true');
+    localStorage.setItem('unrc_docentes_tij_v4_catalogo_sync', 'true');
   }
 
   // Ensure Docentes are also seeded into Supabase
@@ -3101,20 +3101,51 @@ export const db = {
       return list.map(d => {
         if (!d.horarios || d.horarios.length === 0) return d;
         const sanitizedHorarios = d.horarios.map(h => {
-          if (
-            (h.materia?.toLowerCase().includes('hospedaje') || h.materia?.toLowerCase().includes('hotel')) &&
-            (h.grupo?.toLowerCase().includes('phlac') || h.grupo?.toLowerCase().includes('203') || !h.grupo)
+          let grp = h.grupo || '';
+          let mat = h.materia || '';
+          let car = h.carrera || '';
+          const matLower = mat.toLowerCase();
+          const grpLower = grp.toLowerCase();
+
+          if (matLower.includes('hospedaje') || matLower.includes('hotel') || grpLower.includes('tur')) {
+            grp = 'PHLTUR-201-TIJ';
+            mat = 'Administración de Empresas de Hospedaje';
+            car = 'Licenciatura en Turismo';
+          } else if (
+            grpLower.includes('203') ||
+            grpLower.includes('adm') ||
+            matLower.includes('administración') ||
+            matLower.includes('matemáticas')
           ) {
-            return {
-              ...h,
-              carrera: 'Lic. en Turismo',
-              grupo: '201-TUR',
-              materia: 'Administración de Empresas de Hospedaje',
-              aula: h.aula || 'Aula Virtual UNRC (Google Meet)',
-              es_en_linea: Boolean(h.es_en_linea || h.dia?.toLowerCase().includes('sab') || h.dia?.toLowerCase().includes('sáb'))
-            };
+            grp = 'PHLAC-203-TIJ';
+            if (matLower.includes('matemáticas') || matLower.includes('financieras') || grpLower.includes('adm')) {
+              mat = 'Matemáticas para la Administración';
+            }
+            car = 'Licenciatura en Administración';
+          } else if (
+            grpLower.includes('301') ||
+            grpLower.includes('tic-201') ||
+            matLower.includes('estructura de datos') ||
+            matLower.includes('algoritmos')
+          ) {
+            grp = 'PHLCDN-301-TIJ';
+            mat = 'Estructura de Datos y Algoritmos';
+            car = 'Licenciatura en Ciencias de Datos e Inteligencia Artificial';
+          } else if (
+            grpLower.includes('201') && (grpLower.includes('lcdn') || grpLower.includes('cdia') || matLower.includes('web'))
+          ) {
+            grp = 'PHLCDN-201-TIJ';
+            mat = 'Programación Web y Bases de Datos';
+            car = 'Licenciatura en Ciencias de Datos e Inteligencia Artificial';
           }
-          return h;
+
+          return {
+            ...h,
+            grupo: grp,
+            materia: mat,
+            carrera: car,
+            aula: h.aula || (h.es_en_linea ? 'Aula Virtual UNRC (Google Meet)' : 'Campus Tijuana')
+          };
         });
         return { ...d, horarios: sanitizedHorarios };
       });
