@@ -335,18 +335,18 @@ const MOCK_MATERIAS: Materia[] = [
   { id: 'f4444444-4444-4444-4444-444444444444', carrera_id: 'c2222222-2222-2222-2222-222222222222', clave: 'TIC-301', nombre: 'Ingeniería de Software y Sistemas Web', creditos: 10, semestre: '3° Semestre', horas_semana: 6 },
   { id: 'f5555555-5555-5555-5555-555555555555', carrera_id: 'c3333333-3333-3333-3333-333333333333', clave: 'CIB-501', nombre: 'Ciberseguridad y Auditoría de Sistemas', creditos: 10, semestre: '5° Semestre', horas_semana: 6 },
   { id: 'da9f6013-226d-49a1-ba7a-6adfb97a7c35', carrera_id: 'c1111111-1111-1111-1111-111111111111', clave: 'LCDN-401', nombre: 'Bases de Datos NOSQL', creditos: 8, semestre: '4° Semestre', horas_semana: 6 },
-  { id: 'f6666666-6666-6666-6666-666666666666', carrera_id: 'c4444444-4444-4444-4444-444444444444', clave: 'TUR-201', nombre: 'Administración de Empresas de Hospedaje', creditos: 8, semestre: '2° Semestre', horas_semana: 4 }
+  { id: 'f6666666-6666-6666-6666-666666666666', carrera_id: 'c4444444-4444-4444-4444-444444444444', clave: 'PHLTUR-201-TIJ', nombre: 'Administración de Empresas de Hospedaje', creditos: 8, semestre: '2° Semestre', horas_semana: 4 }
 ];
 
 const MOCK_GRUPOS: Grupo[] = [
   { id: 'g101', clave_grupo: '101', carrera_id: 'c1', materia_id: 'm1', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', turno: 'Matutino', periodo: '2026-2', horario: 'Lunes a Sábado (07:00 - 13:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Lic. Alejandro Valdez', aula: 'Campus Tijuana - Aula 101' },
   { id: 'g102', clave_grupo: '102', carrera_id: 'c1', materia_id: 'm2', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', turno: 'Matutino', periodo: '2026-2', horario: 'Lunes a Sábado (07:00 - 13:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Lic. Alejandro Valdez', aula: 'Campus Tijuana - Aula 102' },
   { id: 'g201', clave_grupo: '201', carrera_id: 'c2', materia_id: 'm3', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', turno: 'Vespertino', periodo: '2026-2', horario: 'Lunes a Sábado (14:00 - 20:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Dr. Adrian Silva', aula: 'Campus Tijuana - Lab Cómputo 1' },
-  { id: 'g201-tur', clave_grupo: '201-TUR', carrera_id: 'c4', materia_id: 'm6', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', turno: 'Matutino', periodo: '2026-2', horario: 'Miércoles 09:00 - 11:00 hrs | Sábado 07:00 - 09:00 hrs', dias_clase: ['Miércoles', 'Sábado'], docente_nombre: 'Dr. Adrian Silva', aula: 'Campus Tijuana - Aula Magna TIJ' },
-  { id: 'g203-adm', clave_grupo: '203-ADM', carrera_id: 'c5', materia_id: 'm7', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', turno: 'Matutino', periodo: '2026-2', horario: 'Lunes a Sábado (07:00 - 13:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Dr. Adrian Silva', aula: 'Campus Tijuana - Aula 203' },
+  { id: 'g201-tur', clave_grupo: 'PHLTUR-201-TIJ', carrera_id: 'c4', materia_id: 'f6666666-6666-6666-6666-666666666666', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', turno: 'Matutino', periodo: '2026-2', horario: 'Miércoles 09:00 - 11:00 hrs | Sábado 07:00 - 09:00 hrs', dias_clase: ['Miércoles', 'Sábado'], docente_nombre: 'Dr. Adrian Silva', aula: 'Campus Tijuana - Aula Magna TIJ' },
+  { id: 'g203-adm', clave_grupo: 'PHLAC-203-TIJ', carrera_id: 'c5', materia_id: 'f7777777-7777-7777-7777-777777777777', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', turno: 'Matutino', periodo: '2026-2', horario: 'Lunes a Sábado (07:00 - 13:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Dr. Adrian Silva', aula: 'Campus Tijuana - Aula 203' },
   { id: 'g203-tij', clave_grupo: 'PHLAC-203-TIJ', carrera_id: 'c5', materia_id: 'f7777777-7777-7777-7777-777777777777', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', turno: 'Matutino', periodo: '2026-2', horario: 'Lunes, Miércoles y Viernes (07:00 - 13:00 hrs)', dias_clase: ['Lunes', 'Miércoles', 'Viernes'], docente_nombre: 'Dr. Adrian Silva', aula: 'Campus Tijuana - Aula 203' },
   { id: 'g301', clave_grupo: '301', carrera_id: 'c2', materia_id: 'm4', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', turno: 'Matutino', periodo: '2026-2', horario: 'Lunes a Sábado (07:00 - 13:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Dr. Adrian Silva', aula: 'Campus Tijuana - Lab Redes' },
-  { id: 'g401-lcdn', clave_grupo: '401-LCDN', carrera_id: 'c1111111-1111-1111-1111-111111111111', materia_id: 'f2222222-2222-2222-2222-222222222222', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', turno: 'Matutino', periodo: '2026-2', horario: 'Miércoles (09:00 - 11:00 hrs) y Sábados (07:00 - 09:00 hrs)', dias_clase: ['Miércoles', 'Sábado'], docente_nombre: 'Dr. Adrian Silva', docente_id: 'd0000003-0000-0000-0000-000000000003', aula: 'Aula Virtual UNRC (Google Meet)' },
+  { id: 'g401-lcdn', clave_grupo: 'PHLCDN-401-TIJ', carrera_id: 'c1111111-1111-1111-1111-111111111111', materia_id: 'da9f6013-226d-49a1-ba7a-6adfb97a7c35', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', turno: 'Matutino', periodo: '2026-2', horario: 'Miércoles (09:00 - 11:00 hrs) y Sábados (07:00 - 09:00 hrs)', dias_clase: ['Miércoles', 'Sábado'], docente_nombre: 'Dr. Adrian Silva', docente_id: 'd0000003-0000-0000-0000-000000000003', aula: 'Aula Virtual UNRC (Google Meet)' },
   { id: 'g501', clave_grupo: '501', carrera_id: 'c3', materia_id: 'm5', sede_id: 'sede-tij', sede_nombre: 'Campus Tijuana', turno: 'Matutino', periodo: '2026-2', horario: 'Lunes a Sábado (07:00 - 13:00 hrs)', dias_clase: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'], docente_nombre: 'Tutor UNRC', aula: 'Campus Tijuana - Lab Ciberseguridad' }
 ];
 
@@ -360,23 +360,41 @@ const MOCK_DOCENTES: Docente[] = [
     num_empleado: 'DOC-UNRC-01',
     nombre: 'Alejandro',
     apellido_paterno: 'Valdez',
-    apellido_materno: 'Mendoza',
+    apellido_materno: '',
     email: 'alejandro.valdez@rcastellanos.cdmx.gob.mx',
-    departamento: 'Lic. en Ciencias de Datos e IA',
+    departamento: 'Licenciatura en Ciencias de Datos e Inteligencia Artificial',
     puesto: 'docente',
-    carreras_asignadas: ['Lic. en Ciencias de Datos e Inteligencia Artificial', 'Licenciatura en Ciencia de Datos para los Negocios'],
-    materias: ['Programación Web y Bases de Datos', 'Inteligencia Artificial y Aprendizaje Automático', 'Minería de Datos y Modelado Predictivo'],
+    carreras_asignadas: ['Licenciatura en Ciencias de Datos e Inteligencia Artificial'],
+    materias: ['Programación Web y Bases de Datos', 'Inteligencia Artificial y Aprendizaje Automático'],
     horario_resumen: 'Lunes a Sábado (07:00 - 13:00 hrs)',
     horarios: [
-      { dia: 'Lunes', hora_inicio: '07:00', hora_fin: '10:00', carrera: 'Lic. en Ciencias de Datos e Inteligencia Artificial', materia: 'Programación Web y Bases de Datos', grupo: '101', aula: 'Campus Tijuana - Aula 101', es_en_linea: false },
-      { dia: 'Miércoles', hora_inicio: '07:00', hora_fin: '10:00', carrera: 'Lic. en Ciencias de Datos e Inteligencia Artificial', materia: 'Inteligencia Artificial y Aprendizaje Automático', grupo: '102', aula: 'Campus Tijuana - Aula 102', es_en_linea: false },
-      { dia: 'Miércoles', hora_inicio: '09:00', hora_fin: '12:00', carrera: 'Licenciatura en Ciencia de Datos para los Negocios', materia: 'Inteligencia Artificial y Aprendizaje Automático', grupo: '401-LCDN', aula: 'Campus Tijuana - Lab IA', es_en_linea: false },
-      { dia: 'Lunes', hora_inicio: '09:00', hora_fin: '12:00', carrera: 'Licenciatura en Ciencia de Datos para los Negocios', materia: 'Programación Web y Bases de Datos', grupo: '401-LCDN', aula: 'Campus Tijuana - Lab IA', es_en_linea: false },
-      { dia: 'Viernes', hora_inicio: '08:00', hora_fin: '11:00', carrera: 'Licenciatura en Ciencia de Datos para los Negocios', materia: 'Minería de Datos y Modelado Predictivo', grupo: '401-LCDN', aula: 'Aula Virtual UNRC (Google Meet)', es_en_linea: true }
+      { dia: 'Lunes', hora_inicio: '07:00', hora_fin: '10:00', carrera: 'Licenciatura en Ciencias de Datos e Inteligencia Artificial', materia: 'Programación Web y Bases de Datos', grupo: 'PHLCDN-201-TIJ', aula: 'Campus Tijuana - Aula 101', sede: 'Campus Tijuana', es_en_linea: false },
+      { dia: 'Miércoles', hora_inicio: '07:00', hora_fin: '10:00', carrera: 'Licenciatura en Ciencias de Datos e Inteligencia Artificial', materia: 'Inteligencia Artificial y Aprendizaje Automático', grupo: 'PHLCDN-201-TIJ', aula: 'Campus Tijuana - Aula 102', sede: 'Campus Tijuana', es_en_linea: false }
     ],
     sede_nombre: 'Campus Tijuana',
-    telefono: '+525599887766',
-    foto_url: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=200&h=200',
+    telefono: '+526640000001',
+    foto_url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=200&h=200',
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'docente-2',
+    num_empleado: 'DOC-UNRC-02',
+    nombre: 'Claudia',
+    apellido_paterno: 'Navarro',
+    apellido_materno: '',
+    email: 'claudia.navarro@rcastellanos.cdmx.gob.mx',
+    departamento: 'Licenciatura en Tecnologías de la Información y Comunicación',
+    puesto: 'docente',
+    carreras_asignadas: ['Licenciatura en Tecnologías de la Información y Comunicación'],
+    materias: ['Estructura de Datos y Algoritmos', 'Ingeniería de Software y Sistemas Web'],
+    horario_resumen: 'Lunes a Sábado (14:00 - 20:00 hrs)',
+    horarios: [
+      { dia: 'Martes', hora_inicio: '14:00', hora_fin: '17:00', carrera: 'Licenciatura en Tecnologías de la Información y Comunicación', materia: 'Estructura de Datos y Algoritmos', grupo: '201', aula: 'Campus Tijuana - Lab Cómputo 1', sede: 'Campus Tijuana', es_en_linea: false },
+      { dia: 'Jueves', hora_inicio: '14:00', hora_fin: '17:00', carrera: 'Licenciatura en Tecnologías de la Información y Comunicación', materia: 'Ingeniería de Software y Sistemas Web', grupo: '301', aula: 'Campus Tijuana - Lab Redes', sede: 'Campus Tijuana', es_en_linea: false }
+    ],
+    sede_nombre: 'Campus Tijuana',
+    telefono: '+526640000002',
+    foto_url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200&h=200',
     created_at: new Date().toISOString()
   },
   {
@@ -395,8 +413,8 @@ const MOCK_DOCENTES: Docente[] = [
       { dia: 'Lunes', hora_inicio: '07:00', hora_fin: '09:00', carrera: 'Lic. en Administración', materia: 'Matemáticas para la Administración', grupo: 'PHLAC-203-TIJ', aula: 'Campus Tijuana - Aula 203', sede: 'Campus Tijuana', es_en_linea: false },
       { dia: 'Miércoles', hora_inicio: '11:00', hora_fin: '13:00', carrera: 'Lic. en Administración', materia: 'Administración y Gestión Estratégica', grupo: 'PHLAC-203-TIJ', aula: 'Campus Tijuana - Aula Magna TIJ', sede: 'Campus Tijuana', es_en_linea: false },
       { dia: 'Viernes', hora_inicio: '08:00', hora_fin: '10:00', carrera: 'Lic. en Administración', materia: 'Contabilidad y Finanzas Aplicadas', grupo: 'PHLAC-203-TIJ', aula: 'Aula Virtual UNRC (Google Meet)', sede: 'Campus Tijuana', es_en_linea: true },
-      { dia: 'Miércoles', hora_inicio: '09:00', hora_fin: '11:00', carrera: 'Lic. en Turismo', materia: 'Administración de Empresas de Hospedaje', grupo: '201-TUR', aula: 'Campus Tijuana - Aula Magna 2', sede: 'Campus Tijuana', es_en_linea: false },
-      { dia: 'Sábado', hora_inicio: '07:00', hora_fin: '09:00', carrera: 'Lic. en Turismo', materia: 'Administración de Empresas de Hospedaje', grupo: '201-TUR', aula: 'Aula Virtual UNRC (Google Meet)', sede: 'Campus Tijuana', es_en_linea: true }
+      { dia: 'Miércoles', hora_inicio: '09:00', hora_fin: '11:00', carrera: 'Lic. en Turismo', materia: 'Administración de Empresas de Hospedaje', grupo: 'PHLTUR-201-TIJ', aula: 'Campus Tijuana - Aula Magna 2', sede: 'Campus Tijuana', es_en_linea: false },
+      { dia: 'Sábado', hora_inicio: '07:00', hora_fin: '09:00', carrera: 'Lic. en Turismo', materia: 'Administración de Empresas de Hospedaje', grupo: 'PHLTUR-201-TIJ', aula: 'Aula Virtual UNRC (Google Meet)', sede: 'Campus Tijuana', es_en_linea: true }
     ],
     sede_nombre: 'Campus Tijuana',
     telefono: '+526641234567',
@@ -485,6 +503,9 @@ const initLocalStorage = () => {
         if (m.clave === 'CDIA-101' || m.id === 'f1111111-1111-1111-1111-111111111111') {
           return { ...m, clave: 'PHLCDN-201-TIJ', semestre: '2° Semestre' };
         }
+        if (m.clave === 'TUR-201' || m.id === 'f6666666-6666-6666-6666-666666666666') {
+          return { ...m, clave: 'PHLTUR-201-TIJ', semestre: '2° Semestre' };
+        }
         return m;
       });
       if (!currentMats.some((m) => m.clave === 'LCDN-401')) {
@@ -502,14 +523,63 @@ const initLocalStorage = () => {
     localStorage.setItem('unrc_materias', JSON.stringify(currentMats));
     localStorage.setItem('unrc_materias_v3_official', 'true');
   }
-  if (!localStorage.getItem('unrc_grupos') || !localStorage.getItem('unrc_grupos_tij_v1')) {
-    localStorage.setItem('unrc_grupos', JSON.stringify(MOCK_GRUPOS));
-    localStorage.setItem('unrc_grupos_tij_v1', 'true');
+
+  if (!localStorage.getItem('unrc_grupos') || !localStorage.getItem('unrc_grupos_tij_v2_nomenclatura')) {
+    let currentGrupos: Grupo[] = [];
+    const raw = localStorage.getItem('unrc_grupos');
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) currentGrupos = parsed;
+      } catch (e) {}
+    }
+    if (currentGrupos.length === 0) {
+      currentGrupos = [...MOCK_GRUPOS];
+    } else {
+      currentGrupos = currentGrupos.map((g) => {
+        if (g.clave_grupo === '201-TUR') return { ...g, clave_grupo: 'PHLTUR-201-TIJ' };
+        if (g.clave_grupo === '203-ADM') return { ...g, clave_grupo: 'PHLAC-203-TIJ' };
+        if (g.clave_grupo === '401-LCDN') return { ...g, clave_grupo: 'PHLCDN-401-TIJ' };
+        return g;
+      });
+    }
+    localStorage.setItem('unrc_grupos', JSON.stringify(currentGrupos));
+    localStorage.setItem('unrc_grupos_tij_v2_nomenclatura', 'true');
   }
   
-  if (!localStorage.getItem('unrc_docentes') || !localStorage.getItem('unrc_docentes_tij_v1')) {
-    localStorage.setItem('unrc_docentes', JSON.stringify(MOCK_DOCENTES));
-    localStorage.setItem('unrc_docentes_tij_v1', 'true');
+  if (!localStorage.getItem('unrc_docentes') || !localStorage.getItem('unrc_docentes_tij_v2_nomenclatura')) {
+    let currentDocs: Docente[] = [];
+    const raw = localStorage.getItem('unrc_docentes');
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) currentDocs = parsed;
+      } catch (e) {}
+    }
+    if (currentDocs.length === 0) {
+      currentDocs = [...MOCK_DOCENTES];
+    } else {
+      currentDocs = currentDocs.map((d) => {
+        if (d.horarios && Array.isArray(d.horarios)) {
+          const updatedHorarios = d.horarios.map((h: any) => {
+            let grp = h.grupo;
+            const mat = (h.materia || '').toLowerCase();
+            if (grp === '201-TUR' || mat.includes('hospedaje') || mat.includes('turismo')) {
+              grp = 'PHLTUR-201-TIJ';
+            } else if (grp === '203-ADM' || mat.includes('administración') || mat.includes('matemáticas')) {
+              grp = 'PHLAC-203-TIJ';
+            } else if (grp === '401-LCDN' || mat.includes('nosql')) {
+              grp = 'PHLCDN-401-TIJ';
+            }
+            return { ...h, grupo: grp };
+          });
+          return { ...d, horarios: updatedHorarios };
+        }
+        return d;
+      });
+    }
+    localStorage.setItem('unrc_docentes', JSON.stringify(currentDocs));
+    localStorage.setItem('unrc_docentes_tij_v2_nomenclatura', 'true');
   }
 
   // Ensure Docentes are also seeded into Supabase
@@ -1309,6 +1379,9 @@ export const db = {
             if (m.clave === 'CDIA-101' || m.id === 'f1111111-1111-1111-1111-111111111111') {
               return { ...m, clave: 'PHLCDN-201-TIJ', semestre: '2° Semestre' };
             }
+            if (m.clave === 'TUR-201' || m.id === 'f6666666-6666-6666-6666-666666666666') {
+              return { ...m, clave: 'PHLTUR-201-TIJ', semestre: '2° Semestre' };
+            }
             return m;
           });
         }
@@ -1331,6 +1404,9 @@ export const db = {
               semestre = '2° Semestre';
             } else if (sm.clave === 'CDIA-101' || sm.id === 'f1111111-1111-1111-1111-111111111111') {
               clave = 'PHLCDN-201-TIJ';
+              semestre = '2° Semestre';
+            } else if (sm.clave === 'TUR-201' || sm.id === 'f6666666-6666-6666-6666-666666666666') {
+              clave = 'PHLTUR-201-TIJ';
               semestre = '2° Semestre';
             }
             return {
@@ -1360,7 +1436,8 @@ export const db = {
             lm.id === rm.id ||
             lm.clave.toUpperCase().trim() === rm.clave.toUpperCase().trim() ||
             (rm.clave === 'ADM-203' && lm.clave === 'PHLAC-203-TIJ') ||
-            (rm.clave === 'CDIA-101' && lm.clave === 'PHLCDN-201-TIJ')
+            (rm.clave === 'CDIA-101' && lm.clave === 'PHLCDN-201-TIJ') ||
+            (rm.clave === 'TUR-201' && lm.clave === 'PHLTUR-201-TIJ')
         );
         if (!alreadyExists) {
           combined.push(rm);

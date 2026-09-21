@@ -19,7 +19,7 @@ import {
   Layers
 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
-import { db, Docente, HorarioDocenteItem, Alumno, Grupo } from '@/lib/db';
+import { db, Docente, HorarioDocenteItem, Alumno, Grupo, Materia } from '@/lib/db';
 import {
   generateDocenteHorarioPDF,
   downloadDocenteICS,
@@ -44,6 +44,7 @@ export default function TeacherDashboardPage() {
   const [currentDocente, setCurrentDocente] = useState<Docente | null>(null);
   const [allAlumnos, setAllAlumnos] = useState<Alumno[]>([]);
   const [allGrupos, setAllGrupos] = useState<Grupo[]>([]);
+  const [allMaterias, setAllMaterias] = useState<Materia[]>([]);
   const [calendarBannerDismissed, setCalendarBannerDismissed] = useState(false);
 
   // Strict Authentication Guard
@@ -57,13 +58,15 @@ export default function TeacherDashboardPage() {
   useEffect(() => {
     async function loadDocenteProfile() {
       try {
-        const [allDocs, alumnosList, gruposList] = await Promise.all([
+        const [allDocs, alumnosList, gruposList, materiasList] = await Promise.all([
           db.getDocentes(),
           db.getAlumnos(),
-          db.getGrupos()
+          db.getGrupos(),
+          db.getMaterias()
         ]);
         setAllAlumnos(alumnosList || []);
         setAllGrupos(gruposList || []);
+        setAllMaterias(materiasList || []);
 
         const found =
           allDocs.find(
@@ -87,25 +90,50 @@ export default function TeacherDashboardPage() {
 
 
 
-  // Helper to canonicalize group codes so PHLAC-203-TIJ and 203-ADM merge cleanly
+  // Helper to canonicalize group codes so official Catálogo de Asignaturas nomenclature is strictly respected
   const getCanonicalGroup = (rawGrupo?: string, materiaOrCarrera: string = ''): string => {
     const g = (rawGrupo || '').trim();
     const clean = g.toLowerCase().replace(/[^a-z0-9]/g, '');
     const mat = (materiaOrCarrera || '').toLowerCase();
 
-    if (clean.includes('203') || clean.includes('phlac') || mat.includes('matemáticas') || mat.includes('administración')) {
-      if (!mat.includes('turismo') && !mat.includes('hospedaje')) {
-        return '203-ADM';
+    // 1. Direct match with Catálogo de Asignaturas by name or clave
+    if (allMaterias && allMaterias.length > 0) {
+      const match = allMaterias.find(
+        (m) =>
+          (mat && m.nombre.toLowerCase().trim() === mat.trim()) ||
+          (mat && m.nombre.toLowerCase().includes(mat)) ||
+          (mat && mat.includes(m.nombre.toLowerCase())) ||
+          (clean && m.clave.toLowerCase().replace(/[^a-z0-9]/g, '') === clean)
+      );
+      if (match && match.clave) {
+        return match.clave;
       }
     }
+
+    // 2. Direct official nomenclature detection
+    if (clean.includes('phltur') || clean.includes('phltur201tij')) return 'PHLTUR-201-TIJ';
+    if (clean.includes('phlac') || clean.includes('phlac203tij')) return 'PHLAC-203-TIJ';
+    if (clean.includes('phlcdn') || clean.includes('phlcdn201tij')) return 'PHLCDN-201-TIJ';
+    if (clean.includes('401') && (clean.includes('lcdn') || mat.includes('nosql'))) return 'PHLCDN-401-TIJ';
+
+    // 3. Subject and career mapping based on Catálogo de Asignaturas
     if (clean.includes('201') || clean.includes('tur') || mat.includes('hospedaje') || mat.includes('turismo')) {
-      if (!clean.includes('tic') && !clean.includes('lcdn')) {
-        return '201-TUR';
+      if (!clean.includes('tic') && !clean.includes('lcdn') && !mat.includes('web') && !mat.includes('datos')) {
+        return 'PHLTUR-201-TIJ';
       }
     }
-    if (clean.includes('401') || mat.includes('predictivo') || clean.includes('lcdn')) {
-      return '401-LCDN';
+    if (clean.includes('203') || clean.includes('adm') || mat.includes('matemáticas') || mat.includes('administración')) {
+      if (!mat.includes('turismo') && !mat.includes('hospedaje')) {
+        return 'PHLAC-203-TIJ';
+      }
     }
+    if (clean.includes('201') && (clean.includes('lcdn') || clean.includes('cdia') || mat.includes('web') || mat.includes('bases de datos'))) {
+      return 'PHLCDN-201-TIJ';
+    }
+    if (clean.includes('401') || mat.includes('predictivo') || mat.includes('nosql') || clean.includes('lcdn')) {
+      return 'PHLCDN-401-TIJ';
+    }
+
     return g || 'Sin grupo';
   };
 
@@ -168,7 +196,7 @@ export default function TeacherDashboardPage() {
       return [
         {
           id: 'c-tur-201',
-          grupo: '201-TUR',
+          grupo: 'PHLTUR-201-TIJ',
           materia: 'Administración de Empresas de Hospedaje',
           carrera: 'Licenciatura en Turismo',
           aula: 'Campus Tijuana - Aula Magna TIJ',
@@ -179,7 +207,7 @@ export default function TeacherDashboardPage() {
         },
         {
           id: 'c-adm-203',
-          grupo: '203-ADM',
+          grupo: 'PHLAC-203-TIJ',
           materia: 'Matemáticas para la Administración',
           carrera: 'Licenciatura en Administración',
           aula: 'Campus Tijuana - Aula 203',
