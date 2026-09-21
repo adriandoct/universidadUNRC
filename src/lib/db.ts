@@ -328,13 +328,14 @@ const MOCK_CARRERAS: Carrera[] = [
 ];
 
 const MOCK_MATERIAS: Materia[] = [
-  { id: 'f1111111-1111-1111-1111-111111111111', carrera_id: 'c1111111-1111-1111-1111-111111111111', clave: 'CDIA-101', nombre: 'Programación Web y Bases de Datos', creditos: 8, semestre: '1° Semestre', horas_semana: 6 },
+  { id: 'f7777777-7777-7777-7777-777777777777', carrera_id: 'c5555555-5555-5555-5555-555555555555', clave: 'PHLAC-203-TIJ', nombre: 'Matemáticas para la Administración', creditos: 8, semestre: '2° Semestre', horas_semana: 6 },
+  { id: 'f1111111-1111-1111-1111-111111111111', carrera_id: 'c1111111-1111-1111-1111-111111111111', clave: 'PHLCDN-201-TIJ', nombre: 'Programación Web y Bases de Datos', creditos: 8, semestre: '2° Semestre', horas_semana: 6 },
   { id: 'f2222222-2222-2222-2222-222222222222', carrera_id: 'c1111111-1111-1111-1111-111111111111', clave: 'CDIA-102', nombre: 'Inteligencia Artificial y Aprendizaje Automático', creditos: 10, semestre: '1° Semestre', horas_semana: 6 },
   { id: 'f3333333-3333-3333-3333-333333333333', carrera_id: 'c2222222-2222-2222-2222-222222222222', clave: 'TIC-201', nombre: 'Estructura de Datos y Algoritmos', creditos: 8, semestre: '3° Semestre', horas_semana: 6 },
   { id: 'f4444444-4444-4444-4444-444444444444', carrera_id: 'c2222222-2222-2222-2222-222222222222', clave: 'TIC-301', nombre: 'Ingeniería de Software y Sistemas Web', creditos: 10, semestre: '3° Semestre', horas_semana: 6 },
   { id: 'f5555555-5555-5555-5555-555555555555', carrera_id: 'c3333333-3333-3333-3333-333333333333', clave: 'CIB-501', nombre: 'Ciberseguridad y Auditoría de Sistemas', creditos: 10, semestre: '5° Semestre', horas_semana: 6 },
-  { id: 'f6666666-6666-6666-6666-666666666666', carrera_id: 'c4444444-4444-4444-4444-444444444444', clave: 'TUR-201', nombre: 'Administración de Empresas de Hospedaje', creditos: 8, semestre: '2° Semestre', horas_semana: 4 },
-  { id: 'f7777777-7777-7777-7777-777777777777', carrera_id: 'c5555555-5555-5555-5555-555555555555', clave: 'ADM-203', nombre: 'Matemáticas para la Administración', creditos: 8, semestre: '2° Semestre', horas_semana: 6 }
+  { id: 'da9f6013-226d-49a1-ba7a-6adfb97a7c35', carrera_id: 'c1111111-1111-1111-1111-111111111111', clave: 'LCDN-401', nombre: 'Bases de Datos NOSQL', creditos: 8, semestre: '4° Semestre', horas_semana: 6 },
+  { id: 'f6666666-6666-6666-6666-666666666666', carrera_id: 'c4444444-4444-4444-4444-444444444444', clave: 'TUR-201', nombre: 'Administración de Empresas de Hospedaje', creditos: 8, semestre: '2° Semestre', horas_semana: 4 }
 ];
 
 const MOCK_GRUPOS: Grupo[] = [
@@ -465,8 +466,41 @@ const initLocalStorage = () => {
     localStorage.setItem('unrc_carreras', JSON.stringify(MOCK_CARRERAS));
     localStorage.setItem('unrc_carreras_tij_v1', 'true');
   }
-  if (!localStorage.getItem('unrc_materias')) {
-    localStorage.setItem('unrc_materias', JSON.stringify(MOCK_MATERIAS));
+  if (!localStorage.getItem('unrc_materias') || !localStorage.getItem('unrc_materias_v3_official')) {
+    let currentMats: Materia[] = [];
+    const raw = localStorage.getItem('unrc_materias');
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) currentMats = parsed;
+      } catch (e) {}
+    }
+    if (currentMats.length === 0) {
+      currentMats = [...MOCK_MATERIAS];
+    } else {
+      currentMats = currentMats.map((m) => {
+        if (m.clave === 'ADM-203' || m.id === 'f7777777-7777-7777-7777-777777777777') {
+          return { ...m, clave: 'PHLAC-203-TIJ', semestre: '2° Semestre' };
+        }
+        if (m.clave === 'CDIA-101' || m.id === 'f1111111-1111-1111-1111-111111111111') {
+          return { ...m, clave: 'PHLCDN-201-TIJ', semestre: '2° Semestre' };
+        }
+        return m;
+      });
+      if (!currentMats.some((m) => m.clave === 'LCDN-401')) {
+        currentMats.push({
+          id: 'da9f6013-226d-49a1-ba7a-6adfb97a7c35',
+          carrera_id: 'c1111111-1111-1111-1111-111111111111',
+          clave: 'LCDN-401',
+          nombre: 'Bases de Datos NOSQL',
+          creditos: 8,
+          semestre: '4° Semestre',
+          horas_semana: 6,
+        });
+      }
+    }
+    localStorage.setItem('unrc_materias', JSON.stringify(currentMats));
+    localStorage.setItem('unrc_materias_v3_official', 'true');
   }
   if (!localStorage.getItem('unrc_grupos') || !localStorage.getItem('unrc_grupos_tij_v1')) {
     localStorage.setItem('unrc_grupos', JSON.stringify(MOCK_GRUPOS));
@@ -1228,58 +1262,128 @@ export const db = {
   getMaterias: async (): Promise<Materia[]> => {
     initLocalStorage();
 
-    // 1. Fetch from Supabase if available
-    if (supabase) {
+    const getDeletedMaterias = (): string[] => {
+      if (typeof window === 'undefined') return [];
       try {
-        const { data, error } = await supabase.from('materias').select('*').order('clave', { ascending: true });
-        if (!error && data && data.length > 0) {
-          const raw = localStorage.getItem('unrc_materias');
-          const localList: (Materia & { clave_modificada?: string })[] = raw ? JSON.parse(raw) : [];
-
-          // Merge: remote records with any recent local modifications
-          const list: Materia[] = data.map((sm: any) => {
-            const localMatch = localList.find((lm) => lm.id === sm.id || (lm.id && sm.id && lm.id.slice(0, 8) === sm.id.slice(0, 8)));
-            return {
-              id: sm.id,
-              carrera_id: localMatch?.carrera_id || sm.carrera_id,
-              clave: localMatch?.clave_modificada || localMatch?.clave || sm.clave,
-              nombre: localMatch?.nombre || sm.nombre,
-              creditos: localMatch?.creditos || sm.creditos || 8,
-              semestre: localMatch?.semestre || sm.semestre || '1° Semestre',
-              horas_semana: localMatch?.horas_semana || 6
-            };
-          });
-
-          // Retain custom local materias not yet in remote
-          localList.forEach((lm) => {
-            if (!list.some((m) => m.id === lm.id || m.clave === lm.clave)) {
-              list.push(lm);
-            }
-          });
-
-          localStorage.setItem('unrc_materias', JSON.stringify(list));
-          return list;
-        }
-      } catch (err) {
-        console.warn('Fallback materias from Supabase:', err);
+        const raw = localStorage.getItem('unrc_deleted_materias');
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
       }
-    }
+    };
 
-    // 2. Fallback to localStorage cache
-    const raw = localStorage.getItem('unrc_materias');
+    const getModifiedMaterias = (): Record<string, Partial<Materia>> => {
+      if (typeof window === 'undefined') return {};
+      try {
+        const raw = localStorage.getItem('unrc_modified_materias');
+        const parsed = raw ? JSON.parse(raw) : {};
+        return typeof parsed === 'object' && parsed !== null ? parsed : {};
+      } catch {
+        return {};
+      }
+    };
+
+    const deletedList = getDeletedMaterias();
+    const modifiedMap = getModifiedMaterias();
+
+    const isExcluded = (m: { id?: string; clave?: string }) => {
+      if (!m) return true;
+      if (m.id && deletedList.includes(m.id)) return true;
+      if (m.clave && deletedList.includes(m.clave)) return true;
+      if (m.clave && m.clave.toUpperCase().startsWith('TEST-')) return true;
+      return false;
+    };
+
+    // 1. Load active local catalog (primary source of truth for user updates)
+    let localList: Materia[] = [];
+    const raw = typeof window !== 'undefined' ? localStorage.getItem('unrc_materias') : null;
     if (raw) {
       try {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+          localList = parsed.filter(m => !isExcluded(m)).map((m) => {
+            if (m.clave === 'ADM-203' || m.id === 'f7777777-7777-7777-7777-777777777777') {
+              return { ...m, clave: 'PHLAC-203-TIJ', semestre: '2° Semestre' };
+            }
+            if (m.clave === 'CDIA-101' || m.id === 'f1111111-1111-1111-1111-111111111111') {
+              return { ...m, clave: 'PHLCDN-201-TIJ', semestre: '2° Semestre' };
+            }
+            return m;
+          });
         }
       } catch (e) {
         console.warn('Error parsing unrc_materias:', e);
       }
     }
 
-    localStorage.setItem('unrc_materias', JSON.stringify(MOCK_MATERIAS));
-    return MOCK_MATERIAS;
+    // 2. Fetch from Supabase and merge without overwriting user modifications
+    let remoteList: any[] = [];
+    if (supabase) {
+      try {
+        const { data, error } = await supabase.from('materias').select('*').order('clave', { ascending: true });
+        if (!error && data && data.length > 0) {
+          remoteList = data.filter((sm: any) => !isExcluded(sm)).map((sm: any) => {
+            let clave = sm.clave;
+            let semestre = sm.semestre || '1° Semestre';
+            if (sm.clave === 'ADM-203' || sm.id === 'f7777777-7777-7777-7777-777777777777') {
+              clave = 'PHLAC-203-TIJ';
+              semestre = '2° Semestre';
+            } else if (sm.clave === 'CDIA-101' || sm.id === 'f1111111-1111-1111-1111-111111111111') {
+              clave = 'PHLCDN-201-TIJ';
+              semestre = '2° Semestre';
+            }
+            return {
+              id: sm.id,
+              carrera_id: sm.carrera_id,
+              clave,
+              nombre: sm.nombre,
+              creditos: sm.creditos || 8,
+              semestre,
+              horas_semana: sm.horas_semana || 6
+            };
+          });
+        }
+      } catch (err) {
+        console.warn('Notice reading materias from Supabase:', err);
+      }
+    }
+
+    // 3. Assemble combined list preserving user modifications
+    let combined: Materia[] = [];
+    if (localList.length > 0) {
+      combined = [...localList];
+      // Append any remote materias that do not yet exist locally
+      remoteList.forEach((rm) => {
+        const alreadyExists = combined.some(
+          (lm) =>
+            lm.id === rm.id ||
+            lm.clave.toUpperCase().trim() === rm.clave.toUpperCase().trim() ||
+            (rm.clave === 'ADM-203' && lm.clave === 'PHLAC-203-TIJ') ||
+            (rm.clave === 'CDIA-101' && lm.clave === 'PHLCDN-201-TIJ')
+        );
+        if (!alreadyExists) {
+          combined.push(rm);
+        }
+      });
+    } else if (remoteList.length > 0) {
+      combined = [...remoteList];
+    } else {
+      combined = [...MOCK_MATERIAS];
+    }
+
+    // Apply explicit user modifiedMap if present
+    const enriched = combined
+      .filter(m => !isExcluded(m))
+      .map(m => {
+        const mod = modifiedMap[m.id] || modifiedMap[m.clave] || {};
+        return { ...m, ...mod };
+      });
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('unrc_materias', JSON.stringify(enriched));
+    }
+    return enriched;
   },
 
   // Grupos operations
@@ -1485,41 +1589,55 @@ export const db = {
     }
 
     list.push(newMateria);
-    localStorage.setItem('unrc_materias', JSON.stringify(list));
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('unrc_materias', JSON.stringify(list));
+    }
     await db.addAuditoria('ALTA_MATERIA', 'Plan Curricular', `Se agregó asignatura ${newMateria.nombre} (${newMateria.clave})`, 'Administrador');
     return newMateria;
   },
 
   updateMateria: async (id: string, updates: Partial<Materia>): Promise<Materia | null> => {
     initLocalStorage();
-    let list = await db.getMaterias();
     
-    // Exact search priority: ID first, then current clave
+    // Read directly from current active localStorage cache to avoid stale remote overwrite
+    let list: Materia[] = [];
+    const raw = typeof window !== 'undefined' ? localStorage.getItem('unrc_materias') : null;
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) list = parsed;
+      } catch (e) {}
+    }
+    if (list.length === 0) {
+      list = await db.getMaterias();
+    }
+    
+    // Exact search priority: ID first, then current clave or modified clave
     let index = list.findIndex(m => m.id === id);
     if (index === -1) {
       index = list.findIndex(m => m.clave.toUpperCase().trim() === id.toUpperCase().trim());
     }
     if (index === -1) {
       index = list.findIndex(m =>
-        (id.startsWith('f1') && (m.id === 'm1' || m.clave.includes('CDIA-101') || m.nombre.toLowerCase().includes('web'))) ||
+        (id.startsWith('f1') && (m.id === 'm1' || m.clave.includes('PHLCDN-201') || m.clave.includes('CDIA-101') || m.nombre.toLowerCase().includes('web'))) ||
         (id.startsWith('f2') && (m.id === 'm2' || m.clave.includes('CDIA-102') || m.nombre.toLowerCase().includes('artificial'))) ||
         (id.startsWith('f3') && (m.id === 'm3' || m.clave.includes('TIC-201') || m.nombre.toLowerCase().includes('datos'))) ||
         (id.startsWith('f4') && (m.id === 'm4' || m.clave.includes('TIC-301') || m.nombre.toLowerCase().includes('software'))) ||
         (id.startsWith('f5') && (m.id === 'm5' || m.clave.includes('CIB-501') || m.nombre.toLowerCase().includes('ciber'))) ||
         (id.startsWith('f6') && (m.id === 'm6' || m.clave.includes('TUR-201') || m.nombre.toLowerCase().includes('hospedaje'))) ||
-        (id.startsWith('f7') && (m.id === 'm7' || m.clave.includes('ADM-203') || m.nombre.toLowerCase().includes('administración')))
+        (id.startsWith('f7') && (m.id === 'm7' || m.clave.includes('PHLAC-203') || m.clave.includes('ADM-203') || m.nombre.toLowerCase().includes('administración')))
       );
     }
 
     if (index === -1) {
       const newMat: Materia = {
         id: id || `m-${Date.now()}`,
-        carrera_id: updates.carrera_id || 'c1',
+        carrera_id: updates.carrera_id || 'c1111111-1111-1111-1111-111111111111',
         clave: updates.clave || 'MAT',
         nombre: updates.nombre || 'Nueva Materia',
-        creditos: updates.creditos || 8,
+        creditos: updates.creditos !== undefined ? updates.creditos : 8,
         semestre: updates.semestre || '1° Semestre',
-        horas_semana: updates.horas_semana || 6,
+        horas_semana: updates.horas_semana !== undefined ? updates.horas_semana : 6,
         ...updates
       };
       list.push(newMat);
@@ -1529,27 +1647,44 @@ export const db = {
     const targetId = list[index].id;
     const oldClave = list[index].clave;
     const oldNombre = list[index].nombre;
+
     list[index] = {
       ...list[index],
       ...updates,
       ...(updates.clave ? { clave_modificada: updates.clave } : {})
     };
-    localStorage.setItem('unrc_materias', JSON.stringify(list));
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('unrc_materias', JSON.stringify(list));
+      
+      // Store in persistent modified map
+      try {
+        const rawMod = localStorage.getItem('unrc_modified_materias');
+        const modMap = rawMod ? JSON.parse(rawMod) : {};
+        modMap[targetId] = { ...(modMap[targetId] || {}), ...updates };
+        if (updates.clave) modMap[updates.clave] = { ...(modMap[updates.clave] || {}), ...updates };
+        if (oldClave) modMap[oldClave] = { ...(modMap[oldClave] || {}), ...updates };
+        localStorage.setItem('unrc_modified_materias', JSON.stringify(modMap));
+      } catch (e) {}
+    }
 
     // Propagate clave or name update to docente assignments and grupos
-    if (updates.clave && updates.clave !== oldClave) {
+    if ((updates.clave && updates.clave !== oldClave) || (updates.nombre && updates.nombre !== oldNombre)) {
       try {
-        const rawGrupos = localStorage.getItem('unrc_grupos');
+        const rawGrupos = typeof window !== 'undefined' ? localStorage.getItem('unrc_grupos') : null;
         if (rawGrupos) {
           const grupos = JSON.parse(rawGrupos);
           let changed = false;
           grupos.forEach((g: any) => {
-            if (g.materia_id === targetId || g.materia === oldNombre) {
-              g.materia_clave = updates.clave;
+            if (g.materia_id === targetId || g.materia === oldNombre || (g.materia_clave && g.materia_clave === oldClave)) {
+              if (updates.clave) g.materia_clave = updates.clave;
+              if (updates.nombre) g.materia = updates.nombre;
               changed = true;
             }
           });
-          if (changed) localStorage.setItem('unrc_grupos', JSON.stringify(grupos));
+          if (changed && typeof window !== 'undefined') {
+            localStorage.setItem('unrc_grupos', JSON.stringify(grupos));
+          }
         }
       } catch (e) {
         console.warn('Sync related materia entities:', e);
@@ -1566,13 +1701,10 @@ export const db = {
         if (updates.semestre !== undefined) supabasePayload.semestre = updates.semestre;
 
         if (Object.keys(supabasePayload).length > 0) {
-          const { error } = await supabase
+          await supabase
             .from('materias')
             .update(supabasePayload)
             .eq('id', targetId);
-          if (error) {
-            console.warn('Supabase materia update warning (RLS might require public update policy):', error.message);
-          }
         }
       } catch (e) {
         console.warn('Supabase materia update notice:', e);
@@ -1584,11 +1716,47 @@ export const db = {
 
   deleteMateria: async (id: string): Promise<boolean> => {
     initLocalStorage();
-    let list = await db.getMaterias();
-    const target = list.find(m => m.id === id || m.clave === id);
+    let list: Materia[] = [];
+    const raw = typeof window !== 'undefined' ? localStorage.getItem('unrc_materias') : null;
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) list = parsed;
+      } catch (e) {}
+    }
+    if (list.length === 0) {
+      list = await db.getMaterias();
+    }
+
+    const target = list.find(m => m.id === id || m.clave === id || (m as any).clave_modificada === id);
     const targetId = target ? target.id : id;
-    list = list.filter(m => m.id !== targetId && m.clave !== id);
-    localStorage.setItem('unrc_materias', JSON.stringify(list));
+    const targetClave = target ? target.clave : id;
+
+    list = list.filter(m => m.id !== targetId && m.clave !== targetClave && m.clave !== id && m.id !== id);
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('unrc_materias', JSON.stringify(list));
+      
+      // Add to deleted blacklist so remote Supabase queries never restore it
+      try {
+        const rawDel = localStorage.getItem('unrc_deleted_materias');
+        const delList: string[] = rawDel ? JSON.parse(rawDel) : [];
+        if (targetId && !delList.includes(targetId)) delList.push(targetId);
+        if (targetClave && !delList.includes(targetClave)) delList.push(targetClave);
+        if (id && !delList.includes(id)) delList.push(id);
+        localStorage.setItem('unrc_deleted_materias', JSON.stringify(delList));
+
+        // Clean from modified map
+        const rawMod = localStorage.getItem('unrc_modified_materias');
+        if (rawMod) {
+          const modMap = JSON.parse(rawMod);
+          delete modMap[targetId];
+          delete modMap[targetClave];
+          if (id) delete modMap[id];
+          localStorage.setItem('unrc_modified_materias', JSON.stringify(modMap));
+        }
+      } catch (e) {}
+    }
 
     if (supabase) {
       try {

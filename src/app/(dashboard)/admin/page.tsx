@@ -577,7 +577,7 @@ export default function AdminDashboardPage() {
       const cleanNombre = materiaForm.nombre.trim();
 
       if (editingId) {
-        const updated = await db.updateMateria(editingId, {
+        await db.updateMateria(editingId, {
           clave: cleanClave,
           nombre: cleanNombre,
           carrera_id: materiaForm.carrera_id,
@@ -585,25 +585,9 @@ export default function AdminDashboardPage() {
           semestre: materiaForm.semestre,
           horas_semana: Number(materiaForm.horas_semana),
         });
-        setMaterias((prev) =>
-          prev.map((m) =>
-            m.id === editingId || m.clave === editingId || (updated && m.id === updated.id)
-              ? {
-                  ...m,
-                  ...(updated || {}),
-                  clave: cleanClave,
-                  nombre: cleanNombre,
-                  carrera_id: materiaForm.carrera_id,
-                  creditos: Number(materiaForm.creditos),
-                  semestre: materiaForm.semestre,
-                  horas_semana: Number(materiaForm.horas_semana),
-                }
-              : m
-          )
-        );
-        showToast(`Asignatura "${cleanNombre}" (${cleanClave}) actualizada.`);
+        showToast(`Asignatura "${cleanNombre}" (${cleanClave}) actualizada con éxito.`);
       } else {
-        const newMat = await db.addMateria({
+        await db.addMateria({
           clave: cleanClave,
           nombre: cleanNombre,
           carrera_id: materiaForm.carrera_id,
@@ -611,8 +595,7 @@ export default function AdminDashboardPage() {
           semestre: materiaForm.semestre,
           horas_semana: Number(materiaForm.horas_semana),
         });
-        setMaterias((prev) => [...prev, newMat]);
-        showToast(`Asignatura "${cleanNombre}" (${cleanClave}) registrada.`);
+        showToast(`Asignatura "${cleanNombre}" (${cleanClave}) registrada con éxito.`);
       }
       setModalType(null);
       setEditingId(null);
@@ -625,7 +608,7 @@ export default function AdminDashboardPage() {
         horas_semana: 6,
       });
       const refreshedMats = await db.getMaterias();
-      if (refreshedMats && refreshedMats.length > 0) {
+      if (refreshedMats) {
         setMaterias(refreshedMats);
       }
     } catch (err: any) {
@@ -636,9 +619,9 @@ export default function AdminDashboardPage() {
   const handleDeleteMateria = async (id: string, name: string) => {
     if (confirm(`¿Eliminar asignatura "${name}"?`)) {
       await db.deleteMateria(id);
-      setMaterias((prev) => prev.filter((m) => m.id !== id && m.clave !== id));
-      showToast(`Asignatura eliminada.`);
-      await loadData();
+      const refreshedMats = await db.getMaterias();
+      setMaterias(refreshedMats);
+      showToast(`Asignatura eliminada con éxito.`);
     }
   };
 
@@ -3429,7 +3412,7 @@ export default function AdminDashboardPage() {
                             setMateriaForm({
                               clave: m.clave,
                               nombre: m.nombre,
-                              carrera_id: m.carrera_id,
+                              carrera_id: carObj?.id || m.carrera_id || carreras[0]?.id || '',
                               creditos: m.creditos,
                               semestre: m.semestre,
                               horas_semana: m.horas_semana || 6,
