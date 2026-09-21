@@ -331,7 +331,7 @@ const MOCK_MATERIAS: Materia[] = [
   { id: 'f7777777-7777-7777-7777-777777777777', carrera_id: 'c5555555-5555-5555-5555-555555555555', clave: 'PHLAC-203-TIJ', nombre: 'Matemáticas para la Administración', creditos: 8, semestre: '2° Semestre', horas_semana: 6 },
   { id: 'f1111111-1111-1111-1111-111111111111', carrera_id: 'c1111111-1111-1111-1111-111111111111', clave: 'PHLCDN-201-TIJ', nombre: 'Programación Web y Bases de Datos', creditos: 8, semestre: '2° Semestre', horas_semana: 6 },
   { id: 'f2222222-2222-2222-2222-222222222222', carrera_id: 'c1111111-1111-1111-1111-111111111111', clave: 'CDIA-102', nombre: 'Inteligencia Artificial y Aprendizaje Automático', creditos: 10, semestre: '1° Semestre', horas_semana: 6 },
-  { id: 'f3333333-3333-3333-3333-333333333333', carrera_id: 'c2222222-2222-2222-2222-222222222222', clave: 'TIC-201', nombre: 'Estructura de Datos y Algoritmos', creditos: 8, semestre: '3° Semestre', horas_semana: 6 },
+  { id: 'f3333333-3333-3333-3333-333333333333', carrera_id: 'c1111111-1111-1111-1111-111111111111', clave: 'PHLCDN-301-TIJ', nombre: 'Estructura de Datos y Algoritmos', creditos: 8, semestre: '3° Semestre', horas_semana: 6 },
   { id: 'f4444444-4444-4444-4444-444444444444', carrera_id: 'c2222222-2222-2222-2222-222222222222', clave: 'TIC-301', nombre: 'Ingeniería de Software y Sistemas Web', creditos: 10, semestre: '3° Semestre', horas_semana: 6 },
   { id: 'f5555555-5555-5555-5555-555555555555', carrera_id: 'c3333333-3333-3333-3333-333333333333', clave: 'CIB-501', nombre: 'Ciberseguridad y Auditoría de Sistemas', creditos: 10, semestre: '5° Semestre', horas_semana: 6 },
   { id: 'da9f6013-226d-49a1-ba7a-6adfb97a7c35', carrera_id: 'c1111111-1111-1111-1111-111111111111', clave: 'LCDN-401', nombre: 'Bases de Datos NOSQL', creditos: 8, semestre: '4° Semestre', horas_semana: 6 },
@@ -506,6 +506,9 @@ const initLocalStorage = () => {
         if (m.clave === 'TUR-201' || m.id === 'f6666666-6666-6666-6666-666666666666') {
           return { ...m, clave: 'PHLTUR-201-TIJ', semestre: '2° Semestre' };
         }
+        if (m.clave === 'TIC-201' || m.id === 'f3333333-3333-3333-3333-333333333333' || (m.nombre && m.nombre.toLowerCase().includes('estructura de datos'))) {
+          return { ...m, clave: 'PHLCDN-301-TIJ', carrera_id: 'c1111111-1111-1111-1111-111111111111', semestre: '3° Semestre' };
+        }
         return m;
       });
       if (!currentMats.some((m) => m.clave === 'LCDN-401')) {
@@ -521,10 +524,10 @@ const initLocalStorage = () => {
       }
     }
     localStorage.setItem('unrc_materias', JSON.stringify(currentMats));
-    localStorage.setItem('unrc_materias_v3_official', 'true');
+    localStorage.setItem('unrc_materias_v4_official', 'true');
   }
 
-  if (!localStorage.getItem('unrc_grupos') || !localStorage.getItem('unrc_grupos_tij_v2_nomenclatura')) {
+  if (!localStorage.getItem('unrc_grupos') || !localStorage.getItem('unrc_grupos_tij_v3_nomenclatura')) {
     let currentGrupos: Grupo[] = [];
     const raw = localStorage.getItem('unrc_grupos');
     if (raw) {
@@ -540,14 +543,15 @@ const initLocalStorage = () => {
         if (g.clave_grupo === '201-TUR') return { ...g, clave_grupo: 'PHLTUR-201-TIJ' };
         if (g.clave_grupo === '203-ADM') return { ...g, clave_grupo: 'PHLAC-203-TIJ' };
         if (g.clave_grupo === '401-LCDN') return { ...g, clave_grupo: 'PHLCDN-401-TIJ' };
+        if (g.clave_grupo === '301' || g.clave_grupo === 'TIC-201') return { ...g, clave_grupo: 'PHLCDN-301-TIJ' };
         return g;
       });
     }
     localStorage.setItem('unrc_grupos', JSON.stringify(currentGrupos));
-    localStorage.setItem('unrc_grupos_tij_v2_nomenclatura', 'true');
+    localStorage.setItem('unrc_grupos_tij_v3_nomenclatura', 'true');
   }
   
-  if (!localStorage.getItem('unrc_docentes') || !localStorage.getItem('unrc_docentes_tij_v2_nomenclatura')) {
+  if (!localStorage.getItem('unrc_docentes') || !localStorage.getItem('unrc_docentes_tij_v3_nomenclatura')) {
     let currentDocs: Docente[] = [];
     const raw = localStorage.getItem('unrc_docentes');
     if (raw) {
@@ -568,6 +572,8 @@ const initLocalStorage = () => {
               grp = 'PHLTUR-201-TIJ';
             } else if (grp === '203-ADM' || mat.includes('administración') || mat.includes('matemáticas')) {
               grp = 'PHLAC-203-TIJ';
+            } else if (grp === '301' || mat.includes('estructura de datos') || mat.includes('algoritmos')) {
+              grp = 'PHLCDN-301-TIJ';
             } else if (grp === '401-LCDN' || mat.includes('nosql')) {
               grp = 'PHLCDN-401-TIJ';
             }
@@ -579,7 +585,7 @@ const initLocalStorage = () => {
       });
     }
     localStorage.setItem('unrc_docentes', JSON.stringify(currentDocs));
-    localStorage.setItem('unrc_docentes_tij_v2_nomenclatura', 'true');
+    localStorage.setItem('unrc_docentes_tij_v3_nomenclatura', 'true');
   }
 
   // Ensure Docentes are also seeded into Supabase
@@ -1382,6 +1388,9 @@ export const db = {
             if (m.clave === 'TUR-201' || m.id === 'f6666666-6666-6666-6666-666666666666') {
               return { ...m, clave: 'PHLTUR-201-TIJ', semestre: '2° Semestre' };
             }
+            if (m.clave === 'TIC-201' || m.id === 'f3333333-3333-3333-3333-333333333333' || (m.nombre && m.nombre.toLowerCase().includes('estructura de datos'))) {
+              return { ...m, clave: 'PHLCDN-301-TIJ', carrera_id: 'c1111111-1111-1111-1111-111111111111', semestre: '3° Semestre' };
+            }
             return m;
           });
         }
@@ -1399,6 +1408,7 @@ export const db = {
           remoteList = data.filter((sm: any) => !isExcluded(sm)).map((sm: any) => {
             let clave = sm.clave;
             let semestre = sm.semestre || '1° Semestre';
+            let carrera_id = sm.carrera_id;
             if (sm.clave === 'ADM-203' || sm.id === 'f7777777-7777-7777-7777-777777777777') {
               clave = 'PHLAC-203-TIJ';
               semestre = '2° Semestre';
@@ -1408,10 +1418,14 @@ export const db = {
             } else if (sm.clave === 'TUR-201' || sm.id === 'f6666666-6666-6666-6666-666666666666') {
               clave = 'PHLTUR-201-TIJ';
               semestre = '2° Semestre';
+            } else if (sm.clave === 'TIC-201' || sm.id === 'f3333333-3333-3333-3333-333333333333' || (sm.nombre && sm.nombre.toLowerCase().includes('estructura de datos'))) {
+              clave = 'PHLCDN-301-TIJ';
+              semestre = '3° Semestre';
+              carrera_id = 'c1111111-1111-1111-1111-111111111111';
             }
             return {
               id: sm.id,
-              carrera_id: sm.carrera_id,
+              carrera_id,
               clave,
               nombre: sm.nombre,
               creditos: sm.creditos || 8,
@@ -1437,7 +1451,8 @@ export const db = {
             lm.clave.toUpperCase().trim() === rm.clave.toUpperCase().trim() ||
             (rm.clave === 'ADM-203' && lm.clave === 'PHLAC-203-TIJ') ||
             (rm.clave === 'CDIA-101' && lm.clave === 'PHLCDN-201-TIJ') ||
-            (rm.clave === 'TUR-201' && lm.clave === 'PHLTUR-201-TIJ')
+            (rm.clave === 'TUR-201' && lm.clave === 'PHLTUR-201-TIJ') ||
+            (rm.clave === 'TIC-201' && lm.clave === 'PHLCDN-301-TIJ')
         );
         if (!alreadyExists) {
           combined.push(rm);

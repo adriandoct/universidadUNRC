@@ -94,13 +94,13 @@ export default function TeacherDashboardPage() {
   const getCanonicalGroup = (rawGrupo?: string, materiaOrCarrera: string = ''): string => {
     const g = (rawGrupo || '').trim();
     const clean = g.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const mat = (materiaOrCarrera || '').toLowerCase();
+    const mat = (materiaOrCarrera || '').toLowerCase().trim();
 
     // 1. Direct match with Catálogo de Asignaturas by name or clave
     if (allMaterias && allMaterias.length > 0) {
       const match = allMaterias.find(
         (m) =>
-          (mat && m.nombre.toLowerCase().trim() === mat.trim()) ||
+          (mat && m.nombre.toLowerCase().trim() === mat) ||
           (mat && m.nombre.toLowerCase().includes(mat)) ||
           (mat && mat.includes(m.nombre.toLowerCase())) ||
           (clean && m.clave.toLowerCase().replace(/[^a-z0-9]/g, '') === clean)
@@ -110,24 +110,21 @@ export default function TeacherDashboardPage() {
       }
     }
 
-    // 2. Direct official nomenclature detection
-    if (clean.includes('phltur') || clean.includes('phltur201tij')) return 'PHLTUR-201-TIJ';
-    if (clean.includes('phlac') || clean.includes('phlac203tij')) return 'PHLAC-203-TIJ';
-    if (clean.includes('phlcdn') || clean.includes('phlcdn201tij')) return 'PHLCDN-201-TIJ';
-    if (clean.includes('401') && (clean.includes('lcdn') || mat.includes('nosql'))) return 'PHLCDN-401-TIJ';
-
-    // 3. Subject and career mapping based on Catálogo de Asignaturas
-    if (clean.includes('201') || clean.includes('tur') || mat.includes('hospedaje') || mat.includes('turismo')) {
-      if (!clean.includes('tic') && !clean.includes('lcdn') && !mat.includes('web') && !mat.includes('datos')) {
-        return 'PHLTUR-201-TIJ';
-      }
-    }
-    if (clean.includes('203') || clean.includes('adm') || mat.includes('matemáticas') || mat.includes('administración')) {
+    // 2. Strict mappings based on the official Catálogo de Asignaturas
+    if (clean.includes('phlac') || clean.includes('203') || mat.includes('administración') || mat.includes('matemáticas')) {
       if (!mat.includes('turismo') && !mat.includes('hospedaje')) {
         return 'PHLAC-203-TIJ';
       }
     }
-    if (clean.includes('201') && (clean.includes('lcdn') || clean.includes('cdia') || mat.includes('web') || mat.includes('bases de datos'))) {
+    if (clean.includes('301') || mat.includes('estructura de datos') || mat.includes('algoritmos')) {
+      return 'PHLCDN-301-TIJ';
+    }
+    if (clean.includes('phltur') || clean.includes('201') || mat.includes('hospedaje') || mat.includes('turismo')) {
+      if (!clean.includes('tic') && !clean.includes('lcdn') && !mat.includes('web') && !mat.includes('datos')) {
+        return 'PHLTUR-201-TIJ';
+      }
+    }
+    if (clean.includes('phlcdn201') || (clean.includes('201') && (clean.includes('lcdn') || clean.includes('cdia') || mat.includes('web')))) {
       return 'PHLCDN-201-TIJ';
     }
     if (clean.includes('401') || mat.includes('predictivo') || mat.includes('nosql') || clean.includes('lcdn')) {
@@ -250,7 +247,7 @@ export default function TeacherDashboardPage() {
         sesionesCount: sortedSesiones.length
       };
     });
-  }, [currentDocente]);
+  }, [currentDocente, allMaterias]);
 
   // Keep selected course ID valid
   useEffect(() => {
