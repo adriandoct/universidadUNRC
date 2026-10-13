@@ -345,10 +345,10 @@ export default function BulkUploadHorariosModal({
         status = 'error';
         errorMessage = 'Falta especificar el grupo';
       } else if (!areCarrerasCompatible(materiaRaw, grupoRaw)) {
-        status = 'error';
+        status = 'warning';
         const matCarrera = getCarreraDisplayName(materiaRaw);
         const gpoCarrera = getCarreraDisplayName(grupoRaw);
-        errorMessage = `Incompatibilidad de Carrera: "${materiaRaw}" (${matCarrera}) no corresponde al grupo "${grupoRaw}" (${gpoCarrera})`;
+        errorMessage = `Aviso: "${materiaRaw}" (${matCarrera}) asignada al grupo "${grupoRaw}" (${gpoCarrera})`;
       } else if (isNewDocente) {
         status = 'warning';
         errorMessage = `Docente nuevo: se registrará en la base de datos con su matrícula "${matriculaRaw || 'auto-generada'}"`;
@@ -730,7 +730,7 @@ export default function BulkUploadHorariosModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md animate-fadeIn">
-      <div className="bg-[#0B132B] border border-blue-500/30 rounded-3xl max-w-5xl w-full p-5 sm:p-7 space-y-5 shadow-2xl shadow-blue-950/60 relative flex flex-col max-h-[92vh]">
+      <div className="bg-[#0B132B] border border-blue-500/30 rounded-3xl max-w-6xl w-full p-4 sm:p-6 space-y-4 shadow-2xl shadow-blue-950/60 relative flex flex-col max-h-[95vh] overflow-y-auto">
         
         {/* Header */}
         <div className="flex items-start justify-between border-b border-white/10 pb-4">
@@ -972,7 +972,7 @@ export default function BulkUploadHorariosModal({
                 </button>
               </div>
             ) : (
-              <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
+              <div className="space-y-4 flex flex-col flex-1">
                 
                 {/* PREGUNTA OBLIGATORIA SI HAY DÍAS ESPECIALES (DOMINGO U OTROS) */}
                 {pendingSpecialDayQuestion && (
@@ -1150,7 +1150,7 @@ export default function BulkUploadHorariosModal({
                 </div>
 
                 {/* Preview Table con Selección Previa */}
-                <div className="flex-1 overflow-y-auto border border-white/10 rounded-2xl bg-black/30 shadow-inner">
+                <div className="h-[390px] min-h-[300px] overflow-y-auto overflow-x-auto border border-white/10 rounded-2xl bg-black/40 shadow-inner relative">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead className="bg-[#0B132B] sticky top-0 z-10 backdrop-blur-md text-[11px] text-gray-400 uppercase tracking-wider border-b border-white/10 shadow-sm">
                       <tr>
