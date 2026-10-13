@@ -110,14 +110,71 @@ export default function BulkUploadHorariosModal({
 
   const normalizeDayName = (rawDay: string): string => {
     const d = normalizeStr(rawDay);
-    if (d.includes('lun')) return 'Lunes';
-    if (d.includes('mar')) return 'Martes';
-    if (d.includes('mie') || d.includes('mié')) return 'Miércoles';
-    if (d.includes('jue')) return 'Jueves';
-    if (d.includes('vie')) return 'Viernes';
-    if (d.includes('sab') || d.includes('sáb')) return 'Sábado';
-    if (d.includes('dom')) return 'Domingo';
+    if (!d) return 'Lunes';
+    
+    // Nombres completos o inicios en español/inglés
+    if (d.includes('lun') || d.startsWith('lun') || /\bmon/i.test(d)) return 'Lunes';
+    if (d.includes('mar') || d.startsWith('mar') || /\btue/i.test(d)) return 'Martes';
+    if (d.includes('mie') || d.includes('mié') || d.startsWith('mie') || /\bwed/i.test(d) || /\b(x)\b/i.test(d)) return 'Miércoles';
+    if (d.includes('jue') || d.startsWith('jue') || /\bthu/i.test(d)) return 'Jueves';
+    if (d.includes('vie') || d.startsWith('vie') || /\bfri/i.test(d)) return 'Viernes';
+    if (d.includes('sab') || d.includes('sáb') || d.startsWith('sab') || /\bsat/i.test(d)) return 'Sábado';
+    if (d.includes('dom') || d.startsWith('dom') || /\bsun/i.test(d)) return 'Domingo';
+
+    // Abreviaturas comunes de una o dos letras (L, M, MI, X, J, V, S, D)
+    const upper = d.toUpperCase().trim();
+    if (upper === 'L' || upper === 'LU') return 'Lunes';
+    if (upper === 'M' || upper === 'MA') return 'Martes';
+    if (upper === 'X' || upper === 'MI') return 'Miércoles';
+    if (upper === 'J' || upper === 'JU') return 'Jueves';
+    if (upper === 'V' || upper === 'VI') return 'Viernes';
+    if (upper === 'S' || upper === 'SA') return 'Sábado';
+    if (upper === 'D' || upper === 'DO') return 'Domingo';
+
+    // Números 1 a 7
+    if (upper === '1') return 'Lunes';
+    if (upper === '2') return 'Martes';
+    if (upper === '3') return 'Miércoles';
+    if (upper === '4') return 'Jueves';
+    if (upper === '5') return 'Viernes';
+    if (upper === '6') return 'Sábado';
+    if (upper === '7') return 'Domingo';
+
     return rawDay.trim() || 'Lunes';
+  };
+
+  const detectDayFromValue = (raw: any): string | null => {
+    if (!raw) return null;
+    const str = String(raw).trim();
+    if (!str) return null;
+    const d = normalizeStr(str);
+
+    if (d.includes('lun') || /\bmon/i.test(d)) return 'Lunes';
+    if (d.includes('mar') || /\btue/i.test(d)) return 'Martes';
+    if (d.includes('mie') || d.includes('mié') || /\bwed/i.test(d) || /\b(x)\b/i.test(d)) return 'Miércoles';
+    if (d.includes('jue') || /\bthu/i.test(d)) return 'Jueves';
+    if (d.includes('vie') || /\bfri/i.test(d)) return 'Viernes';
+    if (d.includes('sab') || d.includes('sáb') || /\bsat/i.test(d)) return 'Sábado';
+    if (d.includes('dom') || /\bsun/i.test(d)) return 'Domingo';
+
+    const upper = d.toUpperCase().trim();
+    if (upper === 'L' || upper === 'LU') return 'Lunes';
+    if (upper === 'M' || upper === 'MA') return 'Martes';
+    if (upper === 'X' || upper === 'MI') return 'Miércoles';
+    if (upper === 'J' || upper === 'JU') return 'Jueves';
+    if (upper === 'V' || upper === 'VI') return 'Viernes';
+    if (upper === 'S' || upper === 'SA') return 'Sábado';
+    if (upper === 'D' || upper === 'DO') return 'Domingo';
+
+    if (upper === '1') return 'Lunes';
+    if (upper === '2') return 'Martes';
+    if (upper === '3') return 'Miércoles';
+    if (upper === '4') return 'Jueves';
+    if (upper === '5') return 'Viernes';
+    if (upper === '6') return 'Sábado';
+    if (upper === '7') return 'Domingo';
+
+    return null;
   };
 
   const normalizeTimeStr = (t: any): string => {
@@ -216,12 +273,28 @@ export default function BulkUploadHorariosModal({
     );
 
     const findCol = (...aliases: string[]) => {
+      // 1. Coincidencia exacta
       for (const alias of aliases) {
         const idx = normHeaders.findIndex((h) => h === alias);
         if (idx !== -1) return idx;
       }
+      // 2. Coincidencia sin caracteres especiales (paréntesis, guiones, etc.)
       for (const alias of aliases) {
-        const idx = normHeaders.findIndex((h) => h.includes(alias));
+        const cleanA = alias.replace(/[^a-z0-9]/g, '');
+        const idx = normHeaders.findIndex((h) => h.replace(/[^a-z0-9]/g, '') === cleanA);
+        if (idx !== -1) return idx;
+      }
+      // 3. Coincidencia por subcadena, protegiendo palabras clave
+      for (const alias of aliases) {
+        const idx = normHeaders.findIndex((h) => {
+          if (alias === 'dia' || alias === 'dias') {
+            // Evitar colisión con 'estudiantes', 'mediador', 'modalidad', etc.
+            if (h.includes('estudiant') || h.includes('mediad') || h.includes('modalid') || h.includes('cardin')) {
+              return false;
+            }
+          }
+          return h.includes(alias);
+        });
         if (idx !== -1) return idx;
       }
       return -1;
@@ -234,7 +307,7 @@ export default function BulkUploadHorariosModal({
       'clavedocente', 'claveempleado', 'idempleado', 'iddocente', 'expediente', 'rfc', 'curp'
     );
 
-    // 2. Detección de columna de Nombre del Docente (sin 'clave' ni 'numempleado' para evitar colisiones)
+    // 2. Detección de columna de Nombre del Docente
     let colDocente = findCol(
       'docenteasignado', 'profesorasignado', 'maestroasignado', 'docente', 'profesor',
       'maestro', 'maestra', 'catedratico', 'titular', 'docenteresponsable', 'nombredocente',
@@ -242,7 +315,6 @@ export default function BulkUploadHorariosModal({
       'instructor', 'asesor', 'personalacademico', 'docente/profesor', 'nombrecompleto', 'nombre'
     );
 
-    // Si colDocente y colMatricula coincidieron, dejar colDocente buscar otra o desasociar
     if (colDocente !== -1 && colDocente === colMatricula) {
       colDocente = -1;
     }
@@ -250,9 +322,13 @@ export default function BulkUploadHorariosModal({
     const colCarrera = findCol('carrera', 'licenciatura', 'carreras', 'area');
     const colMateria = findCol('materia', 'asignatura', 'clase', 'unidad');
     const colGrupo = findCol('grupo', 'seccion', 'clavegrupo', 'gpo');
-    const colDia = findCol('dia', 'dias', 'diasemana', 'fechadia');
+    const colDia = findCol(
+      'dia', 'dias', 'diasemana', 'diadelasemana', 'fechadia', 'fechaclase',
+      'diadeclase', 'diasdeclase', 'diadeimparticion', 'diasdeimparticion', 'jornada', 'fecha',
+      'diahorario', 'diahora', 'diayhorario', 'diayhora', 'day', 'days', 'weekday'
+    );
     
-    // Columnas de horario (evitar alias 'a' o 'de' que coinciden con 'materia' o 'carrera')
+    // Columnas de horario
     const colHorario = findCol('horario', 'horas', 'hora', 'tiempo', 'rango');
     const colInicio = findCol('horainicio', 'horadeinicio', 'inicio', 'desde', 'horaentrada');
     const colFin = findCol('horafin', 'horadefin', 'fin', 'hasta', 'horasalida', 'termino');
@@ -275,7 +351,6 @@ export default function BulkUploadHorariosModal({
       if (!docRaw && targetDocente) docRaw = `${targetDocente.nombre} ${targetDocente.apellido_paterno}`;
       if (!matriculaRaw && targetDocente) matriculaRaw = targetDocente.num_empleado;
 
-      // Si docRaw parece una matrícula (ej: "DOC-102" o sólo código) y matriculaRaw está vacía
       if (docRaw && !matriculaRaw && (/^[A-Z]{2,4}[-_]?\d+/i.test(docRaw) || /^\d{4,8}$/.test(docRaw))) {
         matriculaRaw = docRaw;
         const found = existingDocentes.find((d) => normalizeStr(d.num_empleado) === normalizeStr(docRaw));
@@ -322,7 +397,52 @@ export default function BulkUploadHorariosModal({
       if (!docRaw && !matriculaRaw && !materiaRaw && !grupoRaw) continue;
 
       const matchedDoc = matchDocente(docRaw, matriculaRaw);
-      const diaClean = normalizeDayName(diaRaw || 'Lunes');
+
+      // DETECCIÓN MULTINIVEL DE DÍA DE LA CLASE:
+      let diaCandidate: string | null = null;
+
+      // 1. De la columna detectada colDia
+      if (colDia >= 0) {
+        diaCandidate = detectDayFromValue(row[colDia]);
+      }
+
+      // 2. De la columna colHorario (ej. "Martes 07:00 - 09:00")
+      if (!diaCandidate && colHorario >= 0) {
+        diaCandidate = detectDayFromValue(row[colHorario]);
+      }
+
+      // 3. De columnas colInicio o colFin
+      if (!diaCandidate && colInicio >= 0) {
+        diaCandidate = detectDayFromValue(row[colInicio]);
+      }
+      if (!diaCandidate && colFin >= 0) {
+        diaCandidate = detectDayFromValue(row[colFin]);
+      }
+
+      // 4. Escanear todas las demás celdas de la fila (priorizando las que no son materia/docente)
+      if (!diaCandidate) {
+        for (let c = 0; c < row.length; c++) {
+          if (c === colMateria || c === colDocente || c === colCarrera) continue;
+          const matchDay = detectDayFromValue(row[c]);
+          if (matchDay) {
+            diaCandidate = matchDay;
+            break;
+          }
+        }
+      }
+
+      // 5. Escaneo completo si no hubo coincidencia
+      if (!diaCandidate) {
+        for (let c = 0; c < row.length; c++) {
+          const matchDay = detectDayFromValue(row[c]);
+          if (matchDay) {
+            diaCandidate = matchDay;
+            break;
+          }
+        }
+      }
+
+      const diaClean = diaCandidate || (diaRaw ? normalizeDayName(diaRaw) : 'Lunes');
 
       // APLICACIÓN DE LA REGLA INSTITUCIONAL UNRC:
       // Lunes, Martes y Sábado: En Línea
@@ -492,6 +612,33 @@ export default function BulkUploadHorariosModal({
     }
 
     showToast(`Día ${day} clasificado como ${assignOnline ? 'En Línea 🌐' : 'Presencial 🏛️'}`, 'success');
+  };
+
+  // Cambiar el día de una fila específica directamente
+  const handleSetRowDay = (index: number, newDay: string) => {
+    setParsedRows((prev) =>
+      prev.map((r) => {
+        if (r.index === index) {
+          const modalityInfo = getInstitutionalModalityForDay(newDay);
+          const nextOnline = modalityInfo.es_en_linea;
+          let nextAula = r.aula;
+          if (nextOnline && (!nextAula || nextAula.includes('Campus') || nextAula.includes('Aula Asignada'))) {
+            nextAula = 'Aula Virtual UNRC (Google Meet / Classroom)';
+          } else if (!nextOnline && (nextAula.includes('Virtual') || nextAula.includes('Meet'))) {
+            nextAula = 'Campus Tijuana - Aula Asignada';
+          }
+          return {
+            ...r,
+            dia: newDay,
+            es_en_linea: nextOnline,
+            aula: nextAula,
+            isCustomDay: !modalityInfo.isStandardRule,
+          };
+        }
+        return r;
+      })
+    );
+    showToast(`Día actualizado a ${newDay}`, 'info');
   };
 
   // Asignar modalidad explícita (En Línea vs Presencial)
@@ -1243,10 +1390,25 @@ export default function BulkUploadHorariosModal({
                               </span>
                             </td>
 
-                            {/* Día & Horario */}
+                            {/* Día & Horario con Selector de Día Directo */}
                             <td className="p-3">
-                              <span className="font-bold text-white block">{row.dia}</span>
-                              <span className="text-[10px] text-gray-400 font-mono">
+                              <div className="flex items-center space-x-1.5 mb-1">
+                                <select
+                                  value={row.dia}
+                                  onChange={(e) => handleSetRowDay(row.index, e.target.value)}
+                                  className="bg-black/70 hover:bg-black/90 border border-white/20 hover:border-blue-400 focus:border-cyan-400 rounded-lg px-2 py-0.5 text-xs font-bold text-white transition-all cursor-pointer shadow-sm focus:outline-none"
+                                  title="Haz clic para seleccionar o corregir el día de la sesión"
+                                >
+                                  <option value="Lunes" className="bg-[#0B132B] text-white">Lunes</option>
+                                  <option value="Martes" className="bg-[#0B132B] text-white">Martes</option>
+                                  <option value="Miércoles" className="bg-[#0B132B] text-white">Miércoles</option>
+                                  <option value="Jueves" className="bg-[#0B132B] text-white">Jueves</option>
+                                  <option value="Viernes" className="bg-[#0B132B] text-white">Viernes</option>
+                                  <option value="Sábado" className="bg-[#0B132B] text-white">Sábado</option>
+                                  <option value="Domingo" className="bg-[#0B132B] text-white">Domingo</option>
+                                </select>
+                              </div>
+                              <span className="text-[10px] text-gray-400 font-mono block pl-0.5">
                                 {row.hora_inicio} - {row.hora_fin} hrs
                               </span>
                             </td>
