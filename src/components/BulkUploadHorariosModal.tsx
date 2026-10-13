@@ -19,7 +19,12 @@ import {
   Sparkles,
   ArrowRight,
   RotateCcw,
-  Globe
+  Globe,
+  CheckSquare,
+  Square,
+  SlidersHorizontal,
+  Check,
+  Filter
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Docente, Carrera, Sede, Grupo, Materia, db } from '@/lib/db';
@@ -34,6 +39,7 @@ import {
 
 export interface ParsedHorarioRow {
   index: number;
+  selected?: boolean;
   docenteRaw: string;
   matricula?: string;
   docenteMatched?: Docente;
@@ -80,7 +86,7 @@ export default function BulkUploadHorariosModal({
   const [parsedRows, setParsedRows] = useState<ParsedHorarioRow[]>([]);
   const [dragActive, setDragActive] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [filterStatus, setFilterStatus] = useState<'all' | 'valid' | 'warning' | 'error'>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'online' | 'presencial' | 'valid' | 'warning' | 'error'>('all');
   const [step, setStep] = useState<'upload' | 'preview' | 'completed'>('upload');
   const [savedResult, setSavedResult] = useState<{
     totalSlotsAdded: number;
@@ -360,6 +366,7 @@ export default function BulkUploadHorariosModal({
 
       rows.push({
         index: rows.length + 1,
+        selected: true,
         docenteRaw: resolvedDocenteRaw,
         matricula: resolvedMatricula,
         docenteMatched: matchedDoc,
@@ -487,12 +494,12 @@ export default function BulkUploadHorariosModal({
     showToast(`Día ${day} clasificado como ${assignOnline ? 'En Línea 🌐' : 'Presencial 🏛️'}`, 'success');
   };
 
-  // Alternar modalidad individual de una fila
-  const handleToggleRowModality = (index: number) => {
+  // Asignar modalidad explícita (En Línea vs Presencial)
+  const handleSetRowModality = (index: number, nextOnline: boolean) => {
     setParsedRows((prev) =>
       prev.map((r) => {
         if (r.index === index) {
-          const nextOnline = !r.es_en_linea;
+          if (r.es_en_linea === nextOnline) return r;
           let nextAula = r.aula;
           if (nextOnline && (!nextAula || nextAula.includes('Campus') || nextAula.includes('Aula Asignada'))) {
             nextAula = 'Aula Virtual UNRC (Google Meet / Classroom)';
@@ -511,6 +518,81 @@ export default function BulkUploadHorariosModal({
         return r;
       })
     );
+  };
+
+  // Alternar modalidad individual de una fila
+  const handleToggleRowModality = (index: number) => {
+    const row = parsedRows.find((r) => r.index === index);
+    if (row) {
+      handleSetRowModality(index, !row.es_en_linea);
+    }
+  };
+
+  // Asignar todas a En Línea o Presencial
+  const handleSetAllModality = (nextOnline: boolean) => {
+    setParsedRows((prev) =>
+      prev.map((r) => {
+        let nextAula = r.aula;
+        if (nextOnline && (!nextAula || nextAula.includes('Campus') || nextAula.includes('Aula Asignada'))) {
+          nextAula = 'Aula Virtual UNRC (Google Meet / Classroom)';
+        } else if (!nextOnline && (nextAula.includes('Virtual') || nextAula.includes('Meet'))) {
+          nextAula = 'Campus Tijuana - Aula Asignada';
+        }
+        return {
+          ...r,
+          es_en_linea: nextOnline,
+          aula: nextAula,
+          isCustomDay: false,
+          status: r.status === 'warning' && r.errorMessage?.includes('requiere confirmar') ? 'valid' : r.status,
+          errorMessage: r.errorMessage?.includes('requiere confirmar') ? undefined : r.errorMessage,
+        };
+      })
+    );
+    showToast(
+      nextOnline
+        ? 'Todas las materias asignadas a En Línea 🌐'
+        : 'Todas las materias asignadas a Presencial 🏛️',
+      'info'
+    );
+  };
+
+  // Restaurar regla institucional UNRC
+  const handleApplyInstitutionalRule = () => {
+    setParsedRows((prev) =>
+      prev.map((r) => {
+        const modalityInfo = getInstitutionalModalityForDay(r.dia);
+        const nextOnline = modalityInfo.es_en_linea;
+        let nextAula = r.aula;
+        if (nextOnline && (!nextAula || nextAula.includes('Campus') || nextAula.includes('Aula Asignada'))) {
+          nextAula = 'Aula Virtual UNRC (Google Meet / Classroom)';
+        } else if (!nextOnline && (nextAula.includes('Virtual') || nextAula.includes('Meet'))) {
+          nextAula = 'Campus Tijuana - Aula Asignada';
+        }
+        return {
+          ...r,
+          es_en_linea: nextOnline,
+          aula: nextAula,
+          isCustomDay: false,
+          status: r.status === 'warning' && r.errorMessage?.includes('requiere confirmar') ? 'valid' : r.status,
+          errorMessage: r.errorMessage?.includes('requiere confirmar') ? undefined : r.errorMessage,
+        };
+      })
+    );
+    showToast('Regla institucional restaurada: Lun/Mar/Sáb en Línea y Mié/Jue/Vie presencial', 'success');
+  };
+
+  // Alternar selección de una fila
+  const handleToggleSelectRow = (index: number) => {
+    setParsedRows((prev) =>
+      prev.map((r) => (r.index === index ? { ...r, selected: !(r.selected ?? true) } : r))
+    );
+  };
+
+  const areAllSelected = parsedRows.length > 0 && parsedRows.every((r) => r.selected ?? true);
+
+  const handleToggleSelectAll = () => {
+    const nextVal = !areAllSelected;
+    setParsedRows((prev) => prev.map((r) => ({ ...r, selected: nextVal })));
   };
 
   // Descargar plantilla oficial adaptada con la regla institucional y matrícula del docente
@@ -560,9 +642,9 @@ export default function BulkUploadHorariosModal({
       return;
     }
 
-    const toImport = parsedRows.filter((r) => r.status !== 'error');
+    const toImport = parsedRows.filter((r) => (r.selected ?? true) && r.status !== 'error');
     if (toImport.length === 0) {
-      showToast('No hay bloques de horario válidos para guardar.', 'error');
+      showToast('No has seleccionado bloques de horario válidos para guardar.', 'error');
       return;
     }
 
@@ -633,8 +715,13 @@ export default function BulkUploadHorariosModal({
   const validCount = parsedRows.filter((r) => r.status === 'valid').length;
   const warningCount = parsedRows.filter((r) => r.status === 'warning').length;
   const errorCount = parsedRows.filter((r) => r.status === 'error').length;
+  const selectedCount = parsedRows.filter((r) => (r.selected ?? true) && r.status !== 'error').length;
+  const onlineCount = parsedRows.filter((r) => (r.selected ?? true) && r.es_en_linea).length;
+  const presencialCount = parsedRows.filter((r) => (r.selected ?? true) && !r.es_en_linea).length;
 
   const filteredRows = parsedRows.filter((r) => {
+    if (filterStatus === 'online') return r.es_en_linea;
+    if (filterStatus === 'presencial') return !r.es_en_linea;
     if (filterStatus === 'valid') return r.status === 'valid';
     if (filterStatus === 'warning') return r.status === 'warning';
     if (filterStatus === 'error') return r.status === 'error';
@@ -926,168 +1013,353 @@ export default function BulkUploadHorariosModal({
                   </div>
                 )}
 
-                {/* Stats bar */}
-                <div className="flex flex-wrap items-center justify-between gap-3 bg-black/40 p-3 rounded-2xl border border-white/10 text-xs">
-                  <div className="flex items-center space-x-4 flex-wrap">
-                    <span className="text-gray-400">
-                      Archivo: <strong className="text-white">{file?.name}</strong> ({parsedRows.length} registros)
-                    </span>
-                    <span className="text-emerald-400 font-bold">✓ {validCount} válidos</span>
-                    {warningCount > 0 && <span className="text-amber-400 font-bold">⚠ {warningCount} por revisar</span>}
-                    {errorCount > 0 && <span className="text-rose-400 font-bold">✕ {errorCount} con error</span>}
+                {/* Panel Superior: Selección Previa de Modalidad y Acciones Masivas */}
+                <div className="p-3.5 rounded-2xl bg-gradient-to-r from-slate-900/95 via-[#0B172B] to-slate-900/95 border border-blue-500/30 space-y-3 shadow-xl">
+                  <div className="flex flex-wrap items-center justify-between gap-2.5">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-8 h-8 rounded-xl bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-300">
+                        <SlidersHorizontal className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-xs font-black text-white uppercase tracking-wider">
+                            Selección Previa de Modalidad
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                            Revisión Antes de Guardar
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-gray-400">
+                          Elige cuáles materias se impartirán En Línea y cuáles Presenciales antes de guardar en la base de datos.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Botones de acción masiva */}
+                    <div className="flex items-center space-x-2 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => handleSetAllModality(true)}
+                        className="px-2.5 py-1.5 rounded-xl bg-cyan-600/20 hover:bg-cyan-600/35 text-cyan-300 border border-cyan-500/40 text-xs font-bold flex items-center space-x-1.5 transition-all shadow-sm active:scale-95"
+                        title="Asignar todas las materias como En Línea"
+                      >
+                        <Globe className="w-3.5 h-3.5" />
+                        <span>Todas En Línea</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleSetAllModality(false)}
+                        className="px-2.5 py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/35 text-emerald-300 border border-emerald-500/40 text-xs font-bold flex items-center space-x-1.5 transition-all shadow-sm active:scale-95"
+                        title="Asignar todas las materias como Presenciales"
+                      >
+                        <Building className="w-3.5 h-3.5" />
+                        <span>Todas Presenciales</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleApplyInstitutionalRule}
+                        className="px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-amber-300 border border-amber-500/30 text-xs font-bold flex items-center space-x-1.5 transition-all shadow-sm active:scale-95"
+                        title="Aplicar regla UNRC: Lun/Mar/Sáb en Línea y Mié/Jue/Vie Presencial"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        <span>Regla UNRC (L-M-S / M-J-V)</span>
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setParsedRows([]);
-                        setFile(null);
-                        setPendingSpecialDayQuestion(null);
-                      }}
-                      className="px-3 py-1 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 font-bold text-xs flex items-center space-x-1 transition-colors"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>Limpiar</span>
-                    </button>
+
+                  {/* Resumen de contadores, filtros y selección */}
+                  <div className="flex flex-wrap items-center justify-between gap-2.5 pt-2 border-t border-white/10 text-xs">
+                    <div className="flex items-center space-x-3 flex-wrap">
+                      <div className="flex items-center space-x-1.5 bg-black/40 px-2.5 py-1 rounded-xl border border-white/10">
+                        <button
+                          type="button"
+                          onClick={handleToggleSelectAll}
+                          className="flex items-center space-x-1.5 text-gray-300 hover:text-white transition-colors"
+                          title={areAllSelected ? 'Desmarcar todas' : 'Seleccionar todas'}
+                        >
+                          {areAllSelected ? (
+                            <CheckSquare className="w-3.5 h-3.5 text-emerald-400" />
+                          ) : (
+                            <Square className="w-3.5 h-3.5 text-gray-500" />
+                          )}
+                          <span className="font-bold">
+                            {selectedCount} de {parsedRows.length} seleccionadas
+                          </span>
+                        </button>
+                      </div>
+
+                      <span className="px-2.5 py-1 rounded-xl bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 font-bold flex items-center space-x-1">
+                        <Globe className="w-3 h-3" />
+                        <span>{onlineCount} En Línea</span>
+                      </span>
+
+                      <span className="px-2.5 py-1 rounded-xl bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-bold flex items-center space-x-1">
+                        <Building className="w-3 h-3" />
+                        <span>{presencialCount} Presenciales</span>
+                      </span>
+
+                      {warningCount > 0 && (
+                        <span className="text-amber-400 font-bold text-[11px]">⚠ {warningCount} por revisar</span>
+                      )}
+                      {errorCount > 0 && (
+                        <span className="text-rose-400 font-bold text-[11px]">✕ {errorCount} con error</span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      {/* Filtros por modalidad y estado */}
+                      <div className="flex items-center space-x-1 bg-black/40 p-0.5 rounded-xl border border-white/10">
+                        <Filter className="w-3 h-3 text-gray-400 ml-1.5" />
+                        {(['all', 'online', 'presencial', 'warning', 'error'] as const).map((st) => (
+                          <button
+                            key={st}
+                            type="button"
+                            onClick={() => setFilterStatus(st)}
+                            className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all ${
+                              filterStatus === st
+                                ? 'bg-blue-600 text-white shadow-sm font-extrabold'
+                                : 'text-gray-400 hover:text-gray-200'
+                            }`}
+                          >
+                            {st === 'all' && 'Todas'}
+                            {st === 'online' && '🌐 En Línea'}
+                            {st === 'presencial' && '🏛️ Presenciales'}
+                            {st === 'warning' && '⚠ Avisos'}
+                            {st === 'error' && '✕ Errores'}
+                          </button>
+                        ))}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setParsedRows([]);
+                          setFile(null);
+                          setPendingSpecialDayQuestion(null);
+                        }}
+                        className="px-2.5 py-1 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 font-bold text-xs flex items-center space-x-1 transition-colors"
+                        title="Limpiar archivo cargado"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        <span>Limpiar</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
 
-                {/* Preview Table */}
-                <div className="flex-1 overflow-y-auto border border-white/10 rounded-2xl bg-black/30">
+                {/* Preview Table con Selección Previa */}
+                <div className="flex-1 overflow-y-auto border border-white/10 rounded-2xl bg-black/30 shadow-inner">
                   <table className="w-full text-left text-xs border-collapse">
-                    <thead className="bg-white/5 sticky top-0 backdrop-blur-md text-[11px] text-gray-400 uppercase tracking-wider border-b border-white/10">
+                    <thead className="bg-[#0B132B] sticky top-0 z-10 backdrop-blur-md text-[11px] text-gray-400 uppercase tracking-wider border-b border-white/10 shadow-sm">
                       <tr>
-                        <th className="p-3">#</th>
-                        <th className="p-3">Docente Asignado</th>
-                        <th className="p-3">Materia</th>
+                        <th className="p-3 w-10 text-center">
+                          <button
+                            type="button"
+                            onClick={handleToggleSelectAll}
+                            className="text-gray-400 hover:text-white transition-colors"
+                            title={areAllSelected ? 'Desmarcar todas' : 'Seleccionar todas'}
+                          >
+                            {areAllSelected ? (
+                              <CheckSquare className="w-4 h-4 text-emerald-400" />
+                            ) : (
+                              <Square className="w-4 h-4 text-gray-500" />
+                            )}
+                          </button>
+                        </th>
+                        <th className="p-3 w-8">#</th>
+                        <th className="p-3 min-w-[200px]">Docente Asignado & Matrícula</th>
+                        <th className="p-3 min-w-[200px]">Materia & Carrera</th>
                         <th className="p-3">Grupo</th>
                         <th className="p-3">Día & Horario</th>
-                        <th className="p-3">Aula / Modalidad</th>
+                        <th className="p-3 min-w-[210px] text-center">Modalidad (Selección Previa)</th>
+                        <th className="p-3 min-w-[170px]">Aula Asignada</th>
                         <th className="p-3">Estado</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5 text-gray-300">
-                      {filteredRows.map((row) => (
-                        <tr key={row.index} className="hover:bg-white/[0.02] transition-colors">
-                          <td className="p-3 text-gray-500 font-mono">{row.index}</td>
-                          <td className="p-3 font-semibold text-white">
-                            <div className="flex items-center space-x-2">
-                              <UserCheck className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                              <span className="font-bold">
-                                {row.docenteMatched
-                                  ? `${row.docenteMatched.nombre} ${row.docenteMatched.apellido_paterno}`
-                                  : row.docenteRaw || 'Docente Titular'}
+                      {filteredRows.map((row) => {
+                        const isRowSelected = row.selected ?? true;
+                        return (
+                          <tr
+                            key={row.index}
+                            className={`transition-colors ${
+                              isRowSelected ? 'hover:bg-white/[0.03]' : 'opacity-50 bg-black/20'
+                            }`}
+                          >
+                            {/* Checkbox de selección individual */}
+                            <td className="p-3 text-center">
+                              <button
+                                type="button"
+                                onClick={() => handleToggleSelectRow(row.index)}
+                                className="p-1 rounded-md hover:bg-white/10 transition-colors"
+                                title={isRowSelected ? 'Desmarcar esta materia' : 'Marcar para subir a base de datos'}
+                              >
+                                {isRowSelected ? (
+                                  <CheckSquare className="w-4 h-4 text-emerald-400" />
+                                ) : (
+                                  <Square className="w-4 h-4 text-gray-600" />
+                                )}
+                              </button>
+                            </td>
+
+                            <td className="p-3 text-gray-500 font-mono text-[11px]">{row.index}</td>
+
+                            {/* Docente Asignado & Matrícula */}
+                            <td className="p-3 font-semibold text-white">
+                              <div className="flex items-center space-x-2">
+                                <UserCheck className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                                <span className="font-bold text-sm">
+                                  {row.docenteMatched
+                                    ? `${row.docenteMatched.nombre} ${row.docenteMatched.apellido_paterno}`
+                                    : row.docenteRaw || 'Docente Titular'}
+                                </span>
+                              </div>
+                              <div className="flex items-center space-x-1.5 mt-1 pl-5.5 flex-wrap">
+                                {(row.matricula || row.docenteMatched?.num_empleado) && (
+                                  <span className="text-[10px] text-emerald-400 font-mono font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                                    Matrícula: {row.matricula || row.docenteMatched?.num_empleado}
+                                  </span>
+                                )}
+                                {row.isNewDocente && (
+                                  <span className="text-[9px] text-cyan-300 bg-cyan-500/10 px-1.5 py-0.5 rounded border border-cyan-500/20 font-medium">
+                                    ✨ Se dará de alta en BD
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+
+                            {/* Materia & Carrera */}
+                            <td className="p-3">
+                              <span className="font-bold text-amber-200 block text-xs">{row.materia}</span>
+                              {row.carrera && <span className="text-[10px] text-gray-400 block mt-0.5">{row.carrera}</span>}
+                            </td>
+
+                            {/* Grupo */}
+                            <td className="p-3">
+                              <span className="px-2 py-0.5 rounded-md text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold font-mono inline-block">
+                                {row.grupo}
                               </span>
-                            </div>
-                            <div className="flex items-center space-x-1.5 mt-1 pl-5.5 flex-wrap">
-                              {(row.matricula || row.docenteMatched?.num_empleado) && (
-                                <span className="text-[10px] text-emerald-400 font-mono font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
-                                  Matrícula: {row.matricula || row.docenteMatched?.num_empleado}
+                            </td>
+
+                            {/* Día & Horario */}
+                            <td className="p-3">
+                              <span className="font-bold text-white block">{row.dia}</span>
+                              <span className="text-[10px] text-gray-400 font-mono">
+                                {row.hora_inicio} - {row.hora_fin} hrs
+                              </span>
+                            </td>
+
+                            {/* SELECTOR PREVIO DE MODALIDAD (EN LÍNEA VS PRESENCIAL) */}
+                            <td className="p-3 text-center">
+                              <div className="inline-flex items-center p-0.5 rounded-xl bg-black/60 border border-white/15 shadow-inner">
+                                <button
+                                  type="button"
+                                  onClick={() => handleSetRowModality(row.index, true)}
+                                  className={`px-3 py-1 rounded-lg text-[10px] font-black flex items-center space-x-1.5 transition-all cursor-pointer ${
+                                    row.es_en_linea
+                                      ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-md shadow-cyan-950/60 ring-1 ring-cyan-400 font-extrabold'
+                                      : 'text-gray-400 hover:text-cyan-300 hover:bg-white/5'
+                                  }`}
+                                  title="Seleccionar modalidad En Línea (Virtual)"
+                                >
+                                  <Globe className="w-3 h-3 text-cyan-200" />
+                                  <span>En Línea</span>
+                                  {row.es_en_linea && <Check className="w-2.5 h-2.5 text-cyan-200 ml-0.5" />}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleSetRowModality(row.index, false)}
+                                  className={`px-3 py-1 rounded-lg text-[10px] font-black flex items-center space-x-1.5 transition-all cursor-pointer ${
+                                    !row.es_en_linea
+                                      ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-950/60 ring-1 ring-emerald-400 font-extrabold'
+                                      : 'text-gray-400 hover:text-emerald-300 hover:bg-white/5'
+                                  }`}
+                                  title="Seleccionar modalidad Presencial (Campus)"
+                                >
+                                  <Building className="w-3 h-3 text-emerald-200" />
+                                  <span>Presencial</span>
+                                  {!row.es_en_linea && <Check className="w-2.5 h-2.5 text-emerald-200 ml-0.5" />}
+                                </button>
+                              </div>
+
+                              {row.isCustomDay && (
+                                <span className="text-[9px] text-amber-400 block mt-1 font-semibold">
+                                  ⚠️ Día atípico
+                                </span>
+                              )}
+                            </td>
+
+                            {/* Aula Asignada */}
+                            <td className="p-3">
+                              <div className="flex items-center space-x-1.5">
+                                <span
+                                  className={`w-1.5 h-3.5 rounded-full shrink-0 ${
+                                    row.es_en_linea ? 'bg-cyan-400' : 'bg-emerald-400'
+                                  }`}
+                                />
+                                <span className="text-[11px] text-gray-200 truncate max-w-[210px] font-medium" title={row.aula}>
+                                  {row.aula}
+                                </span>
+                              </div>
+                              <span className="text-[10px] text-gray-400 block mt-0.5 pl-3">
+                                {row.es_en_linea ? '🌐 Plataforma Virtual UNRC' : '🏛️ Campus Físico'}
+                              </span>
+                            </td>
+
+                            {/* Estado */}
+                            <td className="p-3">
+                              {row.status === 'valid' && !row.isNewDocente && (
+                                <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold whitespace-nowrap">
+                                  ✓ Listo
                                 </span>
                               )}
                               {row.isNewDocente && (
-                                <span className="text-[9px] text-cyan-300 bg-cyan-500/10 px-1.5 py-0.5 rounded border border-cyan-500/20 font-medium">
-                                  ✨ Se dará de alta en BD
+                                <span
+                                  className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-bold cursor-help whitespace-nowrap"
+                                  title={row.errorMessage || 'Docente nuevo: se registrará en BD con su matrícula'}
+                                >
+                                  ⚠ Docente nuevo
                                 </span>
                               )}
-                            </div>
-                          </td>
-                          <td className="p-3">
-                            <span className="font-bold text-amber-200 block">{row.materia}</span>
-                            {row.carrera && <span className="text-[10px] text-gray-400 block">{row.carrera}</span>}
-                          </td>
-                          <td className="p-3">
-                            <span className="px-2 py-0.5 rounded-md text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold font-mono inline-block">
-                              {row.grupo}
-                            </span>
-                          </td>
-                          <td className="p-3">
-                            <span className="font-bold text-white block">{row.dia}</span>
-                            <span className="text-[10px] text-gray-400 font-mono">
-                              {row.hora_inicio} - {row.hora_fin} hrs
-                            </span>
-                          </td>
-                          <td className="p-3">
-                            <div className="flex items-center space-x-1.5 mb-1.5">
-                              <span className="w-1.5 h-3.5 bg-emerald-500 rounded-full shrink-0" />
-                              <span className="text-[11px] text-gray-200 truncate max-w-[200px]" title={row.aula}>
-                                {row.aula}
-                              </span>
-                            </div>
-                            {/* Botón interactivo para alternar modalidad de la fila con 1 clic */}
-                            <button
-                              type="button"
-                              onClick={() => handleToggleRowModality(row.index)}
-                              className={`px-2 py-0.5 rounded-lg text-[9px] font-extrabold border transition-all flex items-center space-x-1 cursor-pointer shadow-sm ${
-                                row.es_en_linea
-                                  ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 hover:bg-cyan-500/30'
-                                  : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30'
-                              }`}
-                              title="Haz clic para cambiar la modalidad (En línea vs Presencial)"
-                            >
-                              {row.es_en_linea ? (
-                                <>
-                                  <Globe className="w-2.5 h-2.5 text-cyan-400" />
-                                  <span>🌐 EN LÍNEA</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Building className="w-2.5 h-2.5 text-emerald-400" />
-                                  <span>🏛️ PRESENCIAL</span>
-                                </>
+                              {row.status === 'warning' && !row.isNewDocente && (
+                                <span
+                                  className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-bold cursor-help whitespace-nowrap"
+                                  title={row.errorMessage}
+                                >
+                                  ⚠ {row.errorMessage || 'Revisar'}
+                                </span>
                               )}
-                            </button>
-                            {row.isCustomDay && (
-                              <span className="text-[9px] text-amber-400 block mt-0.5">
-                                ⚠️ Día especial
-                              </span>
-                            )}
-                          </td>
-                          <td className="p-3">
-                            {row.status === 'valid' && !row.isNewDocente && (
-                              <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold whitespace-nowrap">
-                                ✓ Listo
-                              </span>
-                            )}
-                            {row.isNewDocente && (
-                              <span
-                                className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-bold cursor-help whitespace-nowrap"
-                                title={row.errorMessage || 'Docente nuevo: se registrará en BD con su matrícula'}
-                              >
-                                ⚠ Docente nuevo
-                              </span>
-                            )}
-                            {row.status === 'warning' && !row.isNewDocente && (
-                              <span
-                                className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-bold cursor-help whitespace-nowrap"
-                                title={row.errorMessage}
-                              >
-                                ⚠ {row.errorMessage || 'Revisar'}
-                              </span>
-                            )}
-                            {row.status === 'error' && (
-                              <span
-                                className="px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20 text-[10px] font-bold cursor-help whitespace-nowrap"
-                                title={row.errorMessage}
-                              >
-                                ✕ Error
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
+                              {row.status === 'error' && (
+                                <span
+                                  className="px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20 text-[10px] font-bold cursor-help whitespace-nowrap"
+                                  title={row.errorMessage}
+                                >
+                                  ✕ Error
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
 
                 {/* Footer buttons */}
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-white/10">
-                  <p className="text-xs text-gray-400 flex items-center space-x-1.5">
+                  <div className="flex items-center space-x-2 text-xs text-gray-300">
                     <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                     <span>
-                      Al guardar se grabarán en la base de datos para visualizarlos en PDF y exportarlos a Google Calendar.
+                      Se guardarán en la base de datos{' '}
+                      <strong className="text-white">{selectedCount} materias seleccionadas</strong>{' '}
+                      (<span className="text-cyan-300 font-bold">{onlineCount} En Línea</span>,{' '}
+                      <span className="text-emerald-300 font-bold">{presencialCount} Presenciales</span>).
                     </span>
-                  </p>
+                  </div>
+
                   <div className="flex items-center space-x-3 w-full sm:w-auto">
                     <button
                       type="button"
@@ -1099,9 +1371,9 @@ export default function BulkUploadHorariosModal({
                     </button>
                     <button
                       type="button"
-                      disabled={isSubmitting || validCount + warningCount === 0 || Boolean(pendingSpecialDayQuestion)}
+                      disabled={isSubmitting || selectedCount === 0 || Boolean(pendingSpecialDayQuestion)}
                       onClick={handleConfirmImport}
-                      className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50 text-white font-extrabold text-xs shadow-lg shadow-blue-600/30 transition-all flex items-center justify-center space-x-2"
+                      className="flex-1 sm:flex-none px-6 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50 text-white font-extrabold text-xs shadow-xl shadow-blue-600/30 transition-all flex items-center justify-center space-x-2 active:scale-95"
                     >
                       {isSubmitting ? (
                         <>
@@ -1110,9 +1382,9 @@ export default function BulkUploadHorariosModal({
                         </>
                       ) : (
                         <>
-                          <CheckCircle2 className="w-4 h-4" />
+                          <CheckCircle2 className="w-4 h-4 text-emerald-300" />
                           <span>
-                            Grabar en Base de Datos ({validCount + warningCount} Bloques)
+                            Subir a Base de Datos ({selectedCount} Materias)
                           </span>
                         </>
                       )}
