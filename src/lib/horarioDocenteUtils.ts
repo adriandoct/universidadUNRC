@@ -207,9 +207,79 @@ export function downloadDocenteICS(docente: Docente): void {
 }
 
 /**
- * Genera el documento PDF oficial del horario del docente con diseño institucional UNRC
+/**
+ * Determina la modalidad oficial para un día según la regla institucional UNRC:
+ * - Lunes, Martes y Sábado: En Línea (Virtual)
+ * - Miércoles, Jueves y Viernes: Presencial (Campus)
+ * - Domingo y otros casos: Requiere confirmación previa (Preguntar antes)
  */
-export function generateDocenteHorarioPDF(docente: Docente): void {
+export function getInstitutionalModalityForDay(
+  day: string,
+  explicitModality?: string
+): { es_en_linea: boolean; isStandardRule: boolean; aulaSugerida: string } {
+  const normDay = (day || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+  const normMod = (explicitModality || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+
+  // Si el archivo especificó explícitamente "en línea" o "virtual"
+  if (normMod.includes('linea') || normMod.includes('virtual') || normMod.includes('remot') || normMod.includes('meet')) {
+    return {
+      es_en_linea: true,
+      isStandardRule: true,
+      aulaSugerida: 'Aula Virtual UNRC (Google Meet / Classroom)',
+    };
+  }
+
+  // Si especificó "presencial" o campus
+  if (normMod.includes('presencial') || normMod.includes('campus') || normMod.includes('fisic')) {
+    return {
+      es_en_linea: false,
+      isStandardRule: true,
+      aulaSugerida: 'Campus Tijuana - Aula Asignada',
+    };
+  }
+
+  // Regla Oficial UNRC: Lunes, Martes y Sábado En Línea
+  if (normDay.includes('lun') || normDay.includes('mar') || normDay.includes('sab')) {
+    return {
+      es_en_linea: true,
+      isStandardRule: true,
+      aulaSugerida: 'Aula Virtual UNRC (Google Meet / Classroom)',
+    };
+  }
+
+  // Miércoles, Jueves y Viernes Presencial
+  if (normDay.includes('mie') || normDay.includes('jue') || normDay.includes('vie')) {
+    return {
+      es_en_linea: false,
+      isStandardRule: true,
+      aulaSugerida: 'Campus Tijuana - Aula Asignada',
+    };
+  }
+
+  // En los demás casos (Domingo u otros): Requiere confirmación previa
+  return {
+    es_en_linea: false,
+    isStandardRule: false,
+    aulaSugerida: 'Por definir (requiere confirmación)',
+  };
+}
+
+/**
+ * Genera el documento PDF oficial del horario del docente con diseño institucional UNRC.
+ * Permite descargar, previsualizar en nueva pestaña o ambos.
+ */
+export function generateDocenteHorarioPDF(
+  docente: Docente,
+  action: 'download' | 'preview' | 'both' = 'download'
+): string | void {
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -450,9 +520,23 @@ export function generateDocenteHorarioPDF(docente: Docente): void {
     pageHeight - 8
   );
 
-  // Guardar archivo
+  // Guardar archivo o visualizar
   const safeName = (docente.num_empleado || 'DOCENTE').replace(/[^a-zA-Z0-9-_]/g, '_');
-  doc.save(`Horario_Docente_${safeName}_UNRC.pdf`);
+  let blobUrl: string | undefined = undefined;
+
+  if (action === 'preview' || action === 'both') {
+    const rawUrl = doc.output('bloburl');
+    blobUrl = typeof rawUrl === 'string' ? rawUrl : (rawUrl as any)?.toString?.() || String(rawUrl);
+    if (typeof window !== 'undefined' && blobUrl) {
+      window.open(blobUrl, '_blank');
+    }
+  }
+
+  if (action === 'download' || action === 'both') {
+    doc.save(`Horario_Docente_${safeName}_UNRC.pdf`);
+  }
+
+  return blobUrl;
 }
 
 /**

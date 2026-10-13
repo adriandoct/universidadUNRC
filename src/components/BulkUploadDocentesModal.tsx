@@ -196,7 +196,7 @@ export default function BulkUploadDocentesModal({
       colEmail: findCol('correo', 'correoelectronico', 'email', 'correoinstitucional', 'mail'),
       colTelefono: findCol('telefono', 'celular', 'tel', 'phone', 'movil'),
       colCarreras: findCol('carrerasqueimparte', 'carreras', 'carrera', 'carrerasimparte', 'abreviatura', 'abreviaturas', 'carrerasabreviatura', 'licenciaturas', 'area'),
-      colNumEmpleado: findCol('numempleado', 'numeroempleado', 'clave', 'clavedocente', 'id', 'noempleado')
+      colNumEmpleado: findCol('matricula', 'matriculadocente', 'numempleado', 'numeroempleado', 'clave', 'clavedocente', 'id', 'noempleado', 'expediente', 'rfc')
     };
 
     // Fallbacks si no se encontró columna exacta

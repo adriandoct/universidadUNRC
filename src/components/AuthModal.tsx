@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../lib/AuthContext';
 import { UserRole } from '../lib/db';
+import { authenticateDocenteByVoice, playChime } from '../lib/voiceAssistant';
 
 export const AuthModal: React.FC = () => {
   const {
@@ -206,6 +207,35 @@ export const AuthModal: React.FC = () => {
                 >
                   {isSubmitting ? 'Verificando...' : `Ingresar como ${activeTab === 'alumno' ? 'Alumno' : 'Docente'}`}
                 </button>
+
+                {activeTab === 'docente' && (
+                  <div className="pt-2 border-t border-white/10">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        setIsSubmitting(true);
+                        playChime('listen');
+                        const res = await authenticateDocenteByVoice(null, { autoSpeakSchedule: true });
+                        if (res.success) {
+                          playChime('success');
+                          closeAuthModal();
+                          window.location.href = '/teacher';
+                        } else {
+                          setErrorMessage(res.error || 'Error al iniciar sesión por voz.');
+                          setIsSubmitting(false);
+                        }
+                      }}
+                      disabled={isSubmitting}
+                      className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-blue-900/60 to-[#5B142F]/60 hover:from-blue-800 hover:to-[#7E1A42] border border-blue-400/40 text-blue-200 hover:text-white text-xs font-bold transition-all shadow flex items-center justify-between group cursor-pointer disabled:opacity-50"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <span className="text-base">🎙️</span>
+                        <span>Acceso Directo por Voz (Adrián Silva)</span>
+                      </div>
+                      <span className="text-[10px] text-amber-300 font-mono">⚡ Automático</span>
+                    </button>
+                  </div>
+                )}
               </form>
             </div>
           )}

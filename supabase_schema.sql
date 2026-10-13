@@ -135,11 +135,13 @@ CREATE TABLE IF NOT EXISTS public.docentes (
 );
 
 -- Columnas de horarios y asignación académica para docentes:
+ALTER TABLE public.docentes ADD COLUMN IF NOT EXISTS matricula TEXT;
 ALTER TABLE public.docentes ADD COLUMN IF NOT EXISTS horario_resumen TEXT;
 ALTER TABLE public.docentes ADD COLUMN IF NOT EXISTS horarios JSONB DEFAULT '[]'::jsonb;
 ALTER TABLE public.docentes ADD COLUMN IF NOT EXISTS carreras_asignadas TEXT[];
 ALTER TABLE public.docentes ADD COLUMN IF NOT EXISTS sede_id TEXT DEFAULT 'sede-tij';
 ALTER TABLE public.docentes ADD COLUMN IF NOT EXISTS sede_nombre TEXT DEFAULT 'Campus Tijuana';
+UPDATE public.docentes SET matricula = num_empleado WHERE matricula IS NULL;
 
 -- Políticas de RLS para lectura y escritura transparente de Docentes y Horarios:
 ALTER TABLE public.docentes ENABLE ROW LEVEL SECURITY;

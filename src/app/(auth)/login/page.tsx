@@ -11,8 +11,11 @@ import {
   Eye, 
   EyeOff, 
   ShieldAlert,
-  ShieldCheck
+  ShieldCheck,
+  Mic,
+  Sparkles
 } from 'lucide-react';
+import { authenticateDocenteByVoice, playChime } from '@/lib/voiceAssistant';
 
 export default function LoginPage() {
   const [selectedRole, setSelectedRole] = useState<'admin' | 'teacher' | 'student' | 'guardian'>('admin');
@@ -281,6 +284,39 @@ export default function LoginPage() {
               </>
             )}
           </button>
+
+          {/* Quick Voice Access for Teachers */}
+          <div className="pt-2 border-t border-white/10">
+            <button
+              type="button"
+              onClick={async () => {
+                setLoading(true);
+                setErrorMsg('');
+                playChime('listen');
+                const res = await authenticateDocenteByVoice(null, { autoSpeakSchedule: true });
+                if (res.success) {
+                  playChime('success');
+                  window.location.href = '/teacher';
+                } else {
+                  setErrorMsg(res.error || 'No se pudo iniciar sesión por voz.');
+                  setLoading(false);
+                }
+              }}
+              disabled={loading}
+              className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-blue-950/80 via-slate-900 to-[#5B142F]/50 hover:from-blue-900 hover:to-[#7E1A42] border border-blue-400/50 hover:border-amber-400 text-blue-200 hover:text-white text-xs font-bold transition-all shadow-lg flex items-center justify-between group cursor-pointer disabled:opacity-50"
+            >
+              <div className="flex items-center space-x-2.5">
+                <div className="p-1.5 rounded-xl bg-blue-500/20 text-blue-300 border border-blue-400/30 group-hover:scale-110 transition-transform">
+                  <Mic className="w-4 h-4 text-amber-300" />
+                </div>
+                <div className="text-left">
+                  <span className="block text-white font-extrabold">Acceso Inteligente por Voz (Docente)</span>
+                  <span className="block text-[10px] text-amber-300 font-normal">Identificación automática • Lectura de horario y grupo</span>
+                </div>
+              </div>
+              <Sparkles className="w-4 h-4 text-amber-300 group-hover:rotate-12 transition-transform" />
+            </button>
+          </div>
         </form>
 
         {/* Security Notice */}

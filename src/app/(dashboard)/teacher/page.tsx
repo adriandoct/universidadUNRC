@@ -16,7 +16,12 @@ import {
   ExternalLink,
   Download,
   Users,
-  Layers
+  Layers,
+  Volume2,
+  VolumeX,
+  Mic,
+  Bot,
+  Radio
 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { db, Docente, HorarioDocenteItem, Alumno, Grupo, Materia, Carrera } from '@/lib/db';
@@ -25,6 +30,13 @@ import {
   downloadDocenteICS,
   createGoogleCalendarUrl
 } from '@/lib/horarioDocenteUtils';
+import {
+  analyzeDocenteSchedule,
+  speakText,
+  stopSpeech,
+  playChime,
+  DocenteScheduleAnalysis
+} from '@/lib/voiceAssistant';
 
 export interface AssignedCourseItem {
   id: string;
@@ -49,6 +61,16 @@ export default function TeacherDashboardPage() {
   const [allMaterias, setAllMaterias] = useState<Materia[]>([]);
   const [allCarreras, setAllCarreras] = useState<Carrera[]>([]);
   const [calendarBannerDismissed, setCalendarBannerDismissed] = useState(false);
+  const [scheduleAnalysis, setScheduleAnalysis] = useState<DocenteScheduleAnalysis | null>(null);
+  const [isVoiceSpeaking, setIsVoiceSpeaking] = useState(false);
+  const [voiceBannerDismissed, setVoiceBannerDismissed] = useState(false);
+  const [autoSelectedInfo, setAutoSelectedInfo] = useState<{
+    grupo: string;
+    materia: string;
+    aula?: string;
+    reason: string;
+    status: string;
+  } | null>(null);
 
   // Strict Authentication Guard
   useEffect(() => {
@@ -357,15 +379,124 @@ export default function TeacherDashboardPage() {
     });
   }, [currentDocente, allMaterias, allCarreras]);
 
-  // Keep selected course ID valid
+  // Keep selected course ID valid & Inteligencia de Selección Automática por Horario
   useEffect(() => {
-    if (assignedCourses.length > 0) {
-      const exists = assignedCourses.some((c) => c.id === selectedCourseId);
-      if (!exists) {
-        setSelectedCourseId(assignedCourses[0].id);
+    if (!currentDocente || assignedCourses.length === 0) return;
+
+    const analysis = analyzeDocenteSchedule(currentDocente);
+    setScheduleAnalysis(analysis);
+
+    // Revisar si vino una petición de grupo específico por voz o almacenamiento
+    const storedVoiceTarget = typeof window !== 'undefined' ? sessionStorage.getItem('unrc_voice_target_group') : null;
+    const shouldAutoSpeak = typeof window !== 'undefined' && sessionStorage.getItem('unrc_voice_auto_speak') === '1';
+
+    const targetGroup = (storedVoiceTarget || analysis.targetGrupo || '').trim();
+
+    // Buscar el curso que mejor coincide con el grupo y materia que le toca impartir
+    const matched = assignedCourses.find((c) => {
+      const g = (c.grupo || '').toLowerCase();
+      const tg = targetGroup.toLowerCase();
+      const m = (c.materia || '').toLowerCase();
+      const tm = (analysis.targetMateria || '').toLowerCase();
+
+      return (
+        (tg && (g === tg || g.includes(tg) || tg.includes(g))) ||
+        (tg.includes('203') && g.includes('203')) ||
+        (tg.includes('201') && g.includes('201')) ||
+        (tg.includes('301') && g.includes('301')) ||
+        (tm && (m === tm || m.includes(tm) || tm.includes(m)))
+      );
+    }) || assignedCourses[0];
+
+    // Si aún no está seleccionado o si viene de comando de voz directo
+    if (matched && (!selectedCourseId || shouldAutoSpeak || storedVoiceTarget)) {
+      setSelectedCourseId(matched.id);
+      setAutoSelectedInfo({
+        grupo: matched.grupo,
+        materia: matched.materia,
+        aula: matched.aula,
+        reason:
+          analysis.status === 'active_now'
+            ? `Sesión activa en este momento (${analysis.horaActualTexto} hrs)`
+            : analysis.status === 'today_upcoming'
+            ? `Próxima clase programada hoy a las ${analysis.activeItem?.hora_inicio} hrs`
+            : `Próxima clase de la semana (${analysis.activeItem?.dia || 'Programada'})`,
+        status: analysis.status
+      });
+
+      if (storedVoiceTarget) {
+        sessionStorage.removeItem('unrc_voice_target_group');
       }
+    } else if (assignedCourses.length > 0 && !assignedCourses.some((c) => c.id === selectedCourseId)) {
+      setSelectedCourseId(assignedCourses[0].id);
     }
-  }, [assignedCourses, selectedCourseId]);
+
+    // Si se activó ingreso automático por voz, sintetizar la alocución de bienvenida y horario
+    if (shouldAutoSpeak) {
+      sessionStorage.removeItem('unrc_voice_auto_speak');
+      setIsVoiceSpeaking(true);
+      playChime('success');
+      speakText(
+        analysis.fullSpeechMessage,
+        () => setIsVoiceSpeaking(false),
+        () => setIsVoiceSpeaking(false)
+      );
+    }
+  }, [currentDocente, assignedCourses]);
+
+  // Listener para eventos de cambio de grupo emitidos desde el widget de voz
+  useEffect(() => {
+    const handleVoiceSelectEvent = (e: any) => {
+      const target = (e.detail?.targetGroup || '').trim();
+      if (!target || assignedCourses.length === 0) return;
+
+      const matched = assignedCourses.find((c) => {
+        const g = (c.grupo || '').toLowerCase();
+        const tg = target.toLowerCase();
+        return (
+          g === tg ||
+          g.includes(tg) ||
+          tg.includes(g) ||
+          (tg.includes('203') && g.includes('203')) ||
+          (tg.includes('201') && g.includes('201')) ||
+          (tg.includes('301') && g.includes('301'))
+        );
+      });
+
+      if (matched) {
+        setSelectedCourseId(matched.id);
+        setAutoSelectedInfo({
+          grupo: matched.grupo,
+          materia: matched.materia,
+          aula: matched.aula,
+          reason: 'Cambiado por comando de voz en vivo',
+          status: 'voice_change'
+        });
+      }
+    };
+
+    window.addEventListener('unrc-voice-select-group', handleVoiceSelectEvent);
+    return () => window.removeEventListener('unrc-voice-select-group', handleVoiceSelectEvent);
+  }, [assignedCourses]);
+
+  // Función para re-escuchar el horario oficial en cualquier momento
+  const handleSpeakScheduleManually = () => {
+    if (!currentDocente) return;
+    const analysis = analyzeDocenteSchedule(currentDocente);
+    setScheduleAnalysis(analysis);
+    setIsVoiceSpeaking(true);
+    playChime('success');
+    speakText(
+      analysis.fullSpeechMessage,
+      () => setIsVoiceSpeaking(false),
+      () => setIsVoiceSpeaking(false)
+    );
+  };
+
+  const handleStopSpeakingManually = () => {
+    stopSpeech();
+    setIsVoiceSpeaking(false);
+  };
 
   const selectedCourse = useMemo(() => {
     return assignedCourses.find((c) => c.id === selectedCourseId) || assignedCourses[0];
@@ -512,6 +643,86 @@ export default function TeacherDashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* SECCIÓN ESPECIAL: ASISTENTE DE VOZ & ACCESO INTELIGENTE AUTOMÁTICO */}
+      {!voiceBannerDismissed && autoSelectedInfo && (
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#5B142F]/40 via-[#0E1B38] to-[#0A2E28] border-2 border-[#E8A938]/60 p-5 sm:p-6 shadow-[0_0_40px_rgba(232,169,56,0.15)] space-y-4">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            
+            <div className="space-y-1.5 max-w-2xl">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-bold">
+                  <Bot className="w-3.5 h-3.5" />
+                  <span>Asistente de Voz Inteligente</span>
+                </span>
+                
+                <span className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-semibold">
+                  <Radio className="w-3 h-3 animate-pulse" />
+                  <span>{autoSelectedInfo.reason}</span>
+                </span>
+              </div>
+
+              <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2">
+                <span>Acceso Automático: Grupo {autoSelectedInfo.grupo}</span>
+                <span className="text-sm font-normal text-amber-200">({autoSelectedInfo.materia})</span>
+              </h2>
+
+              <p className="text-xs sm:text-sm text-gray-300">
+                El sistema detectó tu horario oficial del día y cargó directamente la lista de asistencia y calificaciones para este grupo en <strong className="text-white">{autoSelectedInfo.aula || 'Campus Tijuana'}</strong>.
+              </p>
+            </div>
+
+            {/* Acciones de Voz en Vivo */}
+            <div className="flex items-center gap-2 shrink-0">
+              {isVoiceSpeaking ? (
+                <button
+                  type="button"
+                  onClick={handleStopSpeakingManually}
+                  className="px-4 py-3 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs shadow-xl shadow-rose-600/40 transition-all flex items-center space-x-2"
+                >
+                  <VolumeX className="w-4 h-4" />
+                  <span>Detener Voz</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleSpeakScheduleManually}
+                  className="px-5 py-3 rounded-2xl bg-gradient-to-r from-[#5B142F] to-[#7D1D41] hover:from-[#6B1838] hover:to-[#8E224B] text-amber-200 hover:text-white font-black text-xs border border-[#E8A938] shadow-xl shadow-[#5B142F]/40 transition-all flex items-center space-x-2 group"
+                >
+                  <Volume2 className="w-4 h-4 text-amber-300 group-hover:scale-110 transition-transform" />
+                  <span>Escuchar mi Horario en Voz Alta</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setVoiceBannerDismissed(true)}
+                className="p-2 text-gray-400 hover:text-white rounded-xl hover:bg-white/10 transition-colors text-xs"
+                title="Ocultar recordatorio"
+              >
+                ✕
+              </button>
+            </div>
+
+          </div>
+
+          {/* Animación de ondas sonoras cuando el asistente está hablando */}
+          {isVoiceSpeaking && (
+            <div className="p-3 rounded-xl bg-black/50 border border-amber-500/30 flex items-center justify-between text-xs text-amber-300">
+              <span className="flex items-center gap-2 font-mono">
+                <Volume2 className="w-4 h-4 animate-bounce text-amber-400" />
+                <span>Asistente de Voz hablando a través del altavoz...</span>
+              </span>
+              <div className="flex items-center space-x-1">
+                <div className="w-1 h-3 bg-amber-400 rounded-full animate-bounce [animation-delay:0.1s]" />
+                <div className="w-1 h-6 bg-cyan-400 rounded-full animate-bounce [animation-delay:0.2s]" />
+                <div className="w-1 h-4 bg-emerald-400 rounded-full animate-bounce [animation-delay:0.3s]" />
+                <div className="w-1 h-5 bg-rose-400 rounded-full animate-bounce [animation-delay:0.15s]" />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* SECCIÓN DEDICADA: MI HORARIO OFICIAL SEMANAL Y RECORDATORIO GOOGLE CALENDAR */}
       <div className="bg-[#0B132B]/80 border border-white/10 rounded-3xl p-6 shadow-xl space-y-5">

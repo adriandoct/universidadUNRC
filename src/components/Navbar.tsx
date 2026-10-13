@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '../lib/AuthContext';
+import { authenticateDocenteByVoice, playChime } from '../lib/voiceAssistant';
 
 export const Navbar: React.FC = () => {
   const { user, role, logout, setRole, openAuthModal } = useAuth();
@@ -185,12 +186,31 @@ export const Navbar: React.FC = () => {
               )}
             </div>
           ) : (
-            <button
-              onClick={() => openAuthModal('alumno')}
-              className="py-2.5 px-5 rounded-xl bg-gradient-to-r from-[#5B142F] to-[#801B42] hover:from-[#70173A] hover:to-[#9B2150] text-amber-200 font-bold text-xs transition-all shadow-lg shadow-[#5B142F]/40 border border-amber-400/30 flex items-center space-x-2"
-            >
-              <span>🔑 Iniciar Sesión UNRC</span>
-            </button>
+            <div className="flex items-center space-x-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  playChime('listen');
+                  const res = await authenticateDocenteByVoice(null, { autoSpeakSchedule: true });
+                  if (res.success) {
+                    playChime('success');
+                    window.location.href = '/teacher';
+                  }
+                }}
+                className="hidden sm:inline-flex items-center space-x-1.5 py-2 px-3 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 hover:text-white border border-blue-400/30 text-xs font-bold transition-all shadow-sm"
+                title="Acceso inteligente por voz para docentes"
+              >
+                <span>🎙️</span>
+                <span>Voz Docente</span>
+              </button>
+
+              <button
+                onClick={() => openAuthModal('alumno')}
+                className="py-2.5 px-5 rounded-xl bg-gradient-to-r from-[#5B142F] to-[#801B42] hover:from-[#70173A] hover:to-[#9B2150] text-amber-200 font-bold text-xs transition-all shadow-lg shadow-[#5B142F]/40 border border-amber-400/30 flex items-center space-x-2"
+              >
+                <span>🔑 Iniciar Sesión UNRC</span>
+              </button>
+            </div>
           )}
         </div>
 

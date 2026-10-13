@@ -144,6 +144,7 @@ export default function AdminDashboardPage() {
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
   const [isDocentesCsvModalOpen, setIsDocentesCsvModalOpen] = useState(false);
   const [isHorariosCsvModalOpen, setIsHorariosCsvModalOpen] = useState(false);
+  const [targetDocenteForHorariosUpload, setTargetDocenteForHorariosUpload] = useState<Docente | null>(null);
   const [isDeleteAllModalOpen, setIsDeleteAllModalOpen] = useState(false);
   const [deleteFilterMode, setDeleteFilterMode] = useState<'filtered' | 'all'>('all');
   const [isDeletingAll, setIsDeletingAll] = useState(false);
@@ -2073,7 +2074,10 @@ export default function AdminDashboardPage() {
 
                 <button
                   type="button"
-                  onClick={() => setIsHorariosCsvModalOpen(true)}
+                  onClick={() => {
+                    setTargetDocenteForHorariosUpload(null);
+                    setIsHorariosCsvModalOpen(true);
+                  }}
                   className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-600/30 transition-all flex items-center space-x-1.5 whitespace-nowrap"
                   title="Cargar horarios masivamente desde Excel o CSV con persistencia en BD sin sobrescribir existentes"
                 >
@@ -3674,9 +3678,23 @@ export default function AdminDashboardPage() {
 
             {/* 3. Configuración de Bloques de Horarios */}
             <div className="space-y-3 pt-2 border-t border-white/10">
-              <label className="text-xs font-bold text-white block">
-                3. Programar Horarios de Clase (Días, Horas, Grupo y Aula):
-              </label>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <label className="text-xs font-bold text-white block">
+                  3. Programar Horarios de Clase (Días, Horas, Grupo y Aula):
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTargetDocenteForHorariosUpload(selectedDocente);
+                    setIsHorariosCsvModalOpen(true);
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-extrabold text-[11px] shadow-md shadow-blue-900/30 transition-all flex items-center space-x-1.5 cursor-pointer"
+                  title="Subir archivo Excel o CSV para este docente con la regla institucional: Lun/Mar/Sáb en línea, Mié/Jue/Vie presencial"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-blue-200" />
+                  <span>Subir Horario de Excel (.xlsx / .csv)</span>
+                </button>
+              </div>
 
               {/* Form to add or edit a slot */}
               <div className={`p-3.5 rounded-2xl border space-y-3 text-xs transition-all ${
@@ -4167,6 +4185,28 @@ export default function AdminDashboardPage() {
             {/* Footer con opciones de PDF, Google Calendar y Guardar */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-white/10">
               <div className="flex items-center space-x-2 w-full sm:w-auto">
+                {/* Botón Visualizar PDF Oficial */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!selectedDocente) return;
+                    const docToExport: Docente = {
+                      ...selectedDocente,
+                      carreras_asignadas: assignedCarreras,
+                      materias: assignedMaterias,
+                      horarios: assignedHorarios,
+                      sede_nombre: assignedSede,
+                    };
+                    generateDocenteHorarioPDF(docToExport, 'preview');
+                    showToast('Visualizando comprobante oficial en PDF...');
+                  }}
+                  className="flex-1 sm:flex-none px-3 py-2 rounded-xl bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/40 text-xs font-bold transition-all flex items-center justify-center space-x-1.5"
+                  title="Abrir vista previa del PDF en una nueva pestaña"
+                >
+                  <FileText className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Visualizar .PDF</span>
+                </button>
+
                 {/* Botón Descargar PDF Oficial */}
                 <button
                   type="button"
@@ -4179,13 +4219,13 @@ export default function AdminDashboardPage() {
                       horarios: assignedHorarios,
                       sede_nombre: assignedSede,
                     };
-                    generateDocenteHorarioPDF(docToExport);
-                    showToast('PDF oficial del horario generado exitosamente');
+                    generateDocenteHorarioPDF(docToExport, 'download');
+                    showToast('PDF oficial del horario descargado exitosamente');
                   }}
                   className="flex-1 sm:flex-none px-3 py-2 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/40 text-xs font-bold transition-all flex items-center justify-center space-x-1.5"
                   title="Descargar documento PDF con el horario del docente"
                 >
-                  <FileText className="w-3.5 h-3.5 text-blue-400" />
+                  <Download className="w-3.5 h-3.5 text-blue-400" />
                   <span>Descargar PDF</span>
                 </button>
 
@@ -5516,15 +5556,29 @@ export default function AdminDashboardPage() {
       {/* Modal de Carga Masiva de Horarios Excel / CSV */}
       <BulkUploadHorariosModal
         isOpen={isHorariosCsvModalOpen}
-        onClose={() => setIsHorariosCsvModalOpen(false)}
+        onClose={() => {
+          setIsHorariosCsvModalOpen(false);
+          setTargetDocenteForHorariosUpload(null);
+        }}
         onSuccess={async () => {
           await loadData();
+          if (targetDocenteForHorariosUpload) {
+            const freshDocs = await db.getDocentes();
+            const freshDoc = freshDocs.find((x) => x.id === targetDocenteForHorariosUpload.id || x.num_empleado === targetDocenteForHorariosUpload.num_empleado);
+            if (freshDoc) {
+              setSelectedDocente(freshDoc);
+              setAssignedHorarios(freshDoc.horarios || []);
+              setAssignedCarreras(freshDoc.carreras_asignadas || []);
+              setAssignedMaterias(freshDoc.materias || []);
+            }
+          }
         }}
         existingDocentes={docentes}
         carreras={carreras}
         grupos={grupos}
         materias={materias}
         sedes={sedes}
+        targetDocente={targetDocenteForHorariosUpload}
         showToast={(title, msg, type) => showToast(msg ? `${title}: ${msg}` : title, type)}
       />
 

@@ -129,6 +129,7 @@ export interface Alumno {
 export interface Docente {
   id: string;
   num_empleado: string;
+  matricula?: string;
   nombre: string;
   apellido_paterno: string;
   apellido_materno?: string;
@@ -3284,6 +3285,8 @@ export const db = {
   addHorariosBulk: async (
     items: Array<{
       docenteIdentificador: string;
+      docenteRaw?: string;
+      matricula?: string;
       carrera?: string;
       materia: string;
       grupo: string;
@@ -3303,7 +3306,7 @@ export const db = {
     const slotsByDocente = new Map<string, typeof items>();
 
     items.forEach((slot) => {
-      const cleanIdent = (slot.docenteIdentificador || '').toLowerCase().trim();
+      const cleanIdent = (slot.matricula || slot.docenteIdentificador || slot.docenteRaw || '').toLowerCase().trim();
       if (!cleanIdent) return;
       const list = slotsByDocente.get(cleanIdent) || [];
       list.push(slot);
@@ -3311,16 +3314,47 @@ export const db = {
     });
 
     for (const [ident, slots] of slotsByDocente.entries()) {
-      const docIdx = docentes.findIndex((d) => {
-        const dNom = `${d.nombre} ${d.apellido_paterno} ${d.apellido_materno || ''}`.toLowerCase();
+      const firstSlot = slots[0];
+      const slotMatricula = (firstSlot?.matricula || '').trim();
+      const slotDocRaw = (firstSlot?.docenteRaw || firstSlot?.docenteIdentificador || '').trim();
+
+      let targetDoc = docentes.find((d) => {
         const dEmp = (d.num_empleado || '').toLowerCase();
+        const dMat = ((d as any).matricula || '').toLowerCase();
+        if (slotMatricula && (dEmp === slotMatricula.toLowerCase() || dMat === slotMatricula.toLowerCase())) return true;
+        const dNom = `${d.nombre} ${d.apellido_paterno} ${d.apellido_materno || ''}`.toLowerCase();
         const dEmail = (d.email || '').toLowerCase();
-        return dEmp === ident || dEmail === ident || dNom.includes(ident) || ident.includes(d.apellido_paterno.toLowerCase());
+        const cleanIdent = ident.toLowerCase();
+        return (
+          dEmp === cleanIdent ||
+          dEmail === cleanIdent ||
+          dNom.includes(cleanIdent) ||
+          cleanIdent.includes(d.apellido_paterno.toLowerCase()) ||
+          (slotDocRaw && (dNom.includes(slotDocRaw.toLowerCase()) || slotDocRaw.toLowerCase().includes(dNom)))
+        );
       });
 
-      if (docIdx === -1) continue;
+      // Si el docente no existe aún en la base de datos, crearlo automáticamente con su matrícula
+      if (!targetDoc) {
+        targetDoc = await db.ensureDocenteExists(slotDocRaw || `Docente ${slotMatricula || 'Titular'}`, {
+          matricula: slotMatricula,
+          num_empleado: slotMatricula,
+          carreraNombre: firstSlot?.carrera,
+          grupoClave: firstSlot?.grupo,
+          materiaNombre: firstSlot?.materia,
+          sedeNombre: firstSlot?.sede || 'Campus Tijuana'
+        });
+        docentes.push(targetDoc);
+      } else if (slotMatricula && (!targetDoc.num_empleado || targetDoc.num_empleado.startsWith('DOC-UNRC-'))) {
+        // Actualizar matrícula si en el archivo viene una específica y en BD había una genérica
+        targetDoc.num_empleado = slotMatricula;
+        targetDoc.matricula = slotMatricula;
+        await db.updateDocente(targetDoc.id, {
+          num_empleado: slotMatricula,
+          matricula: slotMatricula
+        });
+      }
 
-      const targetDoc = docentes[docIdx];
       const existingHorarios = targetDoc.horarios || [];
       const newHorarios = [...existingHorarios];
 
@@ -3338,12 +3372,12 @@ export const db = {
             dia: s.dia,
             hora_inicio: s.hora_inicio,
             hora_fin: s.hora_fin,
-            carrera: s.carrera || targetDoc.carreras_asignadas?.[0] || 'Licenciatura',
+            carrera: s.carrera || targetDoc!.carreras_asignadas?.[0] || 'Licenciatura',
             materia: s.materia,
             grupo: s.grupo,
             aula: s.aula || 'Campus Tijuana - Aula Asignada',
             es_en_linea: Boolean(s.es_en_linea),
-            sede: s.sede || targetDoc.sede_nombre || 'Campus Tijuana',
+            sede: s.sede || targetDoc!.sede_nombre || 'Campus Tijuana',
           });
           totalSlots++;
         }
@@ -3363,13 +3397,34 @@ export const db = {
         sede_nombre: targetDoc.sede_nombre,
       });
 
+      // Sincronizar docentes con los grupos y alumnos en Supabase y local
+      try {
+        const uniqueGroups = Array.from(new Set(slots.map(s => s.grupo).filter(Boolean)));
+        const allAlumnos = await db.getAlumnos();
+        const docFullName = `${targetDoc.nombre} ${targetDoc.apellido_paterno} ${targetDoc.apellido_materno || ''}`.trim();
+        
+        for (const grp of uniqueGroups) {
+          const matchingAlumnos = allAlumnos.filter(a => (a.grupo || '').toLowerCase() === grp.toLowerCase());
+          for (const al of matchingAlumnos) {
+            if (!al.docente_nombre || al.docente_nombre === 'Tutor UNRC' || al.docente_nombre.includes('no asignado')) {
+              await db.updateAlumno(al.id, {
+                docente_nombre: docFullName,
+                docente_id: targetDoc.id
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Sync alumnos with new docente horario:', err);
+      }
+
       docentesUpdatedCount++;
     }
 
     await db.addAuditoria(
       'CARGA_MASIVA_HORARIOS',
       'Programación Docente',
-      `Carga masiva de ${totalSlots} bloques de horarios para ${docentesUpdatedCount} docentes. Persistido en base de datos.`,
+      `Carga masiva de ${totalSlots} bloques de horarios para ${docentesUpdatedCount} docentes con matrícula. Persistido en base de datos.`,
       'Control Escolar'
     );
 
@@ -3381,6 +3436,7 @@ export const db = {
     const list = await db.getDocentes();
     const newDoc: Docente = {
       ...docente,
+      matricula: docente.matricula || docente.num_empleado,
       password: docente.password || getDefaultUserPassword(docente.num_empleado, '2026-2'),
       id: `docente-${Date.now()}`,
       created_at: new Date().toISOString()
@@ -3390,6 +3446,7 @@ export const db = {
       try {
         const supabasePayload = {
           num_empleado: newDoc.num_empleado,
+          matricula: newDoc.matricula || newDoc.num_empleado,
           nombre: newDoc.nombre,
           apellido_paterno: newDoc.apellido_paterno,
           apellido_materno: newDoc.apellido_materno,
@@ -3415,6 +3472,8 @@ export const db = {
   ensureDocenteExists: async (
     rawName: string,
     context?: {
+      matricula?: string;
+      num_empleado?: string;
       carreraNombre?: string;
       carreraId?: string;
       grupoClave?: string;
@@ -3445,6 +3504,7 @@ export const db = {
 
     const normSearch = nameWithoutTitle.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
+    const explicitMatricula = (context?.matricula || context?.num_empleado || '').trim();
     const targetGrupo = context?.grupoClave || context?.grupo;
     const targetMateria = context?.materiaNombre || context?.asignatura;
     const targetCarrera = context?.carreraNombre;
@@ -3452,21 +3512,37 @@ export const db = {
     const targetSede = context?.sedeNombre || 'Campus Tijuana';
     const targetSedeId = context?.sedeId || 'sede-tij';
 
-    // Search for existing docente
-    let existing = list.find((d) => {
-      const dFull = `${d.nombre} ${d.apellido_paterno} ${d.apellido_materno || ''}`
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '');
-      const dSimple = `${d.nombre} ${d.apellido_paterno}`
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '');
-      return dFull.includes(normSearch) || normSearch.includes(dSimple) || dSimple.includes(normSearch);
-    });
+    // Search for existing docente (primero por matrícula explícita si se proveyó)
+    let existing: Docente | undefined;
+    if (explicitMatricula) {
+      existing = list.find((d) => {
+        const dEmp = (d.num_empleado || '').toLowerCase().trim();
+        const dMat = ((d as any).matricula || '').toLowerCase().trim();
+        return dEmp === explicitMatricula.toLowerCase() || dMat === explicitMatricula.toLowerCase();
+      });
+    }
+
+    if (!existing) {
+      existing = list.find((d) => {
+        const dFull = `${d.nombre} ${d.apellido_paterno} ${d.apellido_materno || ''}`
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '');
+        const dSimple = `${d.nombre} ${d.apellido_paterno}`
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '');
+        return dFull.includes(normSearch) || normSearch.includes(dSimple) || dSimple.includes(normSearch);
+      });
+    }
 
     if (existing) {
       let updated = false;
+      if (explicitMatricula && existing.num_empleado !== explicitMatricula) {
+        existing.num_empleado = explicitMatricula;
+        existing.matricula = explicitMatricula;
+        updated = true;
+      }
       const carrList = existing.carreras_asignadas || [];
       if (targetCarrera && !carrList.includes(targetCarrera)) {
         carrList.push(targetCarrera);
@@ -3481,19 +3557,22 @@ export const db = {
       }
       if (updated) {
         await db.updateDocente(existing.id, {
+          num_empleado: existing.num_empleado,
+          matricula: existing.matricula || existing.num_empleado,
           carreras_asignadas: existing.carreras_asignadas,
           materias: existing.materias
         });
       }
     } else {
       const nextNum = (list.length + 1).toString().padStart(2, '0');
-      const num_empleado = `DOC-UNRC-${nextNum}`;
+      const num_empleado = explicitMatricula || `DOC-UNRC-${nextNum}`;
       const cleanEmail = `${nombre.toLowerCase().replace(/\s+/g, '.')}.${apellido_paterno.toLowerCase()}@rcastellanos.cdmx.gob.mx`
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '');
 
       const newDocPayload: Omit<Docente, 'id' | 'created_at'> = {
         num_empleado,
+        matricula: num_empleado,
         nombre,
         apellido_paterno,
         apellido_materno,
@@ -3515,9 +3594,10 @@ export const db = {
     // ALWAYS INSERT / UPSERT DOCENTE INTO SUPABASE
     if (supabase && existing) {
       try {
-        const payloadToUpsert = {
+        const payloadToUpsert: any = {
           id: existing.id,
           num_empleado: existing.num_empleado,
+          matricula: existing.matricula || existing.num_empleado,
           nombre: existing.nombre,
           apellido_paterno: existing.apellido_paterno,
           apellido_materno: existing.apellido_materno || '',

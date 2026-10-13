@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "../lib/AuthContext";
 import { Navbar } from "../components/Navbar";
 import { AuthModal } from "../components/AuthModal";
+import { VoiceAssistantWidget } from "../components/VoiceAssistantWidget";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -48,6 +49,9 @@ export default function RootLayout({
 
           {/* Auth Modal Dialog */}
           <AuthModal />
+
+          {/* Voice Assistant AI Widget */}
+          <VoiceAssistantWidget />
 
           {/* Footer */}
           <footer className="border-t border-white/5 py-8 bg-black/40 backdrop-blur-md text-center text-xs text-gray-500">
