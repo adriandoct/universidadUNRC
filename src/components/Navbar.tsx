@@ -70,18 +70,26 @@ export const Navbar: React.FC = () => {
                 href="/scanner" 
                 className={`py-2 px-4 rounded-xl transition-colors ${pathname === '/scanner' ? 'text-blue-400 bg-blue-500/10 font-bold border border-blue-500/30' : 'hover:text-white hover:bg-white/5'}`}
               >
-                🎥 Escáner QR
+                📟 Lector de Código & QR
               </Link>
             </>
           )}
 
           {role === 'administrador' && (
-            <Link 
-              href="/admin" 
-              className={`py-2 px-4 rounded-xl transition-colors ${pathname === '/admin' ? 'text-amber-400 bg-amber-500/10 font-bold border border-amber-500/30' : 'hover:text-amber-400 hover:bg-white/5'}`}
-            >
-              ⚡ Consola Base de Datos
-            </Link>
+            <>
+              <Link 
+                href="/admin" 
+                className={`py-2 px-4 rounded-xl transition-colors ${pathname === '/admin' ? 'text-amber-400 bg-amber-500/10 font-bold border border-amber-500/30' : 'hover:text-amber-400 hover:bg-white/5'}`}
+              >
+                ⚡ Consola Base de Datos
+              </Link>
+              <Link 
+                href="/scanner" 
+                className={`py-2 px-4 rounded-xl transition-colors ${pathname === '/scanner' ? 'text-amber-400 bg-amber-500/10 font-bold border border-amber-500/30' : 'hover:text-white hover:bg-white/5'}`}
+              >
+                📟 Lector de Código & QR
+              </Link>
+            </>
           )}
         </nav>
 

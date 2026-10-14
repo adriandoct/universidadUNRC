@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
 import AttendanceSheet, { StudentItem } from '../../../components/AttendanceSheet';
 import {
   BookOpen,
@@ -21,7 +22,8 @@ import {
   VolumeX,
   Mic,
   Bot,
-  Radio
+  Radio,
+  Barcode
 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { db, Docente, HorarioDocenteItem, Alumno, Grupo, Materia, Carrera } from '@/lib/db';
@@ -879,11 +881,20 @@ export default function TeacherDashboardPage() {
       {/* SECCIÓN: TOMADOR DE ASISTENCIA Y GESTIÓN DE CURSO */}
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-bold text-white">Tomador de Asistencia y Participaciones</h2>
-            <p className="text-xs text-gray-400">
-              Registra la asistencia diaria (A/R/J) y las participaciones de tus alumnos para cada sesión programada.
-            </p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between w-full gap-4">
+            <div>
+              <h2 className="text-xl font-bold text-white">Tomador de Asistencia y Participaciones</h2>
+              <p className="text-xs text-gray-400">
+                Registra la asistencia diaria (A/R/J) y las participaciones de tus alumnos para cada sesión programada.
+              </p>
+            </div>
+            <Link
+              href="/scanner"
+              className="px-3.5 py-2 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 text-xs font-bold transition-all flex items-center space-x-2 shadow-sm self-start sm:self-auto cursor-pointer"
+            >
+              <Barcode className="w-4 h-4 text-cyan-400" />
+              <span>Lector USB & QR de Accesos</span>
+            </Link>
           </div>
 
           {/* Course Selector Dropdown - Dynamic for ALL assigned courses */}

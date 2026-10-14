@@ -7,7 +7,8 @@ import { db, Alumno, Asistencia } from '@/lib/db';
 import { useAuth } from '@/lib/AuthContext';
 import { sendWhatsAppNotification } from '@/lib/whatsapp';
 import { 
-  Camera, AlertCircle, CheckCircle, RefreshCw, Smartphone, Volume2, ShieldAlert, UserCheck, Play, ArrowRight, UserX
+  Camera, AlertCircle, CheckCircle, RefreshCw, Smartphone, Volume2, ShieldAlert, 
+  UserCheck, Play, ArrowRight, UserX, Barcode, Usb, Zap, Radio, Sparkles
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -20,17 +21,29 @@ export default function ScannerPage() {
       window.location.href = '/login?error=scanner_auth_required';
     }
   }, [user, role, authLoading]);
+
   const [students, setStudents] = useState<Alumno[]>([]);
   const [scanning, setScanning] = useState(false);
   const [activeTab, setActiveTab] = useState<'entrada' | 'salida' | 'auto'>('auto');
   const [cameraPermission, setCameraPermission] = useState<boolean | null>(null);
+  
+  // Hardware Barcode Scanner State
+  const [isHardwareScannerActive, setIsHardwareScannerActive] = useState(true);
+  const [lastScannedCode, setLastScannedCode] = useState<string>('');
+  const [hardwareScansCount, setHardwareScansCount] = useState<number>(0);
+  const [isHardwarePulse, setIsHardwarePulse] = useState(false);
+  const [connectedUsbDevices, setConnectedUsbDevices] = useState<string[]>([]);
+  const [scanOrigin, setScanOrigin] = useState<'hardware' | 'camera' | 'manual' | 'simulated'>('hardware');
+
   const [activeScan, setActiveScan] = useState<{
     success: boolean;
     student?: Alumno;
     asistencia?: Asistencia;
     msg: string;
     duplicate?: boolean;
+    origin?: string;
   } | null>(null);
+
   const [manualMatricula, setManualMatricula] = useState('');
   const [simulatedStudentId, setSimulatedStudentId] = useState('');
   const [isClient, setIsClient] = useState(false);
@@ -38,14 +51,108 @@ export default function ScannerPage() {
   const scannerRef = useRef<any>(null);
   const videoContainerId = 'qr-video-reader';
 
-  // Mark client mount
+  // Hardware Scanner buffer refs for rapid keystroke collection
+  const barcodeBufferRef = useRef<string>('');
+  const lastKeyTimeRef = useRef<number>(0);
+  const lastProcessedTimeRef = useRef<number>(0);
+  const lastProcessedCodeRef = useRef<string>('');
+
+  // Mark client mount & check WebHID if supported
   useEffect(() => {
     setIsClient(true);
     loadStudents();
+
+    // Query pre-approved HID devices in Chromium browsers
+    if (typeof navigator !== 'undefined' && 'hid' in navigator) {
+      (navigator as any).hid.getDevices().then((devices: any[]) => {
+        if (devices && devices.length > 0) {
+          const names = devices.map(d => d.productName || 'Lector de Código de Barras USB').filter(Boolean);
+          setConnectedUsbDevices(names);
+        }
+      }).catch(() => {});
+    }
+
     return () => {
       stopCamera();
     };
   }, []);
+
+  // Global Hardware Barcode Listener (USB / Bluetooth Keyboard Emulation Wedge)
+  useEffect(() => {
+    if (!isHardwareScannerActive) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const now = Date.now();
+      const timeSinceLastKey = now - lastKeyTimeRef.current;
+      lastKeyTimeRef.current = now;
+
+      const target = e.target as HTMLElement;
+      const isManualInput = target && target.tagName === 'INPUT' && (target as HTMLInputElement).id === 'manual-input-box';
+
+      // Barcode scanners press Enter / Return at the end of the barcode
+      if (e.key === 'Enter') {
+        const rawCode = barcodeBufferRef.current.trim();
+        barcodeBufferRef.current = '';
+
+        if (rawCode.length >= 2) {
+          // If we received a fast sequence of characters, prevent default form submission
+          e.preventDefault();
+          triggerHardwareScanFeedback(rawCode);
+          processScanResult(rawCode, 'Lector Código de Barras Físico (USB/Inalámbrico)');
+        }
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        barcodeBufferRef.current = '';
+        return;
+      }
+
+      // If user is actively typing in the manual input with human typing speed (>150ms), let them type normally
+      if (isManualInput && timeSinceLastKey > 150) {
+        barcodeBufferRef.current = '';
+        return;
+      }
+
+      // Barcode scanners send characters in rapid succession (< 80ms between keystrokes)
+      if (e.key.length === 1) {
+        if (timeSinceLastKey > 120) {
+          // Reset buffer if human delay detected
+          barcodeBufferRef.current = e.key;
+        } else {
+          barcodeBufferRef.current += e.key;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, [isHardwareScannerActive, activeTab]);
+
+  const triggerHardwareScanFeedback = (code: string) => {
+    setLastScannedCode(code);
+    setHardwareScansCount(prev => prev + 1);
+    setIsHardwarePulse(true);
+    setTimeout(() => setIsHardwarePulse(false), 800);
+  };
+
+  const handlePairUsbDevice = async () => {
+    if (typeof navigator !== 'undefined' && 'hid' in navigator) {
+      try {
+        const devices = await (navigator as any).hid.requestDevice({ filters: [] });
+        if (devices && devices.length > 0) {
+          const names = devices.map((d: any) => d.productName || 'Lector USB Conectado');
+          setConnectedUsbDevices(prev => Array.from(new Set([...prev, ...names])));
+        }
+      } catch (err) {
+        console.log('WebHID dialog closed or not supported:', err);
+      }
+    } else {
+      alert('Tu navegador no requiere emparejamiento manual: el Lector de Códigos de Barra USB funciona automáticamente en modo Teclado universal.');
+    }
+  };
 
   const loadStudents = async () => {
     try {
@@ -59,7 +166,7 @@ export default function ScannerPage() {
     }
   };
 
-  // Sound generator using HTML5 Web Audio API (No files required!)
+  // Sound generator using HTML5 Web Audio API
   const playBeep = (type: 'success' | 'error' | 'duplicate') => {
     try {
       const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -113,30 +220,48 @@ export default function ScannerPage() {
     if (!isClient) return;
     try {
       setScanning(true);
-      const { Html5Qrcode } = await import('html5-qrcode');
+      const { Html5Qrcode, Html5QrcodeSupportedFormats } = await import('html5-qrcode');
       
       // Stop any existing instance
       if (scannerRef.current) {
         await stopCamera();
       }
 
-      const html5QrCode = new Html5Qrcode(videoContainerId);
+      // Configure support for BOTH 1D Barcodes and 2D QR Codes
+      const formatsToSupport = [
+        Html5QrcodeSupportedFormats.QR_CODE,
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.CODE_93,
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.UPC_E,
+        Html5QrcodeSupportedFormats.CODABAR,
+        Html5QrcodeSupportedFormats.ITF,
+        Html5QrcodeSupportedFormats.DATA_MATRIX
+      ];
+
+      const html5QrCode = new Html5Qrcode(videoContainerId, {
+        formatsToSupport,
+        verbose: false
+      });
       scannerRef.current = html5QrCode;
 
       const config = { 
-        fps: 10, 
-        qrbox: { width: 250, height: 250 } 
+        fps: 15, 
+        qrbox: { width: 280, height: 180 } 
       };
 
       await html5QrCode.start(
         { facingMode: 'environment' },
         config,
         async (decodedText) => {
-          // Success callback
-          await processScanResult(decodedText);
+          // Success callback from camera
+          await processScanResult(decodedText, 'Cámara Web / Dispositivo Óptico');
         },
         () => {
-          // Silent errors (searching for QR code)
+          // Silent errors while searching for codes
         }
       );
       setCameraPermission(true);
@@ -161,25 +286,42 @@ export default function ScannerPage() {
     setScanning(false);
   };
 
-  // Master check-in logic
-  const processScanResult = async (matricula: string) => {
+  // Master check-in logic with Source Origin Tracking
+  const processScanResult = async (matricula: string, sourceDevice = 'Lector Código de Barras USB') => {
+    const cleanCode = matricula.trim();
+    if (!cleanCode) return;
+
+    // Deduplication guard for repeated bursts within 1000ms
+    const now = Date.now();
+    if (
+      cleanCode === lastProcessedCodeRef.current && 
+      now - lastProcessedTimeRef.current < 1200
+    ) {
+      return;
+    }
+    lastProcessedCodeRef.current = cleanCode;
+    lastProcessedTimeRef.current = now;
+
     try {
-      // Temporarily halt scanning to display student popup card
+      // Temporarily halt camera scanning while displaying popup
       if (scannerRef.current && scannerRef.current.isScanning) {
-        await scannerRef.current.pause(true);
+        try {
+          await scannerRef.current.pause(true);
+        } catch (_) {}
       }
 
       // Convert override tab values to parameters
       const overrideVal = activeTab === 'auto' ? undefined : activeTab;
       
-      // Save check-in
+      // Save check-in to database & local storage
       const { asistencia, alumno, duplicateWarning } = await db.registrarAsistencia(
-        matricula,
-        overrideVal
+        cleanCode,
+        overrideVal,
+        sourceDevice
       );
 
       // Trigger parents notification SMS/WhatsApp (runs in background)
-      await sendWhatsAppNotification(alumno, asistencia);
+      sendWhatsAppNotification(alumno, asistencia).catch(e => console.error('WhatsApp notify error:', e));
 
       // UI Reactions
       if (duplicateWarning) {
@@ -189,7 +331,8 @@ export default function ScannerPage() {
           student: alumno,
           asistencia,
           msg: `Acceso Registrado (${asistencia.tipo === 'entrada' ? 'ENTRADA' : 'SALIDA'}).`,
-          duplicate: true
+          duplicate: true,
+          origin: sourceDevice
         });
       } else {
         playBeep('success');
@@ -202,11 +345,12 @@ export default function ScannerPage() {
           success: true,
           student: alumno,
           asistencia,
-          msg: `¡Acceso Exitoso! ${asistencia.tipo === 'entrada' ? 'Entrada' : 'Salida'} registrada correctamente.`
+          msg: `¡Acceso Exitoso! ${asistencia.tipo === 'entrada' ? 'Entrada' : 'Salida'} registrada correctamente.`,
+          origin: sourceDevice
         });
       }
 
-      // Auto close/resume scan after 4.5 seconds
+      // Auto dismiss after 4.5 seconds
       setTimeout(async () => {
         handleDismissScan();
       }, 4500);
@@ -215,7 +359,8 @@ export default function ScannerPage() {
       playBeep('error');
       setActiveScan({
         success: false,
-        msg: error.message || 'Código QR no reconocido o error en el sistema.'
+        msg: error.message || `Código '${cleanCode}' no reconocido o alumno no encontrado en el sistema.`,
+        origin: sourceDevice
       });
 
       setTimeout(async () => {
@@ -230,7 +375,6 @@ export default function ScannerPage() {
       try {
         scannerRef.current.resume();
       } catch (e) {
-        // If resume fails, restart camera
         startCamera();
       }
     }
@@ -240,23 +384,41 @@ export default function ScannerPage() {
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!manualMatricula.trim()) return;
-    processScanResult(manualMatricula.trim());
+    processScanResult(manualMatricula.trim(), 'Ingreso Manual');
     setManualMatricula('');
   };
 
   const handleSimulatedScan = () => {
     if (!simulatedStudentId) return;
-    processScanResult(simulatedStudentId);
+    processScanResult(simulatedStudentId, 'Simulador de Prueba');
+  };
+
+  const handleTestBarcodeScan = () => {
+    if (students.length > 0) {
+      const randomStudent = students[Math.floor(Math.random() * students.length)];
+      triggerHardwareScanFeedback(randomStudent.matricula);
+      processScanResult(randomStudent.matricula, 'Lector Código de Barras USB (Prueba)');
+    } else {
+      processScanResult('ALU-2026-001', 'Lector Código de Barras USB (Prueba)');
+    }
   };
 
   return (
     <div className="space-y-8 pb-10 flex-1 flex flex-col">
       
-      {/* Title */}
+      {/* Title & Mode Selection */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-extrabold text-white tracking-tight">Registro de Accesos QR</h2>
-          <p className="text-gray-400 text-sm mt-1">Escanea credenciales de alumnos para controlar su ingreso/salida y notificar a sus acudientes.</p>
+          <div className="flex items-center space-x-2.5">
+            <h2 className="text-3xl font-extrabold text-white tracking-tight">Registro de Accesos y Asistencia</h2>
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 uppercase tracking-widest flex items-center space-x-1">
+              <Barcode className="w-3 h-3 text-cyan-400" />
+              <span>Lector USB & QR</span>
+            </span>
+          </div>
+          <p className="text-gray-400 text-sm mt-1">
+            Escanea con cualquier lector de código de barras conectado (USB/Inalámbrico) o cámara web para registrar entradas y salidas institucionales.
+          </p>
         </div>
 
         {/* Access mode selection bar */}
@@ -277,13 +439,89 @@ export default function ScannerPage() {
         </div>
       </div>
 
-      {/* Main Grid: Left Scanner Panel (2 cols) | Right Simulator/Logs Panel (1 col) */}
+      {/* PROMINENT HARDWARE BARCODE SCANNER LIVE STATUS BAR */}
+      <div className={`glass-panel p-4 sm:p-5 rounded-2xl border transition-all duration-300 relative overflow-hidden ${
+        isHardwarePulse 
+          ? 'border-emerald-400 bg-emerald-500/15 shadow-[0_0_30px_rgba(16,185,129,0.3)]' 
+          : 'border-cyan-500/20 bg-gradient-to-r from-[#071324]/80 via-[#0a1e36]/70 to-[#071324]/80'
+      }`}>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
+          
+          {/* Status info */}
+          <div className="flex items-center space-x-4">
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${
+              isHardwarePulse 
+                ? 'bg-emerald-500 text-black scale-110 shadow-lg shadow-emerald-500/50' 
+                : 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
+            }`}>
+              <Barcode className="w-6 h-6" />
+            </div>
+
+            <div>
+              <div className="flex items-center space-x-2">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black tracking-wide uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 animate-ping"></span>
+                  Lector de Código de Barras Conectado y Activo
+                </span>
+                {connectedUsbDevices.length > 0 && (
+                  <span className="text-[10px] text-gray-400 font-mono hidden sm:inline">
+                    ({connectedUsbDevices[0]})
+                  </span>
+                )}
+              </div>
+
+              <h4 className="text-white font-bold text-sm sm:text-base mt-0.5 flex items-center space-x-2">
+                <span>Listo para escanear</span>
+                <span className="text-gray-400 text-xs font-normal">
+                  — Apunta y dispara el lector en cualquier momento (no requiere hacer clic)
+                </span>
+              </h4>
+            </div>
+          </div>
+
+          {/* Telemetry and Action Controls */}
+          <div className="flex flex-wrap items-center gap-2.5">
+            {lastScannedCode && (
+              <div className="bg-black/40 border border-white/10 px-3 py-1.5 rounded-xl flex items-center space-x-2 text-xs">
+                <span className="text-gray-400 text-[10px] uppercase font-semibold">Último Código:</span>
+                <span className="font-mono font-bold text-cyan-300">{lastScannedCode}</span>
+              </div>
+            )}
+
+            <div className="bg-black/40 border border-white/10 px-3 py-1.5 rounded-xl flex items-center space-x-1.5 text-xs text-gray-300">
+              <Zap className="w-3.5 h-3.5 text-amber-400" />
+              <span>Lecturas USB:</span>
+              <strong className="text-white font-mono">{hardwareScansCount}</strong>
+            </div>
+
+            <button
+              onClick={handleTestBarcodeScan}
+              title="Disparar lectura de prueba como si fuera el lector de código de barras físico"
+              className="px-3 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-300 text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer shadow-sm"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Disparo de Prueba</span>
+            </button>
+
+            <button
+              onClick={handlePairUsbDevice}
+              title="Detectar dispositivo USB HID directamente en navegadores compatibles"
+              className="p-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-gray-400 hover:text-white transition-all cursor-pointer"
+            >
+              <Usb className="w-4 h-4" />
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      {/* Main Grid: Left Camera & Overlays (2 cols) | Right Simulator/Manual Panel (1 col) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 flex-1">
         
-        {/* Left Side: Scanner Camera Wrapper */}
+        {/* Left Side: Scanner Camera & Optical Reader */}
         <div className="lg:col-span-2 flex flex-col">
           
-          <div className="glass-panel rounded-2xl overflow-hidden flex-1 flex flex-col border-cyan-500/10 min-h-[400px] relative">
+          <div className="glass-panel rounded-2xl overflow-hidden flex-1 flex flex-col border-cyan-500/10 min-h-[420px] relative">
             
             {/* Ambient Background glow while scanning */}
             {scanning && (
@@ -295,7 +533,7 @@ export default function ScannerPage() {
               <div className="flex items-center space-x-2.5">
                 <div className={`w-2.5 h-2.5 rounded-full ${scanning ? 'bg-cyan-400 animate-pulse' : 'bg-red-400'}`}></div>
                 <span className="text-xs font-bold text-gray-300 uppercase tracking-widest">
-                  {scanning ? 'Cámara de Acceso Activa' : 'Cámara Desactivada'}
+                  {scanning ? 'Cámara Óptica Activa (QR & Código de Barras 1D)' : 'Cámara Web en Espera'}
                 </span>
               </div>
 
@@ -318,10 +556,10 @@ export default function ScannerPage() {
             </div>
 
             {/* Video Container Area */}
-            <div className="flex-1 flex flex-col justify-center items-center p-6 relative min-h-[300px]">
+            <div className="flex-1 flex flex-col justify-center items-center p-6 relative min-h-[320px]">
               
               {/* Webcam view element wrapper */}
-              <div className="w-full max-w-sm aspect-square relative rounded-2xl overflow-hidden bg-black/60 border border-white/5 shadow-2xl flex items-center justify-center">
+              <div className="w-full max-w-md aspect-[4/3] relative rounded-2xl overflow-hidden bg-black/60 border border-white/5 shadow-2xl flex items-center justify-center">
                 
                 {/* 1. Camera Video Feed target element */}
                 <div 
@@ -333,15 +571,16 @@ export default function ScannerPage() {
                 {scanning && !activeScan && (
                   <div className="absolute inset-0 z-10 pointer-events-none flex flex-col justify-between p-1">
                     
-                    {/* Scanner Target Frame Border box */}
+                    {/* Scanner Target Frame Border box (wider for 1D barcodes and QR) */}
                     <div className="absolute inset-[15%] corner-border">
                       {/* Laser Line */}
                       <div className="scanner-laser"></div>
                       <span></span>
                     </div>
 
-                    <div className="w-full text-center bg-black/50 py-1.5 text-[10px] text-gray-400 backdrop-blur-sm mt-auto z-20 font-medium">
-                      Coloque el código QR dentro del marco
+                    <div className="w-full text-center bg-black/60 py-2 text-[11px] text-gray-300 backdrop-blur-sm mt-auto z-20 font-medium flex items-center justify-center space-x-2">
+                      <Barcode className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>Coloque el código de barras o QR dentro de la guía</span>
                     </div>
                   </div>
                 )}
@@ -353,14 +592,16 @@ export default function ScannerPage() {
                       📷
                     </div>
                     <div className="space-y-1">
-                      <h4 className="font-bold text-white text-sm">Dispositivo de Acceso Escolar</h4>
-                      <p className="text-gray-500 text-xs max-w-[240px] mx-auto">Active la cámara para iniciar el escaneo inteligente de códigos QR.</p>
+                      <h4 className="font-bold text-white text-sm">Escáner Óptico Complementario</h4>
+                      <p className="text-gray-500 text-xs max-w-[260px] mx-auto">
+                        Tu lector físico de código de barras USB ya está funcionando. También puedes encender la cámara para leer códigos desde smartphones o credenciales impresas.
+                      </p>
                     </div>
                     <button
                       onClick={startCamera}
                       className="px-5 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black font-extrabold text-xs shadow-lg shadow-cyan-500/10 transition-all cursor-pointer"
                     >
-                      Permitir y Encender
+                      Encender Cámara Web
                     </button>
                   </div>
                 )}
@@ -378,23 +619,23 @@ export default function ScannerPage() {
                     {/* Access Result Icon and Header */}
                     {activeScan.success ? (
                       activeScan.duplicate ? (
-                        <div className="w-14 h-14 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-4 animate-bounce">
+                        <div className="w-14 h-14 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-3 animate-bounce">
                           <ShieldAlert size={28} />
                         </div>
                       ) : (
-                        <div className="w-14 h-14 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 mb-4 animate-bounce">
+                        <div className="w-14 h-14 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 mb-3 animate-bounce">
                           <CheckCircle size={28} />
                         </div>
                       )
                     ) : (
-                      <div className="w-14 h-14 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-400 mb-4 animate-bounce">
+                      <div className="w-14 h-14 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-400 mb-3 animate-bounce">
                         <UserX size={28} />
                       </div>
                     )}
 
                     {/* Student details display on successful scan */}
                     {activeScan.success && activeScan.student && activeScan.asistencia && (
-                      <div className="space-y-4 w-full">
+                      <div className="space-y-3 w-full">
                         {/* Student Avatar */}
                         <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-white/20 mx-auto shadow-xl bg-black/40">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -420,15 +661,24 @@ export default function ScannerPage() {
                                 ? '✅ ENTRADA REGISTRADA' 
                                 : '🚪 SALIDA REGISTRADA'}
                           </span>
-                          <h3 className="text-xl font-black text-white">{activeScan.student.nombre} {activeScan.student.apellido_paterno} {activeScan.student.apellido_materno || ''}</h3>
-                          <p className="text-xs text-gray-400 font-semibold">{activeScan.student.grado} &quot;{activeScan.student.grupo}&quot; • <span className="font-mono">{activeScan.student.matricula}</span></p>
+                          <h3 className="text-xl font-black text-white">
+                            {activeScan.student.nombre} {activeScan.student.apellido_paterno} {activeScan.student.apellido_materno || ''}
+                          </h3>
+                          <p className="text-xs text-gray-400 font-semibold">
+                            {activeScan.student.grado} &quot;{activeScan.student.grupo}&quot; • <span className="font-mono text-cyan-300">{activeScan.student.matricula}</span>
+                          </p>
                         </div>
 
-                        {/* Timestamp logs & whatsapp prompt */}
-                        <div className="bg-black/40 border border-white/5 rounded-xl py-2 px-3 inline-flex items-center space-x-2 text-xs font-semibold text-gray-300">
+                        {/* Timestamp logs & origin tag */}
+                        <div className="bg-black/50 border border-white/10 rounded-xl py-2 px-3 inline-flex flex-wrap items-center justify-center gap-2 text-xs font-semibold text-gray-300">
                           <span>🕒 {activeScan.asistencia.hora}</span>
                           <span>•</span>
-                          <span className="text-emerald-400">💬 Envío WhatsApp listo</span>
+                          <span className="text-cyan-300 flex items-center space-x-1">
+                            <Barcode size={12} />
+                            <span>{activeScan.origin || 'Lector USB'}</span>
+                          </span>
+                          <span>•</span>
+                          <span className="text-emerald-400">💬 WhatsApp enviado</span>
                         </div>
                       </div>
                     )}
@@ -436,15 +686,20 @@ export default function ScannerPage() {
                     {/* Error display */}
                     {!activeScan.success && (
                       <div className="space-y-2 max-w-xs">
-                        <h3 className="text-lg font-black text-white">Denegado / No Registrado</h3>
+                        <h3 className="text-lg font-black text-white">Código No Reconocido</h3>
                         <p className="text-xs text-gray-400 leading-relaxed">{activeScan.msg}</p>
+                        {activeScan.origin && (
+                          <span className="inline-block text-[10px] text-gray-500 font-mono">
+                            Origen: {activeScan.origin}
+                          </span>
+                        )}
                       </div>
                     )}
 
                     {/* Resume Scanner Button override */}
                     <button
                       onClick={handleDismissScan}
-                      className="mt-6 px-4 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 border border-white/15 text-xs text-white font-bold transition-all cursor-pointer"
+                      className="mt-5 px-4 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 border border-white/15 text-xs text-white font-bold transition-all cursor-pointer"
                     >
                       Continuar Escaneo
                     </button>
@@ -460,7 +715,7 @@ export default function ScannerPage() {
             {cameraPermission === false && (
               <div className="bg-red-500/10 border-t border-red-500/20 px-6 py-3 flex items-center space-x-2 text-xs text-red-400 z-10">
                 <AlertCircle size={16} />
-                <span>Error de acceso a la cámara. Verifique que posee webcam y ha brindado permisos en el navegador.</span>
+                <span>Error de acceso a la cámara. Verifique los permisos en el navegador. Recuerde que el lector USB físico sigue funcionando sin la cámara.</span>
               </div>
             )}
 
@@ -468,19 +723,24 @@ export default function ScannerPage() {
 
         </div>
 
-        {/* Right Side: Control Panels, Scan Simulator, and Manual Override */}
+        {/* Right Side: Hardware Barcode Control, Scan Simulator, and Manual Override */}
         <div className="space-y-6">
           
           {/* Section 1: Demonstration Scan Simulator */}
           <div className="glass-panel p-6 rounded-2xl border-cyan-500/10 space-y-4">
             <div>
-              <h3 className="text-lg font-bold text-white">Simulador de Acceso</h3>
-              <p className="text-gray-400 text-xs">Utiliza este simulador para probar los flujos de entrada, sonido, confeti y WhatsApp sin usar la cámara.</p>
+              <h3 className="text-lg font-bold text-white flex items-center space-x-2">
+                <Play className="w-4 h-4 text-cyan-400" />
+                <span>Simulador de Acceso</span>
+              </h3>
+              <p className="text-gray-400 text-xs">
+                Prueba los flujos de sonido, confeti, deduplicación y notificación WhatsApp seleccionando un alumno.
+              </p>
             </div>
 
             {students.length === 0 ? (
               <div className="text-center text-xs text-gray-500 py-4 bg-black/20 border border-white/5 rounded-xl">
-                Agrega alumnos en el directorio primero.
+                Cargando alumnos del directorio...
               </div>
             ) : (
               <div className="space-y-3">
@@ -493,7 +753,7 @@ export default function ScannerPage() {
                   >
                     {students.map(s => (
                       <option key={s.id} value={s.matricula}>
-                        {s.nombre} {s.apellido_paterno} {s.apellido_materno || ''} ({s.matricula})
+                        {s.nombre} {s.apellido_paterno} ({s.matricula})
                       </option>
                     ))}
                   </select>
@@ -504,7 +764,7 @@ export default function ScannerPage() {
                   className="w-full flex items-center justify-center space-x-2 px-4 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black font-extrabold text-sm shadow-[0_0_15px_rgba(6,182,212,0.2)] transition-all cursor-pointer"
                 >
                   <Play size={14} />
-                  <span>Simular Lectura QR</span>
+                  <span>Simular Lectura de Credencial</span>
                 </button>
               </div>
             )}
@@ -513,8 +773,13 @@ export default function ScannerPage() {
           {/* Section 2: Manual Matricula Override Form */}
           <div className="glass-panel p-6 rounded-2xl border-cyan-500/10 space-y-4">
             <div>
-              <h3 className="text-lg font-bold text-white">Ingreso Manual</h3>
-              <p className="text-gray-400 text-xs">Si el código QR de la credencial está deteriorado o no se dispone de lector, digite la matrícula manualmente.</p>
+              <h3 className="text-lg font-bold text-white flex items-center space-x-2">
+                <ArrowRight className="w-4 h-4 text-cyan-400" />
+                <span>Ingreso Manual de Matrícula</span>
+              </h3>
+              <p className="text-gray-400 text-xs">
+                Si el código de barras está dañado o no cuentas con lector en este instante, ingresa la matrícula.
+              </p>
             </div>
 
             <form onSubmit={handleManualSubmit} className="space-y-3">
@@ -522,11 +787,12 @@ export default function ScannerPage() {
                 <label className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Matrícula o Código</label>
                 <div className="relative">
                   <input
+                    id="manual-input-box"
                     type="text"
                     required
                     value={manualMatricula}
                     onChange={(e) => setManualMatricula(e.target.value)}
-                    placeholder="Ej. DOJ-2026-001"
+                    placeholder="Ej. ALU-2026-001 o código de barras"
                     className="w-full glass-input py-2.5 pl-4 pr-12 rounded-xl text-sm font-mono"
                   />
                   <button
@@ -540,14 +806,17 @@ export default function ScannerPage() {
             </form>
           </div>
 
-          {/* Section 3: User Advice Guidelines */}
+          {/* Section 3: Barcode Hardware Instructions */}
           <div className="glass-panel p-6 rounded-2xl border-white/5 space-y-3 text-xs text-gray-400 leading-relaxed">
-            <h4 className="font-bold text-white">💡 Consejos para escaneo óptimo:</h4>
-            <ul className="list-disc pl-4 space-y-1">
-              <li>Asegure iluminación de frente en las credenciales impresas.</li>
-              <li>Mantenga la lente de la cámara limpia.</li>
-              <li>Ajuste el brillo de la pantalla de celulares a 100% si lee códigos QR digitales.</li>
-              <li>La detección inteligente alternará automáticamente el tipo de registro (Entrada ⇄ Salida) en base a los registros previos del alumno en el día.</li>
+            <h4 className="font-bold text-white flex items-center space-x-1.5">
+              <Barcode className="w-4 h-4 text-emerald-400" />
+              <span>Cómo utilizar el lector físico conectado:</span>
+            </h4>
+            <ul className="list-disc pl-4 space-y-1.5">
+              <li><strong className="text-gray-200">Plug & Play:</strong> Conecta tu lector de código de barras por cable USB o dongle inalámbrico a la computadora.</li>
+              <li><strong className="text-gray-200">Sin clics requeridos:</strong> El sistema escucha en segundo plano de manera global. Apunta el lector a la credencial y presiona el gatillo.</li>
+              <li><strong className="text-gray-200">Formatos compatibles:</strong> Admite códigos de barra 1D (Code 128, Code 39, EAN-13, UPC) y códigos 2D QR.</li>
+              <li><strong className="text-gray-200">Confirmación sonora:</strong> Se reproducirá un doble bip armónico con confeti y pantalla verde al registrar con éxito.</li>
             </ul>
           </div>
 

@@ -21,7 +21,8 @@ import {
   TrendingUp,
   UserCheck,
   Zap,
-  Info
+  Info,
+  Barcode
 } from 'lucide-react';
 import { db, Participacion, Asistencia } from '@/lib/db';
 import { getTijuanaDateString } from '@/lib/tijuanaTime';
@@ -73,6 +74,65 @@ export default function AttendanceSheet({
   const [filterBoardDate, setFilterBoardDate] = useState<string>('all');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
+  const [barcodeFeedback, setBarcodeFeedback] = useState<string | null>(null);
+
+  // Escucha activa de Lector de Código de Barras USB / Inalámbrico en clase
+  useEffect(() => {
+    let buffer = '';
+    let lastTime = 0;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const isInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT');
+
+      const now = Date.now();
+      const diff = now - lastTime;
+      lastTime = now;
+
+      if (e.key === 'Enter') {
+        const raw = buffer.trim();
+        buffer = '';
+
+        if (raw.length >= 2) {
+          const clean = raw.toUpperCase().replace(/[^a-zA-Z0-9]/g, '');
+          const matched = students.find(s => 
+            s.student_code.toUpperCase().replace(/[^a-zA-Z0-9]/g, '') === clean ||
+            s.id.toUpperCase().replace(/[^a-zA-Z0-9]/g, '') === clean ||
+            s.student_code.toUpperCase() === raw.toUpperCase()
+          );
+
+          if (matched) {
+            e.preventDefault();
+            handleStatusChange(matched.id, 'present');
+            setBarcodeFeedback(`✅ Lector de Código de Barras: Asistencia confirmada para ${matched.name} (${matched.student_code})`);
+            setTimeout(() => setBarcodeFeedback(null), 4500);
+          }
+        }
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        buffer = '';
+        return;
+      }
+
+      if (isInput && diff > 140) {
+        buffer = '';
+        return;
+      }
+
+      if (e.key.length === 1) {
+        if (diff > 120) {
+          buffer = e.key;
+        } else {
+          buffer += e.key;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
+  }, [students]);
 
   // Quick Live Participation Modal State
   const [isQuickModalOpen, setIsQuickModalOpen] = useState(false);
@@ -440,6 +500,19 @@ export default function AttendanceSheet({
           </div>
         </div>
       </div>
+
+      {/* Barcode scanner live feedback toast */}
+      {barcodeFeedback && (
+        <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-500/20 via-cyan-500/20 to-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-center justify-between shadow-lg shadow-emerald-500/10 animate-fade-in">
+          <div className="flex items-center space-x-2.5">
+            <Barcode className="w-4 h-4 text-emerald-400" />
+            <span>{barcodeFeedback}</span>
+          </div>
+          <button onClick={() => setBarcodeFeedback(null)} className="text-gray-400 hover:text-white text-xs">
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Feedback Alert */}
       {feedback && (
