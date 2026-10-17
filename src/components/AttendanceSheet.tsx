@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   CheckCircle2,
   Clock,
@@ -22,10 +22,19 @@ import {
   UserCheck,
   Zap,
   Info,
-  Barcode
+  Barcode,
+  Camera,
+  CameraOff,
+  Check,
+  BookOpen,
+  Volume2,
+  Usb,
+  Sparkle
 } from 'lucide-react';
-import { db, Participacion, Asistencia } from '@/lib/db';
+import { db, Participacion, Asistencia, Alumno } from '@/lib/db';
 import { getTijuanaDateString } from '@/lib/tijuanaTime';
+import { playChime } from '@/lib/voiceAssistant';
+import confetti from 'canvas-confetti';
 import * as XLSX from 'xlsx';
 
 export type AttendanceStatusType = 'present' | 'absent' | 'late' | 'excused';
@@ -41,22 +50,36 @@ export interface StudentItem {
 interface AttendanceSheetProps {
   courseId: string;
   courseName: string;
+  courseMateria?: string;
+  courseGrupo?: string;
   scheduleDescription?: string;
   students: StudentItem[];
+  allCoursesList?: Array<{ id: string; materia: string; grupo: string; carrera?: string }>;
   onAttendanceSubmitted?: () => void;
 }
 
 export default function AttendanceSheet({
   courseId,
   courseName,
+  courseMateria,
+  courseGrupo,
   scheduleDescription = 'Lunes a Sábado',
   students,
+  allCoursesList = [],
   onAttendanceSubmitted,
 }: AttendanceSheetProps) {
   // Current active view tab
   const [activeTab, setActiveTab] = useState<'sheet' | 'board'>('sheet');
   const [selectedDate, setSelectedDate] = useState<string>(() => getTijuanaDateString());
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Materia activa para atribución estricta de participaciones por materia
+  const [activeMateria, setActiveMateria] = useState<string>(() => courseMateria || courseName);
+
+  useEffect(() => {
+    if (courseMateria) setActiveMateria(courseMateria);
+    else if (courseName) setActiveMateria(courseName);
+  }, [courseMateria, courseName]);
 
   // Daily student states for attendance & participation
   const [attendanceState, setAttendanceState] = useState<
@@ -69,76 +92,54 @@ export default function AttendanceSheet({
     return initial;
   });
 
-  // Global historical participations for this course
+  // Global historical participations for this course & materia
   const [allParticipaciones, setAllParticipaciones] = useState<Participacion[]>([]);
   const [filterBoardDate, setFilterBoardDate] = useState<string>('all');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
   const [barcodeFeedback, setBarcodeFeedback] = useState<string | null>(null);
 
-  // Escucha activa de Lector de Código de Barras USB / Inalámbrico en clase
+  // Estados avanzados del Lector de Código de Barras
+  const [barcodeMode, setBarcodeMode] = useState<'participacion' | 'asistencia'>('participacion');
+  const [barcodePoints, setBarcodePoints] = useState<'AP' | 'REGULAR' | 'RP'>('AP');
+  const [isBarcodeModalOpen, setIsBarcodeModalOpen] = useState(false);
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [manualBarcodeInput, setManualBarcodeInput] = useState('');
+  const [highlightedStudentId, setHighlightedStudentId] = useState<string | null>(null);
+  const [allAlumnosList, setAllAlumnosList] = useState<Alumno[]>([]);
+  const [recentScans, setRecentScans] = useState<
+    Array<{ id: string; student: StudentItem; points: number; tipo: string; materia: string; time: string }>
+  >([]);
+
+  const cameraScannerRef = useRef<any>(null);
+  const barcodeInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Cargar catálogo de alumnos UNRC para búsqueda exhaustiva por código de barras
   useEffect(() => {
-    let buffer = '';
-    let lastTime = 0;
+    db.getAlumnos().then((list) => setAllAlumnosList(list || [])).catch(() => {});
+  }, []);
 
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
-      const isInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT');
+  // Handlers for sheet row updates
+  const handleStatusChange = (studentId: string, status: AttendanceStatusType) => {
+    setAttendanceState((prev) => ({
+      ...prev,
+      [studentId]: { ...prev[studentId], status },
+    }));
+  };
 
-      const now = Date.now();
-      const diff = now - lastTime;
-      lastTime = now;
+  const handleParticipationChange = (studentId: string, participation: ParticipationType) => {
+    setAttendanceState((prev) => ({
+      ...prev,
+      [studentId]: { ...prev[studentId], participation },
+    }));
+  };
 
-      if (e.key === 'Enter') {
-        const raw = buffer.trim();
-        buffer = '';
-
-        if (raw.length >= 2) {
-          const clean = raw.toUpperCase().replace(/[^a-zA-Z0-9]/g, '');
-          const matched = students.find(s => 
-            s.student_code.toUpperCase().replace(/[^a-zA-Z0-9]/g, '') === clean ||
-            s.id.toUpperCase().replace(/[^a-zA-Z0-9]/g, '') === clean ||
-            s.student_code.toUpperCase() === raw.toUpperCase()
-          );
-
-          if (matched) {
-            e.preventDefault();
-            handleStatusChange(matched.id, 'present');
-            setBarcodeFeedback(`✅ Lector de Código de Barras: Asistencia confirmada para ${matched.name} (${matched.student_code})`);
-            setTimeout(() => setBarcodeFeedback(null), 4500);
-          }
-        }
-        return;
-      }
-
-      if (e.key === 'Escape') {
-        buffer = '';
-        return;
-      }
-
-      if (isInput && diff > 140) {
-        buffer = '';
-        return;
-      }
-
-      if (e.key.length === 1) {
-        if (diff > 120) {
-          buffer = e.key;
-        } else {
-          buffer += e.key;
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown, true);
-    return () => window.removeEventListener('keydown', handleKeyDown, true);
-  }, [students]);
-
-  // Quick Live Participation Modal State
-  const [isQuickModalOpen, setIsQuickModalOpen] = useState(false);
-  const [quickStudentId, setQuickStudentId] = useState<string>('');
-  const [quickType, setQuickType] = useState<'AP' | 'RP' | 'REGULAR'>('AP');
-  const [quickNote, setQuickNote] = useState('');
+  const handleNotesChange = (studentId: string, notes: string) => {
+    setAttendanceState((prev) => ({
+      ...prev,
+      [studentId]: { ...prev[studentId], notes },
+    }));
+  };
 
   // Load existing attendances and participations whenever courseId or selectedDate changes
   const reloadData = async () => {
@@ -148,10 +149,13 @@ export default function AttendanceSheet({
         db.getParticipaciones(),
       ]);
 
-      // Filter participations relevant to this course
-      const courseParticipaciones = participacionesList.filter(
-        (p) => p.curso_id === courseId || p.grupo_id === courseId || !p.curso_id
-      );
+      // Filter participations relevant to this course and materia
+      const courseParticipaciones = participacionesList.filter((p) => {
+        if (p.curso_id === courseId || p.grupo_id === courseId) return true;
+        if (activeMateria && p.materia && p.materia.trim().toLowerCase() === activeMateria.trim().toLowerCase()) return true;
+        if (courseMateria && p.materia && p.materia.trim().toLowerCase() === courseMateria.trim().toLowerCase()) return true;
+        return !p.curso_id && !p.materia;
+      });
       setAllParticipaciones(courseParticipaciones);
 
       // Pre-populate sheet if records already exist for selectedDate
@@ -194,29 +198,267 @@ export default function AttendanceSheet({
 
   useEffect(() => {
     reloadData();
-  }, [courseId, selectedDate, students]);
+  }, [courseId, selectedDate, students, activeMateria]);
 
-  // Handlers for sheet row updates
-  const handleStatusChange = (studentId: string, status: AttendanceStatusType) => {
+  // Función universal para registrar participación vía código de barras
+  const handleRegisterBarcodeParticipation = async (
+    student: StudentItem,
+    pointsType: 'AP' | 'REGULAR' | 'RP',
+    targetMateria: string,
+    isExternal: boolean = false
+  ) => {
+    const puntos = pointsType === 'AP' ? 10 : pointsType === 'RP' ? 5 : 7.5;
+    const tipoLabel = pointsType === 'AP' ? 'Excelente (+10 pts)' : pointsType === 'RP' ? 'Mínima (+5 pts)' : 'Buena (+7.5 pts)';
+    const nota = `Participación en clase (${targetMateria})`;
+
+    // 1. Actualizar estado diario de asistencia y participación
     setAttendanceState((prev) => ({
       ...prev,
-      [studentId]: { ...prev[studentId], status },
+      [student.id]: {
+        ...(prev[student.id] || { status: 'present', notes: '' }),
+        status: 'present',
+        participation: pointsType,
+        notes: prev[student.id]?.notes || nota,
+      },
     }));
+
+    // 2. Persistir en base de datos con acumulación y materia específica
+    try {
+      await db.registrarParticipacion(
+        student.id,
+        pointsType,
+        nota,
+        selectedDate,
+        courseId,
+        targetMateria,
+        true // acumular
+      );
+    } catch (err) {
+      console.warn('Error guardando en db:', err);
+    }
+
+    // 3. Efectos auditivos y visuales
+    playChime('success');
+    try {
+      confetti({
+        particleCount: 50,
+        spread: 60,
+        origin: { y: 0.7 }
+      });
+    } catch (_) {}
+
+    // 4. Resaltar renglón y scroll suave
+    setHighlightedStudentId(student.id);
+    setTimeout(() => setHighlightedStudentId(null), 5000);
+    const el = document.getElementById(`student-row-${student.id}`);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    // 5. Toast feedback
+    const extText = isExternal ? ' (Registrado en UNRC)' : '';
+    setBarcodeFeedback(`⭐ ¡Participación registrada! ${student.name} (${student.student_code})${extText} • ${tipoLabel} en ${targetMateria}`);
+    setTimeout(() => setBarcodeFeedback(null), 6000);
+
+    // 6. Agregar al historial reciente de escaneos
+    setRecentScans((prev) => [
+      {
+        id: `scan-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        student,
+        points: puntos,
+        tipo: pointsType,
+        materia: targetMateria,
+        time: new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      },
+      ...prev,
+    ].slice(0, 15));
+
+    // 7. Recargar datos del curso
+    await reloadData();
   };
 
-  const handleParticipationChange = (studentId: string, participation: ParticipationType) => {
-    setAttendanceState((prev) => ({
-      ...prev,
-      [studentId]: { ...prev[studentId], participation },
-    }));
+  // Función procesadora de cualquier escaneo (USB, Cámara o Manual)
+  const handleBarcodeScanned = async (code: string, origin: string = 'Lector de Código de Barras USB') => {
+    const raw = code.trim();
+    if (!raw) return;
+
+    const clean = raw.toUpperCase().replace(/[^a-zA-Z0-9]/g, '');
+
+    // Buscar en la lista de alumnos del curso activo
+    let matched = students.find((s) => {
+      const sCode = s.student_code.toUpperCase().replace(/[^a-zA-Z0-9]/g, '');
+      const sId = s.id.toUpperCase().replace(/[^a-zA-Z0-9]/g, '');
+      return sCode === clean || sId === clean || s.student_code.toUpperCase() === raw.toUpperCase();
+    });
+
+    let isExternalStudent = false;
+
+    // Si no está en el grupo activo, buscar en toda la base de datos de alumnos UNRC
+    if (!matched && allAlumnosList.length > 0) {
+      const dbMatch = allAlumnosList.find((al) => {
+        const m = (al.matricula || '').toUpperCase().replace(/[^a-zA-Z0-9]/g, '');
+        const id = (al.id || '').toUpperCase().replace(/[^a-zA-Z0-9]/g, '');
+        const qr = (al.qr_code || '').toUpperCase().replace(/[^a-zA-Z0-9]/g, '');
+        return m === clean || id === clean || qr === clean || al.matricula?.toUpperCase() === raw.toUpperCase();
+      });
+
+      if (dbMatch) {
+        matched = {
+          id: dbMatch.id,
+          name: `${dbMatch.nombre} ${dbMatch.apellido_paterno} ${dbMatch.apellido_materno || ''}`.trim(),
+          student_code: dbMatch.matricula,
+          notes: `${dbMatch.grado || ''} • ${dbMatch.carrera || ''}`.trim(),
+        };
+        isExternalStudent = true;
+      }
+    }
+
+    if (!matched) {
+      playChime('error');
+      setBarcodeFeedback(`⚠️ Código no reconocido: "${raw}". Verifica que la matrícula esté registrada en UNRC.`);
+      setTimeout(() => setBarcodeFeedback(null), 5000);
+      return;
+    }
+
+    // Alumno encontrado
+    if (barcodeMode === 'participacion') {
+      await handleRegisterBarcodeParticipation(matched, barcodePoints, activeMateria, isExternalStudent);
+    } else {
+      // Modo Asistencia tradicional
+      handleStatusChange(matched.id, 'present');
+      setHighlightedStudentId(matched.id);
+      setTimeout(() => setHighlightedStudentId(null), 4000);
+      playChime('success');
+      setBarcodeFeedback(`✅ Lector (${origin}): Asistencia confirmada para ${matched.name} (${matched.student_code})`);
+      setTimeout(() => setBarcodeFeedback(null), 4500);
+
+      const el = document.getElementById(`student-row-${matched.id}`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
   };
 
-  const handleNotesChange = (studentId: string, notes: string) => {
-    setAttendanceState((prev) => ({
-      ...prev,
-      [studentId]: { ...prev[studentId], notes },
-    }));
+  // Escucha activa de Lector de Código de Barras USB / Inalámbrico en clase
+  useEffect(() => {
+    let buffer = '';
+    let lastTime = 0;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const isManualInput = target && target.id === 'barcode-scanner-manual-input';
+      const isOtherInput = target && !isManualInput && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT');
+
+      const now = Date.now();
+      const diff = now - lastTime;
+      lastTime = now;
+
+      if (e.key === 'Enter') {
+        const raw = isManualInput ? manualBarcodeInput.trim() : buffer.trim();
+        buffer = '';
+
+        if (raw.length >= 2) {
+          e.preventDefault();
+          if (isManualInput) setManualBarcodeInput('');
+          handleBarcodeScanned(raw, 'Lector de Código de Barras Físico');
+        }
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        buffer = '';
+        return;
+      }
+
+      // Si el usuario está tecleando en otro input a velocidad humana (> 130ms), no interferir
+      if (isOtherInput && diff > 130) {
+        buffer = '';
+        return;
+      }
+
+      if (e.key.length === 1) {
+        if (diff > 120) {
+          buffer = e.key;
+        } else {
+          buffer += e.key;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
+  }, [students, allAlumnosList, barcodeMode, barcodePoints, activeMateria, manualBarcodeInput]);
+
+  // Manejo de Cámara para escaneo de códigos de barra y QR
+  const startCamera = async () => {
+    try {
+      setIsCameraActive(true);
+      const { Html5Qrcode, Html5QrcodeSupportedFormats } = await import('html5-qrcode');
+
+      if (cameraScannerRef.current) {
+        try {
+          await cameraScannerRef.current.stop();
+        } catch (_) {}
+      }
+
+      const formatsToSupport = [
+        Html5QrcodeSupportedFormats.QR_CODE,
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.CODE_93,
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.UPC_E,
+      ];
+
+      const scanner = new Html5Qrcode('attendance-camera-reader', {
+        formatsToSupport,
+        verbose: false,
+      });
+      cameraScannerRef.current = scanner;
+
+      await scanner.start(
+        { facingMode: 'environment' },
+        { fps: 12, qrbox: { width: 260, height: 160 } },
+        async (decodedText) => {
+          handleBarcodeScanned(decodedText, 'Cámara en Vivo');
+        },
+        () => {}
+      );
+    } catch (err) {
+      console.warn('Error iniciando cámara:', err);
+      setIsCameraActive(false);
+    }
   };
+
+  const stopCamera = async () => {
+    if (cameraScannerRef.current) {
+      try {
+        if (cameraScannerRef.current.isScanning) {
+          await cameraScannerRef.current.stop();
+        }
+      } catch (_) {}
+      cameraScannerRef.current = null;
+    }
+    setIsCameraActive(false);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (cameraScannerRef.current) {
+        try {
+          if (cameraScannerRef.current.isScanning) {
+            cameraScannerRef.current.stop();
+          }
+        } catch (_) {}
+      }
+    };
+  }, []);
+
+  // Quick Live Participation Modal State (antiguo)
+  const [isQuickModalOpen, setIsQuickModalOpen] = useState(false);
+  const [quickStudentId, setQuickStudentId] = useState<string>('');
+  const [quickType, setQuickType] = useState<'AP' | 'RP' | 'REGULAR'>('AP');
+  const [quickNote, setQuickNote] = useState('');
+
+
 
   const handleMarkAllStatus = (status: AttendanceStatusType) => {
     setAttendanceState((prev) => {
@@ -451,6 +693,197 @@ export default function AttendanceSheet({
         </div>
       </div>
 
+      {/* ========================================================================= */}
+      {/* BARRA: LECTOR DE CÓDIGO DE BARRAS & PARTICIPACIONES POR MATERIA          */}
+      {/* ========================================================================= */}
+      <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-[#0D182E] via-[#092238] to-[#0A2E22] border border-amber-500/30 shadow-2xl space-y-3.5">
+        
+        {/* Fila 1: Indicador de Hardware, Modo del Lector y Acciones */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          
+          <div className="flex items-center space-x-2.5">
+            <div className="p-2.5 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-300 shadow-inner">
+              <Barcode className="w-5 h-5 text-amber-400" />
+            </div>
+            <div>
+              <div className="flex items-center space-x-2">
+                <span className="text-xs font-black text-white tracking-wide uppercase">
+                  Lector de Código de Barras
+                </span>
+                <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-[10px] font-bold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping mr-0.5"></span>
+                  <span>USB / Pistola Activa</span>
+                </span>
+              </div>
+              <p className="text-[11px] text-gray-300">
+                Pasa la credencial o código de barras para calificar la participación por materia.
+              </p>
+            </div>
+          </div>
+
+          {/* Toggle de Modo: Participación vs Asistencia */}
+          <div className="flex items-center space-x-2 self-stretch sm:self-auto">
+            <div className="inline-flex p-1 rounded-2xl bg-black/60 border border-white/10 text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => setBarcodeMode('participacion')}
+                className={`px-3 py-1.5 rounded-xl transition-all flex items-center space-x-1.5 cursor-pointer ${
+                  barcodeMode === 'participacion'
+                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-black font-black shadow-lg shadow-amber-500/30'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                <Star className="w-3.5 h-3.5 fill-current" />
+                <span>⭐ Modo Participación</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setBarcodeMode('asistencia')}
+                className={`px-3 py-1.5 rounded-xl transition-all flex items-center space-x-1.5 cursor-pointer ${
+                  barcodeMode === 'asistencia'
+                    ? 'bg-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/30'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                <UserCheck className="w-3.5 h-3.5" />
+                <span>📋 Modo Asistencia</span>
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsBarcodeModalOpen(true)}
+              className="px-3.5 py-2 rounded-2xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-xs font-bold transition-all flex items-center space-x-1.5 shadow-lg shadow-cyan-600/20 cursor-pointer shrink-0"
+              title="Abrir consola de escáner con cámara y visor"
+            >
+              <Camera className="w-4 h-4" />
+              <span>Consola & Cámara</span>
+            </button>
+          </div>
+
+        </div>
+
+        {/* Fila 2: Selector de Materia, Puntos a Asignar e Input Rápido */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center pt-1 border-t border-white/5">
+          
+          {/* Materia para Atribución */}
+          <div className="md:col-span-5 flex items-center space-x-2">
+            <label className="text-[11px] font-bold text-gray-300 flex items-center space-x-1 shrink-0">
+              <BookOpen className="w-3.5 h-3.5 text-amber-400" />
+              <span>Materia:</span>
+            </label>
+
+            {allCoursesList && allCoursesList.length > 0 ? (
+              <select
+                value={activeMateria}
+                onChange={(e) => setActiveMateria(e.target.value)}
+                className="w-full px-2.5 py-1.5 rounded-xl bg-black/70 border border-amber-500/30 text-amber-300 font-bold text-xs focus:outline-none focus:border-amber-400"
+              >
+                <option value={courseMateria || courseName}>
+                  {courseMateria || courseName} (Curso Actual)
+                </option>
+                {allCoursesList
+                  .filter((c) => c.materia !== (courseMateria || courseName))
+                  .map((c) => (
+                    <option key={c.id} value={c.materia}>
+                      {c.materia} (Grupo {c.grupo})
+                    </option>
+                  ))}
+              </select>
+            ) : (
+              <div className="px-3 py-1 rounded-xl bg-black/60 border border-amber-500/30 text-amber-300 text-xs font-bold truncate">
+                {activeMateria}
+              </div>
+            )}
+          </div>
+
+          {/* Selector de Puntos (solo en modo participación) */}
+          {barcodeMode === 'participacion' ? (
+            <div className="md:col-span-4 flex items-center space-x-1.5">
+              <span className="text-[11px] text-gray-300 font-bold shrink-0">Puntos:</span>
+              <button
+                type="button"
+                onClick={() => setBarcodePoints('AP')}
+                className={`flex-1 py-1 px-2 rounded-xl text-[11px] font-bold border transition-all cursor-pointer ${
+                  barcodePoints === 'AP'
+                    ? 'bg-amber-500 text-black border-amber-400 font-black shadow-md'
+                    : 'bg-black/40 border-white/10 text-gray-400 hover:text-white'
+                }`}
+              >
+                +10 (Excelente)
+              </button>
+              <button
+                type="button"
+                onClick={() => setBarcodePoints('REGULAR')}
+                className={`flex-1 py-1 px-2 rounded-xl text-[11px] font-bold border transition-all cursor-pointer ${
+                  barcodePoints === 'REGULAR'
+                    ? 'bg-blue-500 text-white border-blue-400 font-black shadow-md'
+                    : 'bg-black/40 border-white/10 text-gray-400 hover:text-white'
+                }`}
+              >
+                +7.5 (Buena)
+              </button>
+              <button
+                type="button"
+                onClick={() => setBarcodePoints('RP')}
+                className={`flex-1 py-1 px-2 rounded-xl text-[11px] font-bold border transition-all cursor-pointer ${
+                  barcodePoints === 'RP'
+                    ? 'bg-orange-500 text-white border-orange-400 font-black shadow-md'
+                    : 'bg-black/40 border-white/10 text-gray-400 hover:text-white'
+                }`}
+              >
+                +5 (Mínima)
+              </button>
+            </div>
+          ) : (
+            <div className="md:col-span-4 text-[11px] text-emerald-300 font-semibold flex items-center space-x-1.5">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <span>Escaneo registrará asistencia (Presente)</span>
+            </div>
+          )}
+
+          {/* Input Manual / Pistola USB enfocado */}
+          <div className="md:col-span-3 flex items-center space-x-1.5">
+            <div className="relative w-full">
+              <Barcode className="absolute left-2.5 top-2 w-3.5 h-3.5 text-gray-400" />
+              <input
+                id="barcode-scanner-manual-input"
+                ref={barcodeInputRef}
+                type="text"
+                value={manualBarcodeInput}
+                onChange={(e) => setManualBarcodeInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (manualBarcodeInput.trim().length >= 2) {
+                      handleBarcodeScanned(manualBarcodeInput.trim(), 'Entrada Rápida');
+                      setManualBarcodeInput('');
+                    }
+                  }
+                }}
+                placeholder="Escanear o teclear matrícula..."
+                className="w-full pl-8 pr-2 py-1.5 rounded-xl bg-black/60 border border-white/15 text-white placeholder-gray-500 text-xs font-mono focus:outline-none focus:border-amber-400"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (manualBarcodeInput.trim().length >= 2) {
+                  handleBarcodeScanned(manualBarcodeInput.trim(), 'Entrada Rápida');
+                  setManualBarcodeInput('');
+                }
+              }}
+              className="px-2.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs font-bold cursor-pointer"
+            >
+              OK
+            </button>
+          </div>
+
+        </div>
+
+      </div>
+
       {/* Navigation Tabs (Asistencia vs Tablero de Participaciones) */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 border-b border-white/5 pb-2">
         <div className="flex items-center space-x-2 p-1.5 rounded-2xl bg-black/40 border border-white/10">
@@ -627,14 +1060,35 @@ export default function AttendanceSheet({
                       const totalPuntos = studentParts.reduce((acc, curr) => acc + curr.puntos, 0);
 
                       return (
-                        <tr key={st.id} className="hover:bg-white/5 transition-colors">
+                        <tr
+                          key={st.id}
+                          id={`student-row-${st.id}`}
+                          className={`transition-all duration-300 ${
+                            highlightedStudentId === st.id
+                              ? 'bg-amber-500/25 ring-2 ring-amber-400 shadow-xl shadow-amber-500/20'
+                              : 'hover:bg-white/5'
+                          }`}
+                        >
                           
                           {/* Student Info */}
                           <td className="p-3.5">
-                            <div className="font-bold text-white leading-snug">{st.name}</div>
-                            <div className="font-mono text-[11px] text-emerald-400 font-semibold mt-0.5 flex items-center space-x-2">
-                              <span>{st.student_code}</span>
-                              {st.notes && <span className="text-gray-500">• {st.notes}</span>}
+                            <div className="flex items-center justify-between gap-2">
+                              <div>
+                                <div className="font-bold text-white leading-snug">{st.name}</div>
+                                <div className="font-mono text-[11px] text-emerald-400 font-semibold mt-0.5 flex items-center space-x-2">
+                                  <span>{st.student_code}</span>
+                                  {st.notes && <span className="text-gray-500">• {st.notes}</span>}
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleRegisterBarcodeParticipation(st, barcodePoints, activeMateria)}
+                                className="px-2 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 transition-all text-[10px] font-bold flex items-center space-x-1 shrink-0 cursor-pointer"
+                                title={`Asignar participación a ${st.name} en ${activeMateria}`}
+                              >
+                                <Barcode className="w-3.5 h-3.5 text-amber-400" />
+                                <span className="hidden sm:inline">+Part.</span>
+                              </button>
                             </div>
                           </td>
 
@@ -1197,6 +1651,310 @@ export default function AttendanceSheet({
               </div>
 
             </form>
+
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL: CONSOLA DE ESCÁNER DE CÓDIGO DE BARRAS & CÁMARA (PARTICIPACIONES)   */}
+      {/* ========================================================================= */}
+      {isBarcodeModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-md animate-fadeIn">
+          <div className="bg-[#0C1527] border border-amber-500/40 rounded-3xl p-5 sm:p-7 max-w-2xl w-full shadow-2xl space-y-5 text-white max-h-[92vh] overflow-y-auto">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+              <div className="flex items-center space-x-3">
+                <div className="p-2.5 rounded-2xl bg-gradient-to-br from-amber-500/25 to-yellow-500/15 border border-amber-500/40 text-amber-300 shadow-md">
+                  <Barcode className="w-6 h-6 text-amber-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg sm:text-xl font-black text-white flex items-center space-x-2">
+                    <span>Consola de Código de Barras</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 uppercase font-mono">
+                      UNRC Live
+                    </span>
+                  </h3>
+                  <p className="text-xs text-gray-400">
+                    Escanea con tu lector USB o cámara para calificar participaciones por materia.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  stopCamera();
+                  setIsBarcodeModalOpen(false);
+                }}
+                className="text-gray-400 hover:text-white p-1.5 rounded-xl hover:bg-white/10 transition-colors cursor-pointer text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Configuración Rápida de Atribución */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-2xl bg-black/50 border border-white/10">
+              {/* Materia Activa */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-gray-300 flex items-center space-x-1.5">
+                  <BookOpen className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Materia a Calificar:</span>
+                </label>
+                {allCoursesList && allCoursesList.length > 0 ? (
+                  <select
+                    value={activeMateria}
+                    onChange={(e) => setActiveMateria(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-black/80 border border-amber-500/40 text-amber-300 font-bold text-xs focus:outline-none focus:border-amber-400"
+                  >
+                    <option value={courseMateria || courseName}>
+                      {courseMateria || courseName}
+                    </option>
+                    {allCoursesList
+                      .filter((c) => c.materia !== (courseMateria || courseName))
+                      .map((c) => (
+                        <option key={c.id} value={c.materia}>
+                          {c.materia} (Grupo {c.grupo})
+                        </option>
+                      ))}
+                  </select>
+                ) : (
+                  <div className="px-3 py-2 rounded-xl bg-black/80 border border-amber-500/40 text-amber-300 font-bold text-xs truncate">
+                    {activeMateria}
+                  </div>
+                )}
+              </div>
+
+              {/* Modo de Operación */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-gray-300">Modo de Operación:</label>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setBarcodeMode('participacion')}
+                    className={`py-1.5 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1 cursor-pointer ${
+                      barcodeMode === 'participacion'
+                        ? 'bg-amber-500 text-black font-black shadow-md'
+                        : 'bg-white/5 text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    <Star className="w-3.5 h-3.5 fill-current" />
+                    <span>Participación</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setBarcodeMode('asistencia')}
+                    className={`py-1.5 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1 cursor-pointer ${
+                      barcodeMode === 'asistencia'
+                        ? 'bg-emerald-500 text-white font-black shadow-md'
+                        : 'bg-white/5 text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    <UserCheck className="w-3.5 h-3.5" />
+                    <span>Asistencia</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Nivel de Participación / Puntos */}
+            {barcodeMode === 'participacion' && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-300">Puntos a otorgar en cada escaneo:</label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setBarcodePoints('AP')}
+                    className={`p-2.5 rounded-2xl border text-center transition-all cursor-pointer ${
+                      barcodePoints === 'AP'
+                        ? 'bg-amber-500/25 border-amber-400 text-amber-300 font-black shadow-md shadow-amber-500/20'
+                        : 'bg-black/40 border-white/10 text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    <Star className="w-4 h-4 mx-auto mb-0.5 fill-current" />
+                    <span className="text-xs block">Excelente</span>
+                    <span className="text-[10px] text-amber-400 font-mono">+10 pts</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setBarcodePoints('REGULAR')}
+                    className={`p-2.5 rounded-2xl border text-center transition-all cursor-pointer ${
+                      barcodePoints === 'REGULAR'
+                        ? 'bg-blue-500/25 border-blue-400 text-blue-300 font-black shadow-md shadow-blue-500/20'
+                        : 'bg-black/40 border-white/10 text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    <Zap className="w-4 h-4 mx-auto mb-0.5" />
+                    <span className="text-xs block">Buena</span>
+                    <span className="text-[10px] text-blue-400 font-mono">+7.5 pts</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setBarcodePoints('RP')}
+                    className={`p-2.5 rounded-2xl border text-center transition-all cursor-pointer ${
+                      barcodePoints === 'RP'
+                        ? 'bg-orange-500/25 border-orange-400 text-orange-300 font-black shadow-md shadow-orange-500/20'
+                        : 'bg-black/40 border-white/10 text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    <Clock className="w-4 h-4 mx-auto mb-0.5" />
+                    <span className="text-xs block">Mínima</span>
+                    <span className="text-[10px] text-orange-400 font-mono">+5 pts</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Input para Pistola USB / Lectura Manual */}
+            <div className="space-y-2 p-4 rounded-2xl bg-black/60 border border-amber-500/30">
+              <label className="text-xs font-bold text-amber-300 flex items-center justify-between">
+                <span className="flex items-center space-x-1.5">
+                  <Usb className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Lector de Código de Barras USB / Entrada de Teclado:</span>
+                </span>
+                <span className="text-[10px] text-gray-400 font-mono">Presiona Enter tras escanear</span>
+              </label>
+
+              <div className="flex items-center space-x-2">
+                <div className="relative flex-1">
+                  <Barcode className="absolute left-3.5 top-3 w-5 h-5 text-amber-400" />
+                  <input
+                    id="barcode-scanner-console-input"
+                    type="text"
+                    autoFocus
+                    value={manualBarcodeInput}
+                    onChange={(e) => setManualBarcodeInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (manualBarcodeInput.trim().length >= 2) {
+                          handleBarcodeScanned(manualBarcodeInput.trim(), 'Consola USB');
+                          setManualBarcodeInput('');
+                        }
+                      }
+                    }}
+                    placeholder="Pasa el lector por la credencial o ingresa matrícula..."
+                    className="w-full pl-11 pr-4 py-2.5 rounded-xl bg-black/80 border border-amber-500/40 text-white placeholder-gray-500 text-sm font-mono font-bold focus:outline-none focus:border-amber-400 shadow-inner"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (manualBarcodeInput.trim().length >= 2) {
+                      handleBarcodeScanned(manualBarcodeInput.trim(), 'Consola USB');
+                      setManualBarcodeInput('');
+                    }
+                  }}
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-extrabold text-xs shadow-lg shadow-amber-500/30 transition-all cursor-pointer"
+                >
+                  Registrar
+                </button>
+              </div>
+            </div>
+
+            {/* Alternar Cámara Web / Móvil */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-gray-300 flex items-center space-x-1.5">
+                  <Camera className="w-4 h-4 text-cyan-400" />
+                  <span>Escáner por Cámara de Dispositivo (QR & Barras):</span>
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isCameraActive) stopCamera();
+                    else startCamera();
+                  }}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
+                    isCameraActive
+                      ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                      : 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/40 hover:bg-cyan-500/25'
+                  }`}
+                >
+                  {isCameraActive ? (
+                    <>
+                      <CameraOff className="w-3.5 h-3.5" />
+                      <span>Apagar Cámara</span>
+                    </>
+                  ) : (
+                    <>
+                      <Camera className="w-3.5 h-3.5" />
+                      <span>Activar Cámara</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {isCameraActive && (
+                <div className="relative rounded-2xl overflow-hidden border-2 border-cyan-500/40 bg-black p-2 animate-fadeIn">
+                  <div id="attendance-camera-reader" className="w-full max-w-sm mx-auto min-h-[220px]" />
+                  <p className="text-[11px] text-center text-cyan-300 mt-2 font-medium">
+                    Apunta la cámara hacia el código de barras o código QR de la credencial
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Historial de Escaneos de esta Sesión */}
+            {recentScans.length > 0 && (
+              <div className="space-y-2 border-t border-white/10 pt-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-gray-300 flex items-center space-x-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Últimos Alumnos Escaneados en esta Sesión ({recentScans.length}):</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setRecentScans([])}
+                    className="text-[10px] text-gray-400 hover:text-white"
+                  >
+                    Limpiar lista
+                  </button>
+                </div>
+
+                <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                  {recentScans.map((scan) => (
+                    <div
+                      key={scan.id}
+                      className="p-2.5 rounded-xl bg-black/40 border border-white/5 flex items-center justify-between text-xs"
+                    >
+                      <div className="flex items-center space-x-2.5">
+                        <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
+                        <div>
+                          <span className="font-bold text-white">{scan.student.name}</span>
+                          <span className="font-mono text-[10px] text-gray-400 ml-2">({scan.student.student_code})</span>
+                          <div className="text-[10px] text-amber-300">{scan.materia}</div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-mono font-bold text-[11px]">
+                          +{scan.points} pts
+                        </span>
+                        <div className="text-[9px] text-gray-500">{scan.time}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Footer Buttons */}
+            <div className="flex items-center justify-end border-t border-white/10 pt-3">
+              <button
+                type="button"
+                onClick={() => {
+                  stopCamera();
+                  setIsBarcodeModalOpen(false);
+                }}
+                className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-bold transition-all cursor-pointer"
+              >
+                Cerrar Consola
+              </button>
+            </div>
 
           </div>
         </div>

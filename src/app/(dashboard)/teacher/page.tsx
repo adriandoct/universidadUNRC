@@ -1071,8 +1071,16 @@ export default function TeacherDashboardPage() {
           key={selectedCourseId}
           courseId={selectedCourseId}
           courseName={activeCourseName}
+          courseMateria={selectedCourse?.materia}
+          courseGrupo={selectedCourse?.grupo}
           scheduleDescription={activeSchedule}
           students={activeStudents}
+          allCoursesList={assignedCourses.map((c) => ({
+            id: c.id,
+            materia: c.materia,
+            grupo: c.grupo,
+            carrera: c.carrera,
+          }))}
         />
       </div>
 

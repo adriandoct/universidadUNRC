@@ -2836,7 +2836,8 @@ export const db = {
     observaciones?: string,
     fecha?: string,
     cursoId?: string,
-    materia?: string
+    materia?: string,
+    acumular: boolean = false
   ): Promise<Participacion> => {
     initLocalStorage();
     const alumnos = await db.getAlumnos();
@@ -2860,8 +2861,14 @@ export const db = {
     };
 
     let list: Participacion[] = JSON.parse(localStorage.getItem('unrc_participaciones') || '[]');
-    // Update existing for this student, date and course, or add
-    list = list.filter(item => !(item.alumno_id === alumno.id && item.fecha === targetDate && (item.curso_id === cursoId || item.grupo_id === cursoId)));
+    // Si no es acumulativo, reemplazar el registro del mismo alumno, fecha y curso/materia
+    if (!acumular) {
+      list = list.filter(item => !(
+        item.alumno_id === alumno.id &&
+        item.fecha === targetDate &&
+        (item.curso_id === cursoId || item.grupo_id === cursoId || (materia && item.materia === materia))
+      ));
+    }
     list.push(newPart);
     localStorage.setItem('unrc_participaciones', JSON.stringify(list));
 
@@ -2873,7 +2880,8 @@ export const db = {
           fecha: newPart.fecha,
           tipo,
           puntos,
-          observaciones: newPart.observaciones
+          observaciones: newPart.observaciones,
+          materia: materia || null
         }]);
       } catch (e) {
         console.warn('Supabase participacion insert notice:', e);
