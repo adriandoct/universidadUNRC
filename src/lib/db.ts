@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getTijuanaDateString, getTijuanaTimeString } from './tijuanaTime';
+import { seedLacMatematicasDataSync } from './googleSheetsSync';
 
 // User Roles
 export type UserRole = 'alumno' | 'docente' | 'administrador';
@@ -784,6 +785,15 @@ const initLocalStorage = () => {
   if (!localStorage.getItem('unrc_asistencias')) {
     localStorage.setItem('unrc_asistencias', JSON.stringify([]));
     localStorage.setItem('unrc_asistencias_v2', 'true');
+  }
+
+  // Auto-migration & seed: Official students, attendances and participations from Google Sheets (LAC Matemáticas)
+  if (!localStorage.getItem('unrc_lac_matematicas_v1_synced')) {
+    try {
+      seedLacMatematicasDataSync(true);
+    } catch (e) {
+      console.warn('Error during auto-seed of LAC Matemáticas from Google Sheets:', e);
+    }
   }
 
   // Seed Auditorias

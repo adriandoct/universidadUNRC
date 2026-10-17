@@ -115,6 +115,15 @@ export default function TeacherDashboardPage() {
       }
     }
     loadDocenteProfile();
+
+    const handleSyncComplete = async () => {
+      try {
+        const refreshedAlumnos = await db.getAlumnos();
+        setAllAlumnos(refreshedAlumnos || []);
+      } catch (_) {}
+    };
+    window.addEventListener('unrc-sync-complete', handleSyncComplete);
+    return () => window.removeEventListener('unrc-sync-complete', handleSyncComplete);
   }, [user]);
 
 
