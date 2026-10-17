@@ -195,27 +195,31 @@ export default function TeacherDashboardPage() {
         if (!rawMateria && !rawGrupo) return;
 
         const normMat = norm(rawMateria);
-        const keyGrp = cleanKey(rawGrupo);
 
+        // Buscar materia en el catálogo por NOMBRE de materia para obtener metadatos (semestre, créditos, etc.)
         const matchedMateria = allMaterias.find((m) => {
           const nm = norm(m.nombre);
-          const nk = cleanKey(m.clave);
           return (
             (normMat && nm === normMat) ||
-            (normMat && (nm.includes(normMat) || normMat.includes(nm))) ||
-            (keyGrp && nk === keyGrp) ||
-            (keyGrp && keyGrp.includes('203') && nk.includes('203')) ||
-            (keyGrp && keyGrp.includes('301') && nk.includes('301')) ||
-            (keyGrp && keyGrp.includes('tur') && nk.includes('tur'))
+            (normMat && nm.length > 5 && (nm.includes(normMat) || normMat.includes(nm)))
           );
         });
 
-        let canonicalGrupo = matchedMateria?.clave || getCanonicalGroup(rawGrupo, rawMateria);
-        if (canonicalGrupo.includes('203') || canonicalGrupo.includes('ADM') || normMat.includes('administr') || normMat.includes('matemat')) {
+        // La materia canónica SIEMPRE debe ser rawMateria o el nombre oficial del catálogo
+        const canonicalMateria = matchedMateria?.nombre || rawMateria;
+
+        // El grupo canónico: respetar h.grupo o formatear si es necesario
+        let canonicalGrupo = rawGrupo;
+        if (!canonicalGrupo) {
+          canonicalGrupo = matchedMateria?.clave || getCanonicalGroup(rawGrupo, canonicalMateria);
+        } else if (canonicalGrupo === '203' || canonicalGrupo === '203-ADM') {
           canonicalGrupo = 'PHLAC-203-TIJ';
+        } else if (canonicalGrupo === '201' && (canonicalMateria.toLowerCase().includes('hospedaje') || canonicalMateria.toLowerCase().includes('turis'))) {
+          canonicalGrupo = 'PHLTUR-201-TIJ';
+        } else if (canonicalGrupo === '301') {
+          canonicalGrupo = 'PHLCDN-301-TIJ';
         }
 
-        const canonicalMateria = matchedMateria?.nombre || (canonicalGrupo === 'PHLAC-203-TIJ' && normMat.includes('matemat') ? 'Matemáticas para la Administración' : rawMateria);
         const matchingCarrera = allCarreras.find((c) => c.id === matchedMateria?.carrera_id);
         const canonicalCarrera = matchingCarrera?.nombre || (
           canonicalGrupo.includes('PHLAC') ? 'Licenciatura en Administración' :
@@ -227,7 +231,7 @@ export default function TeacherDashboardPage() {
         const key = `${canonicalGrupo}____${canonicalMateria}`.toLowerCase();
 
         if (!courseMap.has(key)) {
-          const courseId = `course-${canonicalGrupo.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${canonicalMateria.toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 25)}`;
+          const courseId = `course-${canonicalGrupo.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${canonicalMateria.toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 30)}`;
           courseMap.set(key, {
             id: courseId,
             grupo: canonicalGrupo,
@@ -258,48 +262,104 @@ export default function TeacherDashboardPage() {
       });
     }
 
-    // 2. Also ensure primary catalog subjects from Image 2 are included in the dropdown
-    allMaterias.forEach((m) => {
-      const key = `${m.clave}____${m.nombre}`.toLowerCase();
-      if (!courseMap.has(key)) {
-        const isAdrianSilva = currentDocente?.num_empleado === 'DOC-UNRC-03' || currentDocente?.nombre?.toLowerCase().includes('adrian');
-        const isPrimaryFromImage = m.clave === 'PHLAC-203-TIJ' || m.clave === 'PHLCDN-301-TIJ' || m.clave === 'PHLTUR-201-TIJ';
-        const isTeacherMateria = currentDocente?.materias?.some((dm) => norm(dm) === norm(m.nombre) || norm(dm).includes(norm(m.nombre)));
+    // 2. Also ensure all docente's assigned materias from profile are included in the dropdown
+    if (currentDocente?.materias && currentDocente.materias.length > 0) {
+      currentDocente.materias.forEach((materiaName) => {
+        const normName = norm(materiaName);
+        const alreadyExists = Array.from(courseMap.values()).some((c) => norm(c.materia) === normName);
+        if (!alreadyExists) {
+          const matchedMateria = allMaterias.find((m) => norm(m.nombre) === normName || norm(m.nombre).includes(normName));
+          const matchingCarrera = allCarreras.find((c) => c.id === matchedMateria?.carrera_id);
 
-        if (isPrimaryFromImage || isTeacherMateria || isAdrianSilva) {
-          const matchingCarrera = allCarreras.find((c) => c.id === m.carrera_id);
-          const carName = matchingCarrera?.nombre || (
-            m.clave.includes('PHLAC') ? 'Licenciatura en Administración' :
-            m.clave.includes('PHLTUR') ? 'Licenciatura en Turismo' :
-            'Licenciatura en Ciencias de Datos e Inteligencia Artificial'
-          );
-
-          let defaultAula = 'Campus Tijuana - Aula 203';
-          let defaultSesiones = [{ dia: 'Lunes', inicio: '07:00', fin: '09:00', online: false }];
-          if (m.clave === 'PHLCDN-301-TIJ') {
-            defaultAula = 'Campus Tijuana - Lab Cómputo 1';
-            defaultSesiones = [{ dia: 'Martes', inicio: '14:00', fin: '17:00', online: false }];
-          } else if (m.clave === 'PHLTUR-201-TIJ') {
-            defaultAula = 'Campus Tijuana - Aula Magna TIJ';
-            defaultSesiones = [
-              { dia: 'Miércoles', inicio: '09:00', fin: '11:00', online: false },
-              { dia: 'Sábado', inicio: '07:00', fin: '09:00', online: true }
-            ];
+          let grupo = matchedMateria?.clave || 'PHLAC-203-TIJ';
+          if (normName.includes('hospedaje') || normName.includes('turis')) {
+            grupo = 'PHLTUR-201-TIJ';
+          } else if (normName.includes('datos') || normName.includes('algoritmo')) {
+            grupo = 'PHLCDN-301-TIJ';
           }
 
+          const carName = matchingCarrera?.nombre || (
+            grupo.includes('PHLTUR') ? 'Licenciatura en Turismo' :
+            grupo.includes('PHLCDN') ? 'Licenciatura en Ciencias de Datos e Inteligencia Artificial' :
+            'Licenciatura en Administración'
+          );
+
+          const key = `${grupo}____${materiaName}`.toLowerCase();
+          const courseId = `course-${grupo.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${materiaName.toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 30)}`;
           courseMap.set(key, {
-            id: `course-${m.clave.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
-            grupo: m.clave,
-            materia: m.nombre,
+            id: courseId,
+            grupo,
+            materia: materiaName,
             carrera: carName,
-            semestre: m.semestre || '2° Semestre',
-            creditos: m.creditos || 8,
-            aulas: new Set([defaultAula]),
-            sesiones: defaultSesiones
+            semestre: matchedMateria?.semestre || '2° Semestre',
+            creditos: matchedMateria?.creditos || 8,
+            aulas: new Set(['Campus Tijuana']),
+            sesiones: [{ dia: 'Lunes', inicio: '07:00', fin: '09:00', online: false }]
           });
         }
+      });
+    }
+
+    // 3. Fallback default primary catalog subjects only if map is completely empty
+    if (courseMap.size === 0) {
+      const isAdrianSilva = currentDocente?.num_empleado === 'DOC-UNRC-03' || currentDocente?.nombre?.toLowerCase().includes('adrian');
+      if (isAdrianSilva) {
+        return [
+          {
+            id: 'course-phltur-201-tij-hospedaje',
+            grupo: 'PHLTUR-201-TIJ',
+            materia: 'Administración de Empresas de Hospedaje',
+            carrera: 'Licenciatura en Turismo',
+            aula: 'Campus Tijuana - Aula Magna TIJ',
+            dias: ['Miércoles', 'Sábado'],
+            scheduleDescription: 'Miércoles (09:00 - 11:00 hrs) y Sábados (07:00 - 09:00 hrs • En Línea)',
+            modalidad: 'Mixta',
+            sesionesCount: 2,
+            semestre: '2° Semestre',
+            creditos: 8
+          },
+          {
+            id: 'course-phlac-203-tij-matematicas',
+            grupo: 'PHLAC-203-TIJ',
+            materia: 'Matemáticas para la Administración',
+            carrera: 'Licenciatura en Administración',
+            aula: 'Campus Tijuana - Aula 203',
+            dias: ['Lunes'],
+            scheduleDescription: 'Lunes (07:00 - 09:00 hrs)',
+            modalidad: 'Presencial',
+            sesionesCount: 1,
+            semestre: '2° Semestre',
+            creditos: 8
+          },
+          {
+            id: 'course-phlac-203-tij-estrategica',
+            grupo: 'PHLAC-203-TIJ',
+            materia: 'Administración y Gestión Estratégica',
+            carrera: 'Licenciatura en Administración',
+            aula: 'Campus Tijuana - Aula Magna TIJ',
+            dias: ['Miércoles'],
+            scheduleDescription: 'Miércoles (11:00 - 13:00 hrs)',
+            modalidad: 'Presencial',
+            sesionesCount: 1,
+            semestre: '2° Semestre',
+            creditos: 8
+          },
+          {
+            id: 'course-phlac-203-tij-contabilidad',
+            grupo: 'PHLAC-203-TIJ',
+            materia: 'Contabilidad y Finanzas Aplicadas',
+            carrera: 'Licenciatura en Administración',
+            aula: 'Aula Virtual UNRC (Google Meet)',
+            dias: ['Viernes'],
+            scheduleDescription: 'Viernes (08:00 - 10:00 hrs • En Línea)',
+            modalidad: 'En Línea',
+            sesionesCount: 1,
+            semestre: '2° Semestre',
+            creditos: 8
+          }
+        ];
       }
-    });
+    }
 
     // 3. Fallback default courses if map is still empty
     if (courseMap.size === 0) {
@@ -388,30 +448,59 @@ export default function TeacherDashboardPage() {
     const analysis = analyzeDocenteSchedule(currentDocente);
     setScheduleAnalysis(analysis);
 
-    // Revisar si vino una petición de grupo específico por voz o almacenamiento
-    const storedVoiceTarget = typeof window !== 'undefined' ? sessionStorage.getItem('unrc_voice_target_group') : null;
+    // Revisar si vino una petición de grupo o materia específica por voz o almacenamiento
+    const storedVoiceTargetGroup = typeof window !== 'undefined' ? sessionStorage.getItem('unrc_voice_target_group') : null;
+    const storedVoiceTargetMateria = typeof window !== 'undefined' ? sessionStorage.getItem('unrc_voice_target_materia') : null;
     const shouldAutoSpeak = typeof window !== 'undefined' && sessionStorage.getItem('unrc_voice_auto_speak') === '1';
 
-    const targetGroup = (storedVoiceTarget || analysis.targetGrupo || '').trim();
+    const targetGroup = (storedVoiceTargetGroup || analysis.targetGrupo || '').trim();
+    const targetMateria = (storedVoiceTargetMateria || analysis.targetMateria || '').trim();
 
-    // Buscar el curso que mejor coincide con el grupo y materia que le toca impartir
-    const matched = assignedCourses.find((c) => {
-      const g = (c.grupo || '').toLowerCase();
-      const tg = targetGroup.toLowerCase();
-      const m = (c.materia || '').toLowerCase();
-      const tm = (analysis.targetMateria || '').toLowerCase();
+    const normTg = norm(targetGroup);
+    const normTm = norm(targetMateria);
 
-      return (
-        (tg && (g === tg || g.includes(tg) || tg.includes(g))) ||
-        (tg.includes('203') && g.includes('203')) ||
-        (tg.includes('201') && g.includes('201')) ||
-        (tg.includes('301') && g.includes('301')) ||
-        (tm && (m === tm || m.includes(tm) || tm.includes(m)))
-      );
-    }) || assignedCourses[0];
+    // Búsqueda inteligente del curso por orden de prioridad estricto:
+    // 1. PRIORIDAD MÁXIMA: Coincidencia por MATERIA (la materia que el asistente de voz anunció o el horario dicta)
+    let matched = assignedCourses.find((c) => {
+      const m = norm(c.materia);
+      return normTm && (m === normTm || m.includes(normTm) || normTm.includes(m));
+    });
+
+    // 2. Coincidencia exacta de Grupo Y Materia
+    if (!matched) {
+      matched = assignedCourses.find((c) => {
+        const g = norm(c.grupo);
+        const m = norm(c.materia);
+        const gMatch = normTg && (g === normTg || g.includes(normTg) || normTg.includes(g));
+        const mMatch = normTm && (m === normTm || m.includes(normTm) || normTm.includes(m));
+        return gMatch && mMatch;
+      });
+    }
+
+    // 3. Coincidencia por GRUPO ESPECÍFICO (distinguiendo entre PHLTUR-201-TIJ, PHLAC-203-TIJ, PHLCDN-301-TIJ)
+    if (!matched && normTg) {
+      matched = assignedCourses.find((c) => {
+        const g = norm(c.grupo);
+        if (normTg.includes('tur') || normTm.includes('tur') || normTm.includes('hospedaje')) {
+          return g.includes('tur') || norm(c.materia).includes('hospedaje');
+        }
+        if (normTg.includes('203') || normTg.includes('adm') || normTg.includes('phlac')) {
+          return g.includes('203') || g.includes('phlac');
+        }
+        if (normTg.includes('301') || normTg.includes('lcdn')) {
+          return g.includes('301') || g.includes('lcdn');
+        }
+        return g === normTg;
+      });
+    }
+
+    // 4. Fallback al primer curso asignado
+    if (!matched) {
+      matched = assignedCourses[0];
+    }
 
     // Si aún no está seleccionado o si viene de comando de voz directo
-    if (matched && (!selectedCourseId || shouldAutoSpeak || storedVoiceTarget)) {
+    if (matched && (!selectedCourseId || shouldAutoSpeak || storedVoiceTargetGroup || storedVoiceTargetMateria)) {
       setSelectedCourseId(matched.id);
       setAutoSelectedInfo({
         grupo: matched.grupo,
@@ -421,13 +510,16 @@ export default function TeacherDashboardPage() {
           analysis.status === 'active_now'
             ? `Sesión activa en este momento (${analysis.horaActualTexto} hrs)`
             : analysis.status === 'today_upcoming'
-            ? `Próxima clase programada hoy a las ${analysis.activeItem?.hora_inicio} hrs`
+            ? `Próxima clase programada hoy a las ${analysis.activeItem?.hora_inicio || ''} hrs`
             : `Próxima clase de la semana (${analysis.activeItem?.dia || 'Programada'})`,
         status: analysis.status
       });
 
-      if (storedVoiceTarget) {
+      if (storedVoiceTargetGroup) {
         sessionStorage.removeItem('unrc_voice_target_group');
+      }
+      if (storedVoiceTargetMateria) {
+        sessionStorage.removeItem('unrc_voice_target_materia');
       }
     } else if (assignedCourses.length > 0 && !assignedCourses.some((c) => c.id === selectedCourseId)) {
       setSelectedCourseId(assignedCourses[0].id);
@@ -446,24 +538,49 @@ export default function TeacherDashboardPage() {
     }
   }, [currentDocente, assignedCourses]);
 
-  // Listener para eventos de cambio de grupo emitidos desde el widget de voz
+  // Listener para eventos de cambio de grupo o materia emitidos desde el widget de voz
   useEffect(() => {
     const handleVoiceSelectEvent = (e: any) => {
-      const target = (e.detail?.targetGroup || '').trim();
-      if (!target || assignedCourses.length === 0) return;
+      const targetGroup = (e.detail?.targetGroup || '').trim();
+      const targetMateria = (e.detail?.targetMateria || '').trim();
+      if ((!targetGroup && !targetMateria) || assignedCourses.length === 0) return;
 
-      const matched = assignedCourses.find((c) => {
-        const g = (c.grupo || '').toLowerCase();
-        const tg = target.toLowerCase();
-        return (
-          g === tg ||
-          g.includes(tg) ||
-          tg.includes(g) ||
-          (tg.includes('203') && g.includes('203')) ||
-          (tg.includes('201') && g.includes('201')) ||
-          (tg.includes('301') && g.includes('301'))
-        );
+      const normTg = norm(targetGroup);
+      const normTm = norm(targetMateria);
+
+      // 1. PRIORIDAD MÁXIMA: Coincidencia por Materia anunciada
+      let matched = assignedCourses.find((c) => {
+        const m = norm(c.materia);
+        return normTm && (m === normTm || m.includes(normTm) || normTm.includes(m));
       });
+
+      // 2. Coincide exactamente en Grupo Y Materia
+      if (!matched) {
+        matched = assignedCourses.find((c) => {
+          const g = norm(c.grupo);
+          const m = norm(c.materia);
+          const gMatch = normTg && (g === normTg || g.includes(normTg) || normTg.includes(g));
+          const mMatch = normTm && (m === normTm || m.includes(normTm) || normTm.includes(m));
+          return gMatch && mMatch;
+        });
+      }
+
+      // 3. Coincidencia por Grupo específico
+      if (!matched && normTg) {
+        matched = assignedCourses.find((c) => {
+          const g = norm(c.grupo);
+          if (normTg.includes('tur') || normTm.includes('tur') || normTm.includes('hospedaje')) {
+            return g.includes('tur') || norm(c.materia).includes('hospedaje');
+          }
+          if (normTg.includes('203') || normTg.includes('adm') || normTg.includes('phlac')) {
+            return g.includes('203') || g.includes('phlac');
+          }
+          if (normTg.includes('301') || normTg.includes('lcdn')) {
+            return g.includes('301') || g.includes('lcdn');
+          }
+          return g === normTg;
+        });
+      }
 
       if (matched) {
         setSelectedCourseId(matched.id);

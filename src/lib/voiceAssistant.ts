@@ -288,7 +288,7 @@ export function playChime(type: 'listen' | 'success' | 'nav' | 'error' = 'listen
  */
 export async function authenticateDocenteByVoice(
   docenteTarget?: Docente | null,
-  options?: { autoSpeakSchedule?: boolean; autoTargetGroup?: string }
+  options?: { autoSpeakSchedule?: boolean; autoTargetGroup?: string; autoTargetMateria?: string }
 ): Promise<{ success: boolean; docente: Docente; error?: string }> {
   try {
     let docente = docenteTarget;
@@ -321,15 +321,19 @@ export async function authenticateDocenteByVoice(
       sessionStorage.setItem('unrc_auth_role', 'docente');
       sessionStorage.setItem('unrc_auth_user', JSON.stringify(profile));
 
-      // Marcadores para que la página de Teacher Dashboard hable y active el grupo automáticamente
+      const analysis = analyzeDocenteSchedule(docente);
+
+      // Marcadores para que la página de Teacher Dashboard hable y active el grupo y materia automáticamente
       if (options?.autoSpeakSchedule !== false) {
         sessionStorage.setItem('unrc_voice_auto_speak', '1');
       }
-      if (options?.autoTargetGroup) {
-        sessionStorage.setItem('unrc_voice_target_group', options.autoTargetGroup);
-      } else {
-        const analysis = analyzeDocenteSchedule(docente);
-        sessionStorage.setItem('unrc_voice_target_group', analysis.targetGrupo);
+      
+      const targetGroup = options?.autoTargetGroup || analysis.targetGrupo;
+      const targetMateria = options?.autoTargetMateria || analysis.targetMateria;
+
+      sessionStorage.setItem('unrc_voice_target_group', targetGroup);
+      if (targetMateria) {
+        sessionStorage.setItem('unrc_voice_target_materia', targetMateria);
       }
 
       // Cookies de sesión

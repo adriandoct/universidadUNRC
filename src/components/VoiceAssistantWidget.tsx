@@ -52,14 +52,21 @@ export const VoiceAssistantWidget: React.FC = () => {
     async function loadDoc() {
       try {
         const docentes = await db.getDocentes();
-        const found =
-          docentes.find(
-            (d) =>
-              d.num_empleado === 'DOC-UNRC-03' ||
-              d.id === user?.id ||
-              d.num_empleado === user?.id ||
-              d.nombre.toLowerCase().includes('adrian')
-          ) || docentes[0];
+        // 1. Si hay usuario autenticado en la sesión actual que sea docente, usarlo
+        let found = docentes.find(
+          (d) =>
+            d.id === user?.id ||
+            d.num_empleado === user?.id ||
+            d.num_empleado === (user as any)?.num_empleado ||
+            (user?.email && d.email && user.email.toLowerCase() === d.email.toLowerCase())
+        );
+
+        // 2. Si no o si es acceso general, tomar al Dr. Adrian Silva (DOC-UNRC-03)
+        if (!found) {
+          found =
+            docentes.find((d) => d.num_empleado === 'DOC-UNRC-03' || d.nombre.toLowerCase().includes('adrian')) ||
+            docentes[0];
+        }
 
         if (found) {
           setDocenteProfile(found);
@@ -71,7 +78,7 @@ export const VoiceAssistantWidget: React.FC = () => {
       }
     }
     loadDoc();
-  }, [user]);
+  }, [user, role]);
 
   // Inicializar Web Speech Recognition si está soportado en el navegador
   useEffect(() => {
@@ -170,16 +177,27 @@ export const VoiceAssistantWidget: React.FC = () => {
       return;
     }
 
-    // 3. COMANDO: Acceso al Grupo
+    // 3. COMANDO: Acceso al Grupo o Materia específica
     if (
       norm.includes('grupo') ||
       norm.includes('materia') ||
+      norm.includes('asignatura') ||
+      norm.includes('curso') ||
       norm.includes('asistencia') ||
       norm.includes('203') ||
       norm.includes('201') ||
       norm.includes('301') ||
       norm.includes('matematica') ||
-      norm.includes('turismo')
+      norm.includes('turismo') ||
+      norm.includes('hospedaje') ||
+      norm.includes('estrategica') ||
+      norm.includes('gestion') ||
+      norm.includes('contabilidad') ||
+      norm.includes('finanzas') ||
+      norm.includes('datos') ||
+      norm.includes('algoritmo') ||
+      norm.includes('programacion') ||
+      norm.includes('inteligencia')
     ) {
       executeGoToGroup(norm);
       return;
@@ -221,12 +239,14 @@ export const VoiceAssistantWidget: React.FC = () => {
   };
 
   // ACCIÓN 1: Ingreso automático como Docente
-  const executeDocenteVoiceLogin = async () => {
+  const executeDocenteVoiceLogin = async (overrideGroup?: string, overrideMateria?: string) => {
     setStatusMessage('⚡ Validando credenciales por voz e iniciando sesión como Docente...');
     playChime('success');
 
     const authResult = await authenticateDocenteByVoice(docenteProfile, {
-      autoSpeakSchedule: true
+      autoSpeakSchedule: true,
+      autoTargetGroup: overrideGroup,
+      autoTargetMateria: overrideMateria
     });
 
     if (authResult.success) {
@@ -265,30 +285,68 @@ export const VoiceAssistantWidget: React.FC = () => {
     );
   };
 
-  // ACCIÓN 3: Acceder al grupo que le toca
+  // ACCIÓN 3: Acceder al grupo y materia que le toca o que solicitó por voz
   const executeGoToGroup = (filter?: string) => {
     if (!docenteProfile) return;
     const analysis = analyzeDocenteSchedule(docenteProfile);
     
     let targetGroup = analysis.targetGrupo;
+    let targetMateria = analysis.targetMateria;
+
     if (filter) {
-      if (filter.includes('201') || filter.includes('turism')) targetGroup = 'PHLTUR-201-TIJ';
-      else if (filter.includes('301') || filter.includes('dato')) targetGroup = 'PHLCDN-301-TIJ';
-      else if (filter.includes('203') || filter.includes('admin') || filter.includes('matemat')) targetGroup = 'PHLAC-203-TIJ';
+      // Detección inteligente de la materia solicitada por voz
+      if (filter.includes('hospedaje') || filter.includes('turism')) {
+        targetGroup = 'PHLTUR-201-TIJ';
+        targetMateria = 'Administración de Empresas de Hospedaje';
+      } else if (filter.includes('contabilidad') || filter.includes('finanza')) {
+        targetGroup = 'PHLAC-203-TIJ';
+        targetMateria = 'Contabilidad y Finanzas Aplicadas';
+      } else if (filter.includes('estrategica') || filter.includes('gestion')) {
+        targetGroup = 'PHLAC-203-TIJ';
+        targetMateria = 'Administración y Gestión Estratégica';
+      } else if (filter.includes('matemat')) {
+        targetGroup = 'PHLAC-203-TIJ';
+        targetMateria = 'Matemáticas para la Administración';
+      } else if (filter.includes('algoritmo') || filter.includes('estructura')) {
+        targetGroup = 'PHLCDN-301-TIJ';
+        targetMateria = 'Estructura de Datos y Algoritmos';
+      } else if (filter.includes('inteligencia') || filter.includes('aprendizaje')) {
+        targetGroup = 'PHLCDN-201-TIJ';
+        targetMateria = 'Inteligencia Artificial y Aprendizaje Automático';
+      } else if (filter.includes('web') || (filter.includes('programacion') && !filter.includes('ciencia'))) {
+        targetGroup = 'PHLCDN-201-TIJ';
+        targetMateria = 'Programación Web y Bases de Datos';
+      } else if (filter.includes('ciencia de datos') || filter.includes('programacion para la ciencia')) {
+        targetGroup = 'PHLAC-203-TIJ';
+        targetMateria = 'Programación para la ciencia de datos';
+      } else if (filter.includes('201')) {
+        targetGroup = 'PHLTUR-201-TIJ';
+        targetMateria = 'Administración de Empresas de Hospedaje';
+      } else if (filter.includes('301')) {
+        targetGroup = 'PHLCDN-301-TIJ';
+        targetMateria = 'Estructura de Datos y Algoritmos';
+      } else if (filter.includes('203')) {
+        targetGroup = 'PHLAC-203-TIJ';
+      }
     }
 
     sessionStorage.setItem('unrc_voice_target_group', targetGroup);
+    sessionStorage.setItem('unrc_voice_target_materia', targetMateria);
     sessionStorage.setItem('unrc_voice_auto_speak', '1');
 
-    setStatusMessage(`Accediendo automáticamente al grupo ${targetGroup}...`);
+    setStatusMessage(`Cargando ${targetMateria} (${targetGroup})...`);
     playChime('nav');
 
     if (pathname.includes('/teacher') || pathname.includes('/docente')) {
-      // Disparar evento personalizado para que la página de Teacher actualice el grupo sin recargar
-      window.dispatchEvent(new CustomEvent('unrc-voice-select-group', { detail: { targetGroup } }));
+      // Disparar evento personalizado con grupo Y materia para que la página de Teacher actualice el grupo sin recargar
+      window.dispatchEvent(
+        new CustomEvent('unrc-voice-select-group', {
+          detail: { targetGroup, targetMateria }
+        })
+      );
     } else {
-      // Si no estamos en teacher, autenticar y navegar
-      executeDocenteVoiceLogin();
+      // Si no estamos en teacher, autenticar y navegar pasando la materia y grupo
+      executeDocenteVoiceLogin(targetGroup, targetMateria);
     }
   };
 
@@ -406,7 +464,7 @@ export const VoiceAssistantWidget: React.FC = () => {
               {/* Botón 1: Ingreso automático como Docente */}
               <button
                 type="button"
-                onClick={executeDocenteVoiceLogin}
+                onClick={() => executeDocenteVoiceLogin()}
                 className="w-full py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-[#5B142F] to-[#801B42] hover:from-[#72193C] hover:to-[#96214F] text-amber-200 hover:text-white font-bold text-xs border border-[#E8A938]/60 shadow-lg flex items-center justify-between group transition-all"
               >
                 <div className="flex items-center space-x-2">
