@@ -31,12 +31,34 @@ import {
   Usb,
   Sparkle,
   Table,
-  ExternalLink
+  ExternalLink,
+  Copy,
+  UploadCloud,
+  FileSpreadsheet,
+  Code2,
+  Settings
 } from 'lucide-react';
 import { db, Participacion, Asistencia, Alumno } from '@/lib/db';
 import { getTijuanaDateString } from '@/lib/tijuanaTime';
 import { playChime } from '@/lib/voiceAssistant';
-import { syncLacMatematicasSheet, LAC_GOOGLE_SHEET_URL, LAC_CLASS_DATES } from '@/lib/googleSheetsSync';
+import {
+  findGoogleSheetConfig,
+  formatDateColumnLabel,
+  encodeRecordToSheetCode,
+  sendAttendanceUpdateToGoogleSheet,
+  GOOGLE_APPS_SCRIPT_TEMPLATE,
+  CourseGoogleSheetConfig,
+  OFFICIAL_GOOGLE_SHEETS_REGISTRY,
+  syncLacMatematicasSheet,
+  seedHospedajeDataSync,
+  seedLcdnStudentsSync,
+  LAC_GOOGLE_SHEET_URL,
+  LAC_CLASS_DATES,
+  exportGroupSecondaryBackupExcel,
+  formatDatePill
+} from '@/lib/googleSheetsSync';
+import AttendanceCalendarHistory from './AttendanceCalendarHistory';
+import GroupBackupSpreadsheet from './GroupBackupSpreadsheet';
 import confetti from 'canvas-confetti';
 import * as XLSX from 'xlsx';
 
@@ -72,9 +94,10 @@ export default function AttendanceSheet({
   onAttendanceSubmitted,
 }: AttendanceSheetProps) {
   // Current active view tab
-  const [activeTab, setActiveTab] = useState<'sheet' | 'board'>('sheet');
+  const [activeTab, setActiveTab] = useState<'sheet' | 'board' | 'calendar' | 'spreadsheet'>('sheet');
   const [selectedDate, setSelectedDate] = useState<string>(() => getTijuanaDateString());
   const [searchQuery, setSearchQuery] = useState('');
+  const [allCourseAsistencias, setAllCourseAsistencias] = useState<Asistencia[]>([]);
 
   // Materia activa para atribución estricta de participaciones por materia
   const [activeMateria, setActiveMateria] = useState<string>(() => courseMateria || courseName);
@@ -122,19 +145,126 @@ export default function AttendanceSheet({
     db.getAlumnos().then((list) => setAllAlumnosList(list || [])).catch(() => {});
   }, []);
 
-  // Estados y lógica para sincronización con Google Sheets (LAC Matemáticas)
+  // =========================================================================
+  // CONFIGURACIÓN Y ESTADOS PARA GOOGLE SHEETS MULTI-MATERIA
+  // =========================================================================
+  const currentSheetConfig = useMemo(() => {
+    return findGoogleSheetConfig(activeMateria || courseMateria, courseGrupo, courseName);
+  }, [activeMateria, courseMateria, courseGrupo, courseName]);
+
   const [isSyncingSheet, setIsSyncingSheet] = useState(false);
+  const [isUpdatingSheet, setIsUpdatingSheet] = useState(false);
+  const [isGoogleSheetModalOpen, setIsGoogleSheetModalOpen] = useState(false);
+  const [copiedColumn, setCopiedColumn] = useState(false);
+  const [copiedScript, setCopiedScript] = useState(false);
+  const [modalTab, setModalTab] = useState<'preview' | 'script' | 'webhook'>('preview');
+  const [webhookUrlInput, setWebhookUrlInput] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('unrc_sheets_webhook_url') || '';
+    }
+    return '';
+  });
+  const [lastUpdateStats, setLastUpdateStats] = useState<{
+    fechaColumna: string;
+    copyableColumn: string;
+    totalAlumnos: number;
+    records: Array<{ num?: number; nombre: string; matricula: string; codigo: string; estadoAsistencia: string; participacion: string; puntos?: number }>;
+    webhookCalled: boolean;
+    sheetUrl: string;
+  } | null>(null);
+
+  const handleSaveWebhook = (url: string) => {
+    setWebhookUrlInput(url);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('unrc_sheets_webhook_url', url.trim());
+    }
+    setFeedback({
+      type: 'success',
+      message: '⚙️ URL de Webhook de Google Sheets guardada exitosamente.',
+    });
+    setTimeout(() => setFeedback(null), 4000);
+  };
+
+  const handleUpdateGoogleSheet = async (auto = false) => {
+    if (!currentSheetConfig) return;
+    setIsUpdatingSheet(true);
+    try {
+      const records = students.map((st, idx) => {
+        const state = attendanceState[st.id] || { status: 'present', participation: 'NINGUNA', notes: '' };
+        const stParts = allParticipaciones.filter(
+          (p) => (p.alumno_id === st.id || p.alumno_id === st.student_code) && p.fecha === selectedDate
+        );
+        const isDouble = stParts.length >= 2 || (state.participation === 'AP' && stParts.length >= 2);
+        const code = encodeRecordToSheetCode(state.status, state.participation, isDouble);
+
+        return {
+          num: idx + 1,
+          nombre: st.name,
+          matricula: st.student_code,
+          codigo: code,
+          estadoAsistencia: state.status,
+          participacion: state.participation,
+          puntos: isDouble ? 20 : state.participation === 'AP' ? 10 : state.participation === 'RP' ? 5 : state.participation === 'REGULAR' ? 7.5 : 0,
+          observaciones: state.notes,
+        };
+      });
+
+      const res = await sendAttendanceUpdateToGoogleSheet({
+        config: currentSheetConfig,
+        fecha: selectedDate,
+        records,
+        webhookUrl: webhookUrlInput || undefined,
+      });
+
+      setLastUpdateStats({
+        fechaColumna: res.fechaColumna,
+        copyableColumn: res.copyableColumn,
+        totalAlumnos: records.length,
+        records,
+        webhookCalled: res.webhookCalled,
+        sheetUrl: res.sheetUrl,
+      });
+
+      if (!auto) {
+        setIsGoogleSheetModalOpen(true);
+      }
+
+      playChime('success');
+      setFeedback({
+        type: 'success',
+        message: `📊 Google Sheets actualizado: ${records.length} alumnos registrados para ${res.fechaColumna} en "${currentSheetConfig.materia}".`,
+      });
+      setTimeout(() => setFeedback(null), 8000);
+    } catch (err: any) {
+      console.error('Error al actualizar Google Sheet:', err);
+      setFeedback({
+        type: 'error',
+        message: `❌ Error al actualizar Google Sheets: ${err?.message || err}`,
+      });
+    } finally {
+      setIsUpdatingSheet(false);
+    }
+  };
 
   const isLacMatematicas = useMemo(() => {
-    const m = (activeMateria || courseMateria || courseName || '').toLowerCase();
-    const g = (courseGrupo || '').toLowerCase();
-    return m.includes('matemática') || m.includes('matematica') || g.includes('phlac') || g.includes('203');
-  }, [activeMateria, courseMateria, courseName, courseGrupo]);
+    return currentSheetConfig?.id === 'lac_matematicas';
+  }, [currentSheetConfig]);
 
   const handleSyncGoogleSheet = async () => {
     setIsSyncingSheet(true);
     try {
-      const res = await syncLacMatematicasSheet(true);
+      let res;
+      if (currentSheetConfig?.id === 'hospedaje') {
+        res = seedHospedajeDataSync(true);
+      } else if (currentSheetConfig?.id === 'lac_matematicas') {
+        res = await syncLacMatematicasSheet(true);
+      } else {
+        seedLcdnStudentsSync();
+        res = {
+          success: true,
+          message: `Sincronizados exitosamente los alumnos y registros oficiales de "${currentSheetConfig?.materia || activeMateria}".`
+        };
+      }
       playChime('success');
       try {
         confetti({
@@ -144,7 +274,6 @@ export default function AttendanceSheet({
         });
       } catch (_) {}
 
-      // Notificar a la vista docente para refrescar lista de alumnos
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('unrc-sync-complete'));
       }
@@ -206,6 +335,16 @@ export default function AttendanceSheet({
         return !p.curso_id && !p.materia;
       });
       setAllParticipaciones(courseParticipaciones);
+
+      // Guardar asistencias completas del curso para el calendario y la hoja de cálculo
+      const courseAsistencias = asistenciasList.filter((a) => {
+        if (a.grupo_id === courseId || (a as any).curso_id === courseId) return true;
+        if (courseGrupo && a.grupo_id === courseGrupo) return true;
+        if (activeMateria && (a as any).materia && (a as any).materia.trim().toLowerCase() === activeMateria.trim().toLowerCase()) return true;
+        if (courseMateria && (a as any).materia && (a as any).materia.trim().toLowerCase() === courseMateria.trim().toLowerCase()) return true;
+        return false;
+      });
+      setAllCourseAsistencias(courseAsistencias);
 
       // Pre-populate sheet if records already exist for selectedDate
       const dateAsistencias = asistenciasList.filter(
@@ -576,11 +715,17 @@ export default function AttendanceSheet({
       // 3. Reload historical data
       await reloadData();
 
+      // 4. Auto-actualizar Google Sheets si el curso cuenta con hoja oficial configurada
+      if (currentSheetConfig) {
+        handleUpdateGoogleSheet(true);
+      }
+
       // Feedback message
       const partsMessage = partsCount > 0 ? ` y ${partsCount} participaciones evaluadas` : '';
+      const sheetNotice = currentSheetConfig ? ` • Actualización enviada a Google Sheets (${currentSheetConfig.materia})` : '';
       setFeedback({
         type: 'success',
-        message: `✅ Asistencia de ${students.length} alumnos${partsMessage} guardada exitosamente para el día ${selectedDate}.`,
+        message: `✅ Asistencia de ${students.length} alumnos${partsMessage} guardada exitosamente para el día ${selectedDate}.${sheetNotice}`,
       });
 
       if (onAttendanceSubmitted) onAttendanceSubmitted();
@@ -751,82 +896,94 @@ export default function AttendanceSheet({
       {/* ========================================================================= */}
       {/* BANNER: SINCRONIZACIÓN OFICIAL GOOGLE SHEETS (LAC MATEMÁTICAS)           */}
       {/* ========================================================================= */}
-      {isLacMatematicas && (
-        <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-[#072418] via-[#0B3524] to-[#0A2640] border border-emerald-500/40 shadow-2xl space-y-3">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
-            <div className="flex items-center space-x-3">
+      {/* ========================================================================= */}
+      {/* BANNER: SINCRONIZACIÓN Y ACTUALIZACIÓN OFICIAL GOOGLE SHEETS              */}
+      {/* ========================================================================= */}
+      {/* ========================================================================= */}
+      {/* BANNER: SINCRONIZACIÓN OFICIAL GOOGLE SHEETS (IDÉNTICO EN TODAS LAS CLASES) */}
+      {/* ========================================================================= */}
+      {Boolean(currentSheetConfig) && currentSheetConfig && (
+        <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-[#072418] via-[#0B3524] to-[#0A2640] border border-emerald-500/40 shadow-2xl space-y-3.5 transition-all">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            
+            {/* Lado Izquierdo: Icono Verde, Título, Badge y Subtítulo */}
+            <div className="flex items-center space-x-3.5">
               <div className="p-2.5 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 shadow-inner">
-                <Table className="w-5 h-5 text-emerald-400" />
+                <FileSpreadsheet className="w-5 h-5" />
               </div>
               <div>
-                <div className="flex items-center space-x-2">
-                  <span className="text-xs font-black text-white tracking-wide uppercase">
-                    Hoja Oficial de Asistencias & Participaciones en Google Sheets
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs sm:text-sm font-black text-white tracking-wide uppercase">
+                    HOJA OFICIAL DE ASISTENCIAS & PARTICIPACIONES EN GOOGLE SHEETS
                   </span>
-                  <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-[10px] font-black">
-                    <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                    <span>22 Alumnos LAC Oficiales</span>
+                  <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full border border-emerald-500/40 bg-emerald-500/20 text-emerald-300 text-[10px] font-black">
+                    <CheckCircle2 className="w-3 h-3" />
+                    <span>{currentSheetConfig.badgeLabel}</span>
                   </span>
                 </div>
-                <p className="text-[11px] text-emerald-100/80">
-                  Grupo PHLAC-203-TIJ • Matemáticas para la Administración • Dr. Adrian Silva
+                <p className="text-[11px] text-gray-200/90 pt-0.5">
+                  Grupo {currentSheetConfig.grupo} • {currentSheetConfig.materia} • {currentSheetConfig.docenteNombre}
                 </p>
               </div>
             </div>
 
+            {/* Lado Derecho: Los 2 Botones EXACTOS a la Captura */}
             <div className="flex items-center space-x-2.5 self-stretch sm:self-auto">
+              
+              {/* BOTÓN 1: Sincronizar Google Sheet (Verde brillante con resplandor) */}
               <button
                 type="button"
                 onClick={handleSyncGoogleSheet}
                 disabled={isSyncingSheet}
-                className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-black font-black text-xs shadow-lg shadow-emerald-500/30 transition-all flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
+                className="px-4 py-2.5 rounded-2xl bg-[#00E599] hover:bg-[#00c985] text-black font-black text-xs shadow-lg shadow-emerald-500/30 transition-all flex items-center space-x-2 cursor-pointer disabled:opacity-50"
+                title="Sincronizar y actualizar registros oficiales con Google Sheets"
               >
                 <RefreshCw className={`w-3.5 h-3.5 text-black ${isSyncingSheet ? 'animate-spin' : ''}`} />
                 <span>{isSyncingSheet ? 'Sincronizando...' : 'Sincronizar Google Sheet'}</span>
               </button>
 
+              {/* BOTÓN 2: Ver Hoja Google (Botón oscuro con borde esmeralda) */}
               <a
-                href={LAC_GOOGLE_SHEET_URL}
+                href={currentSheetConfig.sheetUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-3.5 py-2 rounded-xl bg-black/60 hover:bg-black/80 border border-emerald-500/30 text-emerald-300 font-bold text-xs transition-all flex items-center space-x-1.5 cursor-pointer"
+                className="px-4 py-2.5 rounded-2xl bg-black/60 hover:bg-black/80 border border-emerald-500/40 text-emerald-300 font-bold text-xs transition-all flex items-center space-x-2 cursor-pointer"
+                title="Abrir la hoja de cálculo de Google Sheets en una nueva pestaña"
               >
                 <span>Ver Hoja Google</span>
                 <ExternalLink className="w-3.5 h-3.5 text-emerald-400" />
               </a>
+
             </div>
+
           </div>
 
-          {/* Quick Date Chips for the 11 official class dates */}
-          <div className="pt-2 border-t border-emerald-500/20 flex flex-wrap items-center gap-1.5">
-            <span className="text-[10px] font-black uppercase text-emerald-400/80 mr-1 flex items-center gap-1">
-              <Calendar className="w-3 h-3" /> Fechas de Clase (11):
-            </span>
-            {LAC_CLASS_DATES.map((fStr) => {
-              const isSelected = selectedDate === fStr;
-              const [, m, d] = fStr.split('-');
-              const monthNames: Record<string, string> = {
-                '09': 'Sep',
-                '10': 'Oct',
-                '11': 'Nov',
-              };
-              const label = `${d}-${monthNames[m] || m}`;
-              return (
-                <button
-                  key={fStr}
-                  type="button"
-                  onClick={() => setSelectedDate(fStr)}
-                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
-                    isSelected
-                      ? 'bg-emerald-400 text-black font-black shadow-md shadow-emerald-500/30 ring-1 ring-white'
-                      : 'bg-black/50 hover:bg-emerald-950/60 text-emerald-200 border border-emerald-500/20'
-                  }`}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
+          {/* Fila Inferior: FECHAS DE CLASE (N) con los Chips Idénticos */}
+          {currentSheetConfig.classDates && currentSheetConfig.classDates.length > 0 && (
+            <div className="pt-2.5 border-t border-white/10 flex flex-wrap items-center gap-1.5">
+              <span className="text-[10px] font-black uppercase text-emerald-400 mr-1 flex items-center gap-1.5 shrink-0">
+                <Calendar className="w-3.5 h-3.5 text-emerald-400" /> FECHAS DE CLASE ({currentSheetConfig.classDates.length}):
+              </span>
+              {currentSheetConfig.classDates.map((fStr) => {
+                const isSelected = selectedDate === fStr;
+                const label = formatDatePill(fStr);
+                return (
+                  <button
+                    key={fStr}
+                    type="button"
+                    onClick={() => setSelectedDate(fStr)}
+                    className={`px-3 py-1 rounded-xl text-[11px] font-mono transition-all cursor-pointer ${
+                      isSelected
+                        ? 'bg-[#00E599] text-black font-black shadow-md shadow-emerald-500/40 ring-2 ring-white scale-105'
+                        : 'bg-black/60 hover:bg-emerald-950/60 text-emerald-200 border border-emerald-500/20 font-bold'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -1021,33 +1178,59 @@ export default function AttendanceSheet({
 
       </div>
 
-      {/* Navigation Tabs (Asistencia vs Tablero de Participaciones) */}
+      {/* Navigation Tabs (Asistencia vs Tablero vs Calendario vs Hoja de Cálculo) */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 border-b border-white/5 pb-2">
-        <div className="flex items-center space-x-2 p-1.5 rounded-2xl bg-black/40 border border-white/10">
+        <div className="flex flex-wrap items-center gap-1.5 p-1.5 rounded-2xl bg-black/40 border border-white/10">
           <button
             type="button"
             onClick={() => setActiveTab('sheet')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 ${
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 ${
               activeTab === 'sheet'
                 ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
                 : 'text-gray-400 hover:text-white hover:bg-white/5'
             }`}
           >
             <UserCheck className="w-4 h-4" />
-            <span>📋 Toma Diaria (Asistencia + Participación)</span>
+            <span>📋 Toma Diaria</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('calendar')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 ${
+              activeTab === 'calendar'
+                ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-lg shadow-cyan-600/30 font-black'
+                : 'text-gray-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Calendar className="w-4 h-4 text-cyan-300" />
+            <span>📅 Historial en Calendario</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('spreadsheet')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 ${
+              activeTab === 'spreadsheet'
+                ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-black font-black shadow-lg shadow-emerald-500/30'
+                : 'text-gray-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <FileSpreadsheet className="w-4 h-4 text-emerald-300" />
+            <span>📑 Hoja de Cálculo (Respaldo)</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('board')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 ${
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 ${
               activeTab === 'board'
                 ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg shadow-amber-500/30'
                 : 'text-gray-400 hover:text-white hover:bg-white/5'
             }`}
           >
             <Star className="w-4 h-4 text-amber-300 fill-amber-300" />
-            <span>⭐ Tablero de Participaciones por Día</span>
+            <span>⭐ Participaciones</span>
             <span className="px-1.5 py-0.5 rounded-full bg-black/40 text-[10px] font-mono text-amber-200">
               {allParticipaciones.length}
             </span>
@@ -1667,6 +1850,57 @@ export default function AttendanceSheet({
       )}
 
       {/* ========================================================================= */}
+      {/* TAB 3: HISTORIAL EN CALENDARIO INTERACTIVO                                */}
+      {/* ========================================================================= */}
+      {activeTab === 'calendar' && (
+        <AttendanceCalendarHistory
+          courseId={courseId}
+          courseName={courseName}
+          courseMateria={activeMateria || courseMateria}
+          courseGrupo={courseGrupo || currentSheetConfig?.grupo}
+          students={students}
+          allAsistencias={allCourseAsistencias}
+          allParticipaciones={allParticipaciones}
+          classDates={currentSheetConfig?.classDates || []}
+          currentDate={selectedDate}
+          onSelectDateForEditing={(dStr) => {
+            setSelectedDate(dStr);
+            setActiveTab('sheet');
+          }}
+          onUpdateGoogleSheetForDate={(dStr) => {
+            setSelectedDate(dStr);
+            handleUpdateGoogleSheet(false);
+          }}
+        />
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB 4: HOJA DE CÁLCULO & RESPALDO SECUNDARIO DEL GRUPO                    */}
+      {/* ========================================================================= */}
+      {activeTab === 'spreadsheet' && (
+        <GroupBackupSpreadsheet
+          courseId={courseId}
+          courseName={courseName}
+          courseMateria={activeMateria || courseMateria}
+          courseGrupo={courseGrupo || currentSheetConfig?.grupo}
+          carrera={currentSheetConfig?.carrera}
+          docenteNombre={currentSheetConfig?.docenteNombre}
+          ciclo={currentSheetConfig?.ciclo}
+          students={students}
+          allAsistencias={allCourseAsistencias}
+          allParticipaciones={allParticipaciones}
+          sheetConfig={currentSheetConfig}
+          classDates={currentSheetConfig?.classDates || []}
+          onSyncGoogleSheet={handleSyncGoogleSheet}
+          onUpdateGoogleSheet={() => handleUpdateGoogleSheet(false)}
+          onNavigateToDate={(dStr) => {
+            setSelectedDate(dStr);
+            setActiveTab('sheet');
+          }}
+        />
+      )}
+
+      {/* ========================================================================= */}
       {/* QUICK MODAL: REGISTRAR PARTICIPACIÓN EN VIVO                              */}
       {/* ========================================================================= */}
       {isQuickModalOpen && (
@@ -2090,6 +2324,338 @@ export default function AttendanceSheet({
                 className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-bold transition-all cursor-pointer"
               >
                 Cerrar Consola
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL: GESTIÓN Y SINCRONIZACIÓN CON GOOGLE SHEETS                         */}
+      {/* ========================================================================= */}
+      {isGoogleSheetModalOpen && currentSheetConfig && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
+          <div className="bg-[#0B1528] border border-emerald-500/30 rounded-3xl p-6 sm:p-8 max-w-3xl w-full shadow-2xl space-y-6 max-h-[92vh] overflow-y-auto">
+            
+            {/* Modal Header */}
+            <div className="flex items-start justify-between border-b border-white/10 pb-4">
+              <div className="flex items-center space-x-3">
+                <div className="p-3 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-inner">
+                  <FileSpreadsheet className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-extrabold text-white tracking-tight flex items-center gap-2">
+                    <span>Sincronización con Google Sheets</span>
+                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-mono">
+                      {currentSheetConfig.grupo}
+                    </span>
+                  </h3>
+                  <p className="text-xs text-gray-300 mt-0.5">
+                    {currentSheetConfig.materia} • Sesión del <strong className="text-emerald-300">{selectedDate} ({formatDateColumnLabel(selectedDate)})</strong>
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsGoogleSheetModalOpen(false)}
+                className="p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+              >
+                <XCircle className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Modal Tabs */}
+            <div className="flex items-center space-x-2 border-b border-white/10 pb-3">
+              <button
+                type="button"
+                onClick={() => setModalTab('preview')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center space-x-1.5 ${
+                  modalTab === 'preview'
+                    ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/20 font-black'
+                    : 'bg-black/40 text-gray-400 hover:text-white'
+                }`}
+              >
+                <Table className="w-3.5 h-3.5" />
+                <span>Registros del Día ({students.length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setModalTab('webhook')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center space-x-1.5 ${
+                  modalTab === 'webhook'
+                    ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/20 font-black'
+                    : 'bg-black/40 text-gray-400 hover:text-white'
+                }`}
+              >
+                <Zap className="w-3.5 h-3.5" />
+                <span>Webhook en Vivo</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setModalTab('script')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center space-x-1.5 ${
+                  modalTab === 'script'
+                    ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/20 font-black'
+                    : 'bg-black/40 text-gray-400 hover:text-white'
+                }`}
+              >
+                <Code2 className="w-3.5 h-3.5" />
+                <span>Apps Script</span>
+              </button>
+            </div>
+
+            {/* TAB 1: PREVIEW & DIRECT ACTIONS */}
+            {modalTab === 'preview' && (
+              <div className="space-y-4">
+                
+                {/* Action Bar */}
+                <div className="p-3.5 rounded-2xl bg-black/60 border border-emerald-500/20 flex flex-wrap items-center justify-between gap-2.5">
+                  <div className="flex items-center space-x-2">
+                    <button
+                      type="button"
+                      onClick={() => handleUpdateGoogleSheet(false)}
+                      disabled={isUpdatingSheet}
+                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-300 hover:to-emerald-400 text-black font-extrabold text-xs shadow-lg shadow-emerald-500/30 transition-all flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
+                    >
+                      <UploadCloud className={`w-4 h-4 text-black ${isUpdatingSheet ? 'animate-bounce' : ''}`} />
+                      <span>{isUpdatingSheet ? 'Enviando...' : 'Enviar Actualización'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const copyText = (lastUpdateStats?.copyableColumn) || students.map((st) => {
+                          const state = attendanceState[st.id] || { status: 'present', participation: 'NINGUNA', notes: '' };
+                          const stParts = allParticipaciones.filter((p) => (p.alumno_id === st.id || p.alumno_id === st.student_code) && p.fecha === selectedDate);
+                          const isDouble = stParts.length >= 2 || (state.participation === 'AP' && stParts.length >= 2);
+                          return encodeRecordToSheetCode(state.status, state.participation, isDouble);
+                        }).join('\n');
+
+                        navigator.clipboard.writeText(copyText);
+                        setCopiedColumn(true);
+                        playChime('success');
+                        setTimeout(() => setCopiedColumn(false), 3000);
+                      }}
+                      className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs transition-all flex items-center space-x-1.5 cursor-pointer shadow-md shadow-blue-600/30"
+                      title="Copia todos los valores en vertical listos para pegar con Ctrl+V en la columna de la fecha en Google Sheets"
+                    >
+                      {copiedColumn ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4 text-white" />}
+                      <span>{copiedColumn ? '¡Copiado al Portapapeles!' : 'Copiar Columna (Ctrl+V)'}</span>
+                    </button>
+                  </div>
+
+                  <a
+                    href={currentSheetConfig.sheetUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3.5 py-2 rounded-xl bg-black/80 hover:bg-black border border-white/20 text-emerald-300 hover:text-emerald-200 text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer"
+                  >
+                    <span>Abrir en Google Sheets</span>
+                    <ExternalLink className="w-3.5 h-3.5 text-emerald-400" />
+                  </a>
+                </div>
+
+                {/* Stat Badges */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  <div className="p-3 rounded-2xl bg-black/40 border border-white/5 text-center">
+                    <div className="text-[10px] uppercase font-bold text-gray-400">Total Alumnos</div>
+                    <div className="text-xl font-extrabold text-white mt-0.5">{students.length}</div>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-center">
+                    <div className="text-[10px] uppercase font-bold text-emerald-400">Presentes (A)</div>
+                    <div className="text-xl font-extrabold text-emerald-300 mt-0.5">{dailyPresentCount}</div>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-center">
+                    <div className="text-[10px] uppercase font-bold text-amber-400">Participando</div>
+                    <div className="text-xl font-extrabold text-amber-300 mt-0.5">{dailyParticipatingCount}</div>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-center">
+                    <div className="text-[10px] uppercase font-bold text-rose-400">Faltas (F)</div>
+                    <div className="text-xl font-extrabold text-rose-300 mt-0.5">{dailyAbsentCount}</div>
+                  </div>
+                </div>
+
+                {/* Table Preview */}
+                <div className="border border-white/10 rounded-2xl overflow-hidden bg-black/50 max-h-64 overflow-y-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-black/80 text-gray-400 text-[10px] uppercase font-extrabold border-b border-white/10 sticky top-0 z-10">
+                      <tr>
+                        <th className="py-2.5 px-3">#</th>
+                        <th className="py-2.5 px-3">Alumno</th>
+                        <th className="py-2.5 px-3">Matrícula</th>
+                        <th className="py-2.5 px-3">Asistencia</th>
+                        <th className="py-2.5 px-3">Participación</th>
+                        <th className="py-2.5 px-3 text-right">Código Hoja</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {students.map((st, idx) => {
+                        const state = attendanceState[st.id] || { status: 'present', participation: 'NINGUNA', notes: '' };
+                        const stParts = allParticipaciones.filter((p) => (p.alumno_id === st.id || p.alumno_id === st.student_code) && p.fecha === selectedDate);
+                        const isDouble = stParts.length >= 2 || (state.participation === 'AP' && stParts.length >= 2);
+                        const code = encodeRecordToSheetCode(state.status, state.participation, isDouble);
+
+                        return (
+                          <tr key={st.id} className="hover:bg-white/5 transition-colors">
+                            <td className="py-2 px-3 font-mono text-gray-500">{idx + 1}</td>
+                            <td className="py-2 px-3 font-bold text-white">{st.name}</td>
+                            <td className="py-2 px-3 font-mono text-[11px] text-gray-400">{st.student_code}</td>
+                            <td className="py-2 px-3">
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                state.status === 'present' ? 'bg-emerald-500/20 text-emerald-300' :
+                                state.status === 'late' ? 'bg-amber-500/20 text-amber-300' :
+                                state.status === 'excused' ? 'bg-blue-500/20 text-blue-300' :
+                                'bg-rose-500/20 text-rose-300'
+                              }`}>
+                                {state.status === 'present' ? 'Presente' : state.status === 'late' ? 'Retardo' : state.status === 'excused' ? 'Justificado' : 'Falta'}
+                              </span>
+                            </td>
+                            <td className="py-2 px-3">
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                isDouble ? 'bg-amber-400/20 text-amber-300 border border-amber-400/30' :
+                                state.participation === 'AP' ? 'bg-emerald-500/20 text-emerald-300' :
+                                state.participation === 'RP' ? 'bg-orange-500/20 text-orange-300' :
+                                state.participation === 'REGULAR' ? 'bg-blue-500/20 text-blue-300' :
+                                'text-gray-500'
+                              }`}>
+                                {isDouble ? '⭐ Doble (20 pts)' : state.participation === 'AP' ? '⭐ Aprobada (10 pts)' : state.participation === 'RP' ? '🔸 Mínima (5 pts)' : state.participation === 'REGULAR' ? 'Regular (7.5 pts)' : 'Sin part.'}
+                              </span>
+                            </td>
+                            <td className="py-2 px-3 text-right">
+                              <span className={`inline-block min-w-8 text-center font-mono font-black text-xs px-2.5 py-0.5 rounded-lg shadow-sm ${
+                                code === 'App' ? 'bg-amber-400 text-black ring-1 ring-white' :
+                                code === 'Ap' ? 'bg-emerald-400 text-black' :
+                                code === 'A' ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/30' :
+                                code === 'Rp' || code === 'Rpp' ? 'bg-amber-500 text-black' :
+                                code === 'R' ? 'bg-amber-950 text-amber-300 border border-amber-500/30' :
+                                code === 'J' ? 'bg-blue-900 text-blue-300' :
+                                'bg-rose-950 text-rose-400 border border-rose-500/30'
+                              }`}>
+                                {code}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="text-[11px] text-gray-400 flex items-center justify-between pt-1">
+                  <span>💡 <strong>Consejo rápido:</strong> Al presionar <em>"Copiar Columna"</em>, solo abre la hoja de cálculo en la fecha deseada y pulsa <strong>Ctrl + V</strong> en la celda del primer alumno.</span>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 2: WEBHOOK AUTOMÁTICO */}
+            {modalTab === 'webhook' && (
+              <div className="space-y-4">
+                <div className="p-4 rounded-2xl bg-black/60 border border-emerald-500/20 space-y-3">
+                  <h4 className="text-sm font-black text-white flex items-center space-x-2">
+                    <Zap className="w-4 h-4 text-emerald-400" />
+                    <span>Conexión Webhook de Google Apps Script</span>
+                  </h4>
+                  <p className="text-xs text-gray-300">
+                    Si implementaste el script en Google Sheets como Aplicación Web, ingresa aquí la URL del Webhook para que cada vez que guardes asistencia o pulses el botón, la hoja de cálculo se actualice automáticamente en tiempo real.
+                  </p>
+
+                  <div className="space-y-1.5 pt-2">
+                    <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider">
+                      URL del Webhook (Google Apps Script):
+                    </label>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="url"
+                        value={webhookUrlInput}
+                        onChange={(e) => setWebhookUrlInput(e.target.value)}
+                        placeholder="https://script.google.com/macros/s/AKfycb.../exec"
+                        className="flex-1 px-3.5 py-2.5 rounded-xl bg-black/80 border border-white/20 text-white text-xs font-mono focus:outline-none focus:border-emerald-400 shadow-inner"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleSaveWebhook(webhookUrlInput)}
+                        className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs shadow-md shadow-emerald-500/30 transition-all cursor-pointer"
+                      >
+                        Guardar
+                      </button>
+                    </div>
+                  </div>
+
+                  {webhookUrlInput && (
+                    <div className="pt-2 flex items-center justify-between text-xs text-emerald-300">
+                      <span className="flex items-center space-x-1.5">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        <span>Webhook activo y listo para sincronizar automáticamente.</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleUpdateGoogleSheet(false)}
+                        className="text-xs text-emerald-400 underline font-bold hover:text-emerald-300"
+                      >
+                        Probar envío ahora
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* TAB 3: CÓDIGO APPS SCRIPT */}
+            {modalTab === 'script' && (
+              <div className="space-y-4">
+                <div className="p-4 rounded-2xl bg-black/60 border border-emerald-500/20 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-black text-white">Instrucciones para Google Apps Script</h4>
+                      <p className="text-[11px] text-gray-400 mt-0.5">
+                        Pega este script en tu Google Sheet para habilitar sincronización 100% automatizada.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(GOOGLE_APPS_SCRIPT_TEMPLATE);
+                        setCopiedScript(true);
+                        playChime('success');
+                        setTimeout(() => setCopiedScript(false), 3000);
+                      }}
+                      className="px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs transition-all flex items-center space-x-1.5 cursor-pointer"
+                    >
+                      {copiedScript ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{copiedScript ? '¡Código Copiado!' : 'Copiar Código'}</span>
+                    </button>
+                  </div>
+
+                  <ol className="text-xs text-gray-300 space-y-1 list-decimal list-inside bg-black/40 p-3 rounded-xl border border-white/5">
+                    <li>Abre tu hoja de cálculo en Google Sheets.</li>
+                    <li>Ve al menú superior: <strong>Extensiones &gt; Apps Script</strong>.</li>
+                    <li>Borra el contenido existente y pega el código de abajo.</li>
+                    <li>Haz clic en <strong>Implementar &gt; Nueva implementación</strong>.</li>
+                    <li>Selecciona tipo: <strong>Aplicación Web</strong>, y en <em>"Quién tiene acceso"</em> selecciona <strong>Cualquier usuario</strong>.</li>
+                    <li>Copia la URL del Webhook generada y pégala en la pestaña <em>"Webhook en Vivo"</em> de esta ventana.</li>
+                  </ol>
+
+                  <pre className="p-3 rounded-xl bg-black/90 border border-white/10 text-[11px] font-mono text-emerald-300 max-h-48 overflow-y-auto overflow-x-auto">
+                    {GOOGLE_APPS_SCRIPT_TEMPLATE}
+                  </pre>
+                </div>
+              </div>
+            )}
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-between border-t border-white/10 pt-4">
+              <span className="text-[11px] text-gray-400">
+                Sincronizador Oficial de Asistencia UNRC
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsGoogleSheetModalOpen(false)}
+                className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-bold transition-all cursor-pointer"
+              >
+                Cerrar Ventana
               </button>
             </div>
 

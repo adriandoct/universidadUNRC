@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getTijuanaDateString, getTijuanaTimeString } from './tijuanaTime';
-import { seedLacMatematicasDataSync } from './googleSheetsSync';
+import { seedLacMatematicasDataSync, seedHospedajeDataSync, seedLcdnStudentsSync } from './googleSheetsSync';
 
 // User Roles
 export type UserRole = 'alumno' | 'docente' | 'administrador';
@@ -108,6 +108,7 @@ export interface Alumno {
   nombre: string;
   apellido_paterno: string;
   apellido_materno?: string;
+  email?: string;
   grado: string;
   grupo: string;
   carrera?: string;
@@ -409,14 +410,17 @@ const MOCK_DOCENTES: Docente[] = [
     departamento: 'Dirección Campus Tijuana / Lic. en Administración / Lic. en Turismo',
     puesto: 'docente',
     carreras_asignadas: ['Lic. en Administración', 'Lic. en Turismo', 'Licenciatura en Ciencia de Datos para los Negocios'],
-    materias: ['Matemáticas para la Administración', 'Administración y Gestión Estratégica', 'Contabilidad y Finanzas Aplicadas', 'Administración de Empresas de Hospedaje', 'Programación para la ciencia de datos'],
-    horario_resumen: 'Lunes a Viernes (07:00 - 13:00 hrs)',
+    materias: ['Matemáticas para la Administración', 'Administración y Gestión Estratégica', 'Contabilidad y Finanzas Aplicadas', 'Administración de Empresas de Hospedaje', 'Programación para la ciencia de datos', 'Estructura de Datos y Algoritmos', 'Bases de Datos NOSQL'],
+    horario_resumen: 'Lunes a Sábado (07:00 - 13:00 hrs)',
     horarios: [
       { dia: 'Lunes', hora_inicio: '07:00', hora_fin: '09:00', carrera: 'Lic. en Administración', materia: 'Matemáticas para la Administración', grupo: 'PHLAC-203-TIJ', aula: 'Campus Tijuana - Aula 203', sede: 'Campus Tijuana', es_en_linea: false },
       { dia: 'Miércoles', hora_inicio: '11:00', hora_fin: '13:00', carrera: 'Lic. en Administración', materia: 'Administración y Gestión Estratégica', grupo: 'PHLAC-203-TIJ', aula: 'Campus Tijuana - Aula Magna TIJ', sede: 'Campus Tijuana', es_en_linea: false },
       { dia: 'Viernes', hora_inicio: '08:00', hora_fin: '10:00', carrera: 'Lic. en Administración', materia: 'Contabilidad y Finanzas Aplicadas', grupo: 'PHLAC-203-TIJ', aula: 'Aula Virtual UNRC (Google Meet)', sede: 'Campus Tijuana', es_en_linea: true },
       { dia: 'Miércoles', hora_inicio: '09:00', hora_fin: '11:00', carrera: 'Lic. en Turismo', materia: 'Administración de Empresas de Hospedaje', grupo: 'PHLTUR-201-TIJ', aula: 'Campus Tijuana - Aula Magna 2', sede: 'Campus Tijuana', es_en_linea: false },
-      { dia: 'Sábado', hora_inicio: '07:00', hora_fin: '09:00', carrera: 'Lic. en Turismo', materia: 'Administración de Empresas de Hospedaje', grupo: 'PHLTUR-201-TIJ', aula: 'Aula Virtual UNRC (Google Meet)', sede: 'Campus Tijuana', es_en_linea: true }
+      { dia: 'Sábado', hora_inicio: '07:00', hora_fin: '09:00', carrera: 'Lic. en Turismo', materia: 'Administración de Empresas de Hospedaje', grupo: 'PHLTUR-201-TIJ', aula: 'Aula Virtual UNRC (Google Meet)', sede: 'Campus Tijuana', es_en_linea: true },
+      { dia: 'Lunes', hora_inicio: '07:00', hora_fin: '09:00', carrera: 'Licenciatura en Ciencia de Datos para los Negocios', materia: 'Programación para la ciencia de datos', grupo: 'PHLCDN-201-TIJ', aula: 'Campus Tijuana - Lab IA', sede: 'Campus Tijuana', es_en_linea: false },
+      { dia: 'Martes', hora_inicio: '07:00', hora_fin: '09:00', carrera: 'Licenciatura en Ciencia de Datos para los Negocios', materia: 'Estructura de Datos y Algoritmos', grupo: 'PHLCDN-301-TIJ', aula: 'Campus Tijuana - Lab Cómputo 1', sede: 'Campus Tijuana', es_en_linea: false },
+      { dia: 'Martes', hora_inicio: '09:00', hora_fin: '11:00', carrera: 'Licenciatura en Ciencia de Datos para los Negocios', materia: 'Bases de Datos NOSQL', grupo: 'PHLCDN-401-TIJ', aula: 'Campus Tijuana - Lab Cómputo 2', sede: 'Campus Tijuana', es_en_linea: false }
     ],
     sede_nombre: 'Campus Tijuana',
     telefono: '+526641234567',
@@ -793,6 +797,24 @@ const initLocalStorage = () => {
       seedLacMatematicasDataSync(true);
     } catch (e) {
       console.warn('Error during auto-seed of LAC Matemáticas from Google Sheets:', e);
+    }
+  }
+
+  // Auto-migration & seed: Official students, attendances and participaciones from Google Sheets (Hospedaje Turismo)
+  if (!localStorage.getItem('unrc_hospedaje_v1_synced')) {
+    try {
+      seedHospedajeDataSync(true);
+    } catch (e) {
+      console.warn('Error during auto-seed of Hospedaje from Google Sheets:', e);
+    }
+  }
+
+  // Auto-migration & seed: Official students for LCDN groups
+  if (!localStorage.getItem('unrc_lcdn_students_v1_synced')) {
+    try {
+      seedLcdnStudentsSync();
+    } catch (e) {
+      console.warn('Error during auto-seed of LCDN students:', e);
     }
   }
 
