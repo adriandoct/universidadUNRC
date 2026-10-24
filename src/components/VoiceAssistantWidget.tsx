@@ -33,7 +33,7 @@ import { useAuth } from '@/lib/AuthContext';
 export const VoiceAssistantWidget: React.FC = () => {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, role } = useAuth();
+  const { user, role, openAuthModal } = useAuth();
 
   const [isOpen, setIsOpen] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -150,7 +150,23 @@ export const VoiceAssistantWidget: React.FC = () => {
     const norm = normalizeVoiceText(rawCommand);
     setStatusMessage(`Comando recibido: "${rawCommand}"`);
 
-    // 1. COMANDO: Ingreso Automático como Docente
+    // 1. COMANDO: Acceso Alumno (Público para estudiantes)
+    if (
+      norm.includes('alumno') ||
+      norm.includes('estudiante') ||
+      norm.includes('soy alumno') ||
+      norm.includes('mi portal') ||
+      norm.includes('calificacion') ||
+      norm.includes('mis faltas')
+    ) {
+      setStatusMessage('🎓 Redirigiendo al Portal de Alumnos UNRC...');
+      speakText('Accediendo al Portal de Alumnos. Ingrese su matrícula oficial.');
+      playChime('nav');
+      window.location.href = '/student';
+      return;
+    }
+
+    // 2. COMANDO: Acceso Docente (Estrictamente protegido contra accesos por voz no autorizados)
     if (
       norm.includes('docente') ||
       norm.includes('profesor') ||
@@ -161,11 +177,21 @@ export const VoiceAssistantWidget: React.FC = () => {
       norm.includes('entrar') ||
       norm.includes('acceder')
     ) {
-      await executeDocenteVoiceLogin();
+      if (role === 'docente' || role === 'administrador') {
+        setStatusMessage('Sesión docente activa. Accediendo a la consola...');
+        speakText('Bienvenido, profesor Adrián Silva. Accediendo a su consola.');
+        playChime('success');
+        window.location.href = '/teacher';
+      } else {
+        setStatusMessage('🔒 Acceso Docente protegido: Debe ingresar su contraseña oficial en el portal.');
+        speakText('Por seguridad institucional, el acceso docente requiere validar su número de empleado y contraseña.');
+        playChime('error');
+        if (openAuthModal) openAuthModal('docente');
+      }
       return;
     }
 
-    // 2. COMANDO: Consultar Horario
+    // 3. COMANDO: Consultar Horario
     if (
       norm.includes('horario') ||
       norm.includes('clase') ||
@@ -177,7 +203,7 @@ export const VoiceAssistantWidget: React.FC = () => {
       return;
     }
 
-    // 3. COMANDO: Acceso al Grupo o Materia específica
+    // 4. COMANDO: Acceso al Grupo o Materia específica
     if (
       norm.includes('grupo') ||
       norm.includes('materia') ||
@@ -204,7 +230,7 @@ export const VoiceAssistantWidget: React.FC = () => {
     }
 
     // Comando no reconocido específicamente
-    setStatusMessage(`"${rawCommand}" recibido. ¿Deseas ingresar como docente o escuchar tu horario?`);
+    setStatusMessage(`"${rawCommand}" recibido. Puedes decir "Soy alumno" o "Consultar horario".`);
     playChime('error');
   };
 
@@ -238,28 +264,21 @@ export const VoiceAssistantWidget: React.FC = () => {
     }
   };
 
-  // ACCIÓN 1: Ingreso automático como Docente
+  // ACCIÓN 1: Ingreso a Docente (Protegido con verificación de sesión y credenciales)
   const executeDocenteVoiceLogin = async (overrideGroup?: string, overrideMateria?: string) => {
-    setStatusMessage('⚡ Validando credenciales por voz e iniciando sesión como Docente...');
-    playChime('success');
-
-    const authResult = await authenticateDocenteByVoice(docenteProfile, {
-      autoSpeakSchedule: true,
-      autoTargetGroup: overrideGroup,
-      autoTargetMateria: overrideMateria
-    });
-
-    if (authResult.success) {
-      const analysis = analyzeDocenteSchedule(authResult.docente);
-      setStatusMessage(`¡Autenticado como ${authResult.docente.nombre} ${authResult.docente.apellido_paterno}! Redirigiendo a tu consola...`);
-      
+    if (role === 'docente' || role === 'administrador') {
+      setStatusMessage('Sesión docente activa. Redirigiendo a tu consola...');
+      playChime('success');
       setTimeout(() => {
         window.location.href = '/teacher';
-      }, 700);
-    } else {
-      setStatusMessage(`Error de acceso: ${authResult.error}`);
-      playChime('error');
+      }, 400);
+      return;
     }
+
+    setStatusMessage('🔒 Acceso Docente protegido: Ingrese su contraseña oficial para continuar.');
+    speakText('Por seguridad institucional, el acceso docente requiere ingresar su contraseña.');
+    playChime('error');
+    if (openAuthModal) openAuthModal('docente');
   };
 
   // ACCIÓN 2: Decir el horario con voz sintética
@@ -460,21 +479,35 @@ export const VoiceAssistantWidget: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 gap-2">
-              
-              {/* Botón 1: Ingreso automático como Docente */}
+              {/* Botón 1: Portal de Alumnos (Público para estudiantes) */}
+              <button
+                type="button"
+                onClick={() => {
+                  window.location.href = '/student';
+                }}
+                className="w-full py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-emerald-950 to-emerald-800 hover:from-emerald-900 hover:to-emerald-700 text-emerald-200 hover:text-white font-bold text-xs border border-emerald-500/50 shadow-lg flex items-center justify-between group transition-all"
+              >
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm">🎓</span>
+                  <span>Portal Alumnos (Mi Asistencia y Clases)</span>
+                </div>
+                <ArrowRight className="w-3.5 h-3.5 text-emerald-300 group-hover:translate-x-1 transition-transform" />
+              </button>
+
+              {/* Botón 2: Consola Docente (Protegida) */}
               <button
                 type="button"
                 onClick={() => executeDocenteVoiceLogin()}
-                className="w-full py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-[#5B142F] to-[#801B42] hover:from-[#72193C] hover:to-[#96214F] text-amber-200 hover:text-white font-bold text-xs border border-[#E8A938]/60 shadow-lg flex items-center justify-between group transition-all"
+                className="w-full py-2 px-3.5 rounded-xl bg-[#5B142F]/40 hover:bg-[#5B142F]/70 text-amber-200 hover:text-white font-semibold text-xs border border-amber-500/40 flex items-center justify-between transition-all"
               >
                 <div className="flex items-center space-x-2">
-                  <span className="text-sm">👨‍🏫</span>
-                  <span>Ingresar como Docente (Adrián Silva)</span>
+                  <span className="text-sm">🔒</span>
+                  <span>Consola Docente (Requiere Contraseña)</span>
                 </div>
-                <ArrowRight className="w-3.5 h-3.5 text-amber-300 group-hover:translate-x-1 transition-transform" />
+                <span className="text-[10px] text-amber-300 font-mono">Prof. Silva</span>
               </button>
 
-              {/* Botón 2: Decir mi horario por voz */}
+              {/* Botón 3: Consultar Horario Oficial */}
               <button
                 type="button"
                 onClick={executeTellSchedule}
@@ -482,22 +515,9 @@ export const VoiceAssistantWidget: React.FC = () => {
               >
                 <div className="flex items-center space-x-2">
                   <Volume2 className="w-3.5 h-3.5 text-blue-400" />
-                  <span>Dime mi horario de hoy en voz alta</span>
+                  <span>Consultar horario institucional por voz</span>
                 </div>
                 <span className="text-[10px] text-blue-400 font-mono">🔊 Hablar</span>
-              </button>
-
-              {/* Botón 3: Acceder al grupo que le toca */}
-              <button
-                type="button"
-                onClick={() => executeGoToGroup()}
-                className="w-full py-2 px-3.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 hover:text-emerald-200 font-semibold text-xs border border-emerald-500/40 flex items-center justify-between transition-all"
-              >
-                <div className="flex items-center space-x-2">
-                  <BookOpen className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Acceder al grupo que me toca impartir</span>
-                </div>
-                <span className="text-[10px] text-emerald-400 font-mono">👥 Abrir</span>
               </button>
 
             </div>
@@ -505,7 +525,7 @@ export const VoiceAssistantWidget: React.FC = () => {
 
           {/* Footer de Ayuda */}
           <div className="text-[11px] text-gray-400 text-center border-t border-white/5 pt-2">
-            💡 <em>Puedes decir en voz alta: "Ingresar como docente", "¿Cuál es mi horario?", o "Abrir grupo 203".</em>
+            💡 <em>Puedes decir en voz alta: "Soy alumno", "¿Cuál es mi horario?", o "Acceso docente".</em>
           </div>
 
         </div>

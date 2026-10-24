@@ -186,6 +186,8 @@ export interface Asistencia {
   id: string;
   alumno_id: string;
   grupo_id?: string;
+  curso_id?: string;
+  materia?: string;
   tipo: 'entrada' | 'salida';
   estado?: EstadoAsistencia;
   fecha: string; // YYYY-MM-DD
@@ -792,27 +794,30 @@ const initLocalStorage = () => {
   }
 
   // Auto-migration & seed: Official students, attendances and participations from Google Sheets (LAC Matemáticas)
-  if (!localStorage.getItem('unrc_lac_matematicas_v1_synced')) {
+  if (!localStorage.getItem('unrc_lac_matematicas_v2_synced')) {
     try {
       seedLacMatematicasDataSync(true);
+      localStorage.setItem('unrc_lac_matematicas_v2_synced', 'true');
     } catch (e) {
       console.warn('Error during auto-seed of LAC Matemáticas from Google Sheets:', e);
     }
   }
 
   // Auto-migration & seed: Official students, attendances and participaciones from Google Sheets (Hospedaje Turismo)
-  if (!localStorage.getItem('unrc_hospedaje_v1_synced')) {
+  if (!localStorage.getItem('unrc_hospedaje_v2_synced')) {
     try {
       seedHospedajeDataSync(true);
+      localStorage.setItem('unrc_hospedaje_v2_synced', 'true');
     } catch (e) {
       console.warn('Error during auto-seed of Hospedaje from Google Sheets:', e);
     }
   }
 
   // Auto-migration & seed: Official students for LCDN groups
-  if (!localStorage.getItem('unrc_lcdn_students_v1_synced')) {
+  if (!localStorage.getItem('unrc_lcdn_students_v2_synced')) {
     try {
       seedLcdnStudentsSync();
+      localStorage.setItem('unrc_lcdn_students_v2_synced', 'true');
     } catch (e) {
       console.warn('Error during auto-seed of LCDN students:', e);
     }
@@ -2824,14 +2829,27 @@ export const db = {
     let list: Asistencia[] = raw ? JSON.parse(raw) : [];
     const alumnos = await db.getAlumnos();
     const timeStr = new Date().toTimeString().split(' ')[0];
+    const newItems: Asistencia[] = [];
 
     registros.forEach(r => {
       const alumno = alumnos.find(al => al.id === r.alumno_id || al.matricula === r.alumno_id);
-      list = list.filter(item => !(item.alumno_id === r.alumno_id && item.fecha === r.fecha && item.grupo_id === r.curso_id));
-      list.push({
-        id: `att-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      list = list.filter(item => !(
+        (item.alumno_id === r.alumno_id || item.alumno?.matricula === r.alumno_id) &&
+        item.fecha === r.fecha &&
+        (
+          !r.curso_id ||
+          item.grupo_id === r.curso_id ||
+          item.curso_id === r.curso_id ||
+          (r.materia && item.materia?.toLowerCase() === r.materia.toLowerCase())
+        )
+      ));
+
+      const newItem: Asistencia = {
+        id: `att-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
         alumno_id: r.alumno_id,
         grupo_id: r.curso_id || alumno?.grupo_id,
+        curso_id: r.curso_id,
+        materia: r.materia,
         tipo: 'entrada',
         estado: r.estado,
         fecha: r.fecha,
@@ -2842,11 +2860,83 @@ export const db = {
         observaciones: r.observaciones,
         created_at: new Date().toISOString(),
         alumno
-      });
+      };
+      list.push(newItem);
+      newItems.push(newItem);
     });
 
     localStorage.setItem('unrc_asistencias', JSON.stringify(list));
+
+    if (supabase && newItems.length > 0) {
+      try {
+        await supabase.from('asistencias').insert(
+          newItems.map(item => ({
+            alumno_id: item.alumno_id,
+            grupo_id: item.grupo_id,
+            tipo: item.tipo,
+            estado: item.estado,
+            fecha: item.fecha,
+            hora: item.hora,
+            dispositivo: item.dispositivo,
+            ubicacion: item.ubicacion,
+            escaneado_por: item.escaneado_por,
+            observaciones: item.observaciones,
+            materia: item.materia || null
+          }))
+        );
+      } catch (e) {
+        console.warn('Supabase batch asistencias notice:', e);
+      }
+    }
+
     return registros.length;
+  },
+
+  eliminarAsistencia: async (id: string): Promise<boolean> => {
+    initLocalStorage();
+    let list: Asistencia[] = JSON.parse(localStorage.getItem('unrc_asistencias') || '[]');
+    list = list.filter(a => a.id !== id);
+    localStorage.setItem('unrc_asistencias', JSON.stringify(list));
+
+    if (supabase) {
+      try {
+        await supabase.from('asistencias').delete().eq('id', id);
+      } catch (e) {
+        console.warn('Supabase delete asistencia notice:', e);
+      }
+    }
+    return true;
+  },
+
+  eliminarAsistenciasFecha: async (
+    fecha: string,
+    cursoId?: string,
+    materia?: string
+  ): Promise<number> => {
+    initLocalStorage();
+    let list: Asistencia[] = JSON.parse(localStorage.getItem('unrc_asistencias') || '[]');
+    const prevCount = list.length;
+    list = list.filter(item => {
+      if (item.fecha !== fecha) return true;
+      if (cursoId && item.grupo_id !== cursoId && item.curso_id !== cursoId) {
+        if (!materia || item.materia?.toLowerCase() !== materia.toLowerCase()) {
+          return true;
+        }
+      }
+      return false; // Eliminar registro
+    });
+    localStorage.setItem('unrc_asistencias', JSON.stringify(list));
+
+    if (supabase) {
+      try {
+        let q = supabase.from('asistencias').delete().eq('fecha', fecha);
+        if (cursoId) q = q.eq('grupo_id', cursoId);
+        await q;
+      } catch (e) {
+        console.warn('Supabase delete asistencias by fecha notice:', e);
+      }
+    }
+    return prevCount - list.length;
   },
 
   // Participaciones Operations
@@ -2936,15 +3026,20 @@ export const db = {
     initLocalStorage();
     const alumnos = await db.getAlumnos();
     let list: Participacion[] = JSON.parse(localStorage.getItem('unrc_participaciones') || '[]');
+    const newItems: Participacion[] = [];
 
     registros.forEach(r => {
       // Clean existing on that date & course
-      list = list.filter(item => !(item.alumno_id === r.alumno_id && item.fecha === r.fecha && (item.curso_id === r.curso_id || item.grupo_id === r.curso_id)));
+      list = list.filter(item => !(
+        item.alumno_id === r.alumno_id &&
+        item.fecha === r.fecha &&
+        (item.curso_id === r.curso_id || item.grupo_id === r.curso_id || (r.materia && item.materia === r.materia))
+      ));
 
       if (r.tipo !== 'NINGUNA') {
         const alumno = alumnos.find(al => al.id === r.alumno_id || al.matricula === r.alumno_id);
         const puntos = r.tipo === 'AP' ? 10 : (r.tipo === 'RP' ? 5 : 7.5);
-        list.push({
+        const newPart: Participacion = {
           id: `part-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
           alumno_id: r.alumno_id,
           grupo_id: r.curso_id || alumno?.grupo_id,
@@ -2956,11 +3051,32 @@ export const db = {
           observaciones: r.observaciones || (r.tipo === 'AP' ? 'Aprobada: Excelente aportación' : (r.tipo === 'RP' ? 'Requerido: Por mejorar' : 'Regular: Buena intervención')),
           created_at: new Date().toISOString(),
           alumno
-        });
+        };
+        list.push(newPart);
+        newItems.push(newPart);
       }
     });
 
     localStorage.setItem('unrc_participaciones', JSON.stringify(list));
+
+    if (supabase && newItems.length > 0) {
+      try {
+        await supabase.from('participaciones').insert(
+          newItems.map(p => ({
+            alumno_id: p.alumno_id,
+            grupo_id: p.grupo_id,
+            fecha: p.fecha,
+            tipo: p.tipo,
+            puntos: p.puntos,
+            observaciones: p.observaciones,
+            materia: p.materia || null
+          }))
+        );
+      } catch (e) {
+        console.warn('Supabase batch participaciones notice:', e);
+      }
+    }
+
     return registros.filter(r => r.tipo !== 'NINGUNA').length;
   },
 
@@ -2969,7 +3085,56 @@ export const db = {
     let list: Participacion[] = JSON.parse(localStorage.getItem('unrc_participaciones') || '[]');
     list = list.filter(p => p.id !== id);
     localStorage.setItem('unrc_participaciones', JSON.stringify(list));
+
+    if (supabase) {
+      try {
+        await supabase.from('participaciones').delete().eq('id', id);
+      } catch (e) {
+        console.warn('Supabase delete participacion notice:', e);
+      }
+    }
     return true;
+  },
+
+  eliminarParticipacionesFecha: async (
+    fecha: string,
+    cursoId?: string,
+    materia?: string
+  ): Promise<number> => {
+    initLocalStorage();
+    let list: Participacion[] = JSON.parse(localStorage.getItem('unrc_participaciones') || '[]');
+    const prevCount = list.length;
+    list = list.filter(item => {
+      if (item.fecha !== fecha) return true;
+      if (cursoId && item.curso_id !== cursoId && item.grupo_id !== cursoId) {
+        if (!materia || item.materia?.toLowerCase() !== materia.toLowerCase()) {
+          return true;
+        }
+      }
+      return false; // Eliminar
+    });
+    localStorage.setItem('unrc_participaciones', JSON.stringify(list));
+
+    if (supabase) {
+      try {
+        let q = supabase.from('participaciones').delete().eq('fecha', fecha);
+        if (cursoId) q = q.eq('curso_id', cursoId);
+        await q;
+      } catch (e) {
+        console.warn('Supabase delete participaciones by fecha notice:', e);
+      }
+    }
+    return prevCount - list.length;
+  },
+
+  eliminarRegistrosFecha: async (
+    fecha: string,
+    cursoId?: string,
+    materia?: string
+  ): Promise<{ asistenciasEliminadas: number; participacionesEliminadas: number }> => {
+    const asistenciasEliminadas = await db.eliminarAsistenciasFecha(fecha, cursoId, materia);
+    const participacionesEliminadas = await db.eliminarParticipacionesFecha(fecha, cursoId, materia);
+    return { asistenciasEliminadas, participacionesEliminadas };
   },
 
   // Resumen Académico Calculation

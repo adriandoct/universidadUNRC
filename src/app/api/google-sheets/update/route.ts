@@ -21,73 +21,108 @@ export interface GoogleSheetUpdatePayload {
   webhookUrl?: string;
 }
 
+export interface BatchGoogleSheetUpdatePayload {
+  courses?: GoogleSheetUpdatePayload[];
+  webhookUrl?: string;
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const body: GoogleSheetUpdatePayload = await req.json();
+    const rawBody: any = await req.json();
 
-    if (!body.sheetId || !body.records || !Array.isArray(body.records)) {
+    // Check if this is a batch request of multiple courses
+    const coursesList: GoogleSheetUpdatePayload[] = Array.isArray(rawBody?.courses)
+      ? rawBody.courses
+      : rawBody?.sheetId && rawBody?.records
+      ? [rawBody as GoogleSheetUpdatePayload]
+      : [];
+
+    if (coursesList.length === 0) {
       return NextResponse.json(
-        { error: 'Faltan parámetros requeridos (sheetId o records)' },
+        { error: 'Faltan parámetros requeridos (sheetId o records o courses[])' },
         { status: 400 }
       );
     }
 
-    const targetWebhook =
-      body.webhookUrl ||
+    const defaultWebhook =
+      rawBody.webhookUrl ||
       process.env.GOOGLE_SHEETS_WEBHOOK_URL ||
       process.env.NEXT_PUBLIC_GOOGLE_SHEETS_WEBHOOK_URL;
 
-    let webhookResponseStatus: number | null = null;
-    let webhookResponseBody: any = null;
-    let webhookCalled = false;
+    const results = [];
 
-    if (targetWebhook && targetWebhook.startsWith('http')) {
-      webhookCalled = true;
-      try {
-        const response = await fetch(targetWebhook, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-          // Google Apps Script usually returns 302 redirect
-          redirect: 'follow',
-        });
-        webhookResponseStatus = response.status;
+    for (const course of coursesList) {
+      const targetWebhook = course.webhookUrl || defaultWebhook;
+
+      let webhookResponseStatus: number | null = null;
+      let webhookResponseBody: any = null;
+      let webhookCalled = false;
+
+      if (targetWebhook && targetWebhook.startsWith('http')) {
+        webhookCalled = true;
         try {
-          webhookResponseBody = await response.json();
-        } catch (_) {
-          webhookResponseBody = await response.text();
+          const response = await fetch(targetWebhook, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(course),
+            redirect: 'follow',
+          });
+          webhookResponseStatus = response.status;
+          try {
+            webhookResponseBody = await response.json();
+          } catch (_) {
+            webhookResponseBody = await response.text();
+          }
+        } catch (webhookErr: any) {
+          console.warn(`Webhook error for ${course.materia}:`, webhookErr?.message);
+          webhookResponseBody = { error: webhookErr?.message || 'Error de conexión con Webhook' };
         }
-      } catch (webhookErr: any) {
-        console.warn('Google Sheets Webhook dispatch notice:', webhookErr?.message);
-        webhookResponseBody = { error: webhookErr?.message || 'Error de conexión con Webhook' };
       }
+
+      const records = course.records || [];
+      const presentCount = records.filter((r) => r.estadoAsistencia === 'present' || r.codigo === 'A' || r.codigo.startsWith('A')).length;
+      const lateCount = records.filter((r) => r.estadoAsistencia === 'late' || r.codigo.startsWith('R')).length;
+      const absentCount = records.filter((r) => r.estadoAsistencia === 'absent' || r.codigo === 'F' || !r.codigo).length;
+      const partCount = records.filter((r) => r.participacion !== 'NINGUNA' && r.participacion).length;
+      const copyableRows = records.map((r) => r.codigo || '').join('\n');
+
+      results.push({
+        sheetId: course.sheetId,
+        sheetUrl: course.sheetUrl || `https://docs.google.com/spreadsheets/d/${course.sheetId}/edit?gid=0#gid=0`,
+        materia: course.materia,
+        grupo: course.grupo,
+        fecha: course.fecha,
+        fechaColumna: course.fechaColumna || course.fecha,
+        totalAlumnos: records.length,
+        presentes: presentCount,
+        retardos: lateCount,
+        faltas: absentCount,
+        participaciones: partCount,
+        copyableColumn: copyableRows,
+        webhookCalled,
+        webhookStatus: webhookResponseStatus,
+        webhookResponse: webhookResponseBody,
+      });
     }
 
-    // Retornamos un resumen completo de la actualización
-    const presentCount = body.records.filter((r) => r.estadoAsistencia === 'present').length;
-    const lateCount = body.records.filter((r) => r.estadoAsistencia === 'late').length;
-    const absentCount = body.records.filter((r) => r.estadoAsistencia === 'absent').length;
-    const partCount = body.records.filter((r) => r.participacion !== 'NINGUNA').length;
+    if (results.length === 1) {
+      const single = results[0];
+      return NextResponse.json({
+        success: true,
+        message: `Actualización de asistencia y participación para "${single.materia}" procesada exitosamente.`,
+        ...single,
+        timestamp: new Date().toISOString(),
+      });
+    }
 
-    // Generar formato de texto tabular / CSV listo para pegar en Google Sheets
-    const copyableRows = body.records.map((r) => r.codigo).join('\n');
+    const totalAlumnosOverall = results.reduce((sum, r) => sum + r.totalAlumnos, 0);
 
     return NextResponse.json({
       success: true,
-      message: `Actualización de asistencia y participación para "${body.materia}" procesada exitosamente.`,
-      sheetId: body.sheetId,
-      sheetUrl: body.sheetUrl || `https://docs.google.com/spreadsheets/d/${body.sheetId}/edit?gid=0#gid=0`,
-      fecha: body.fecha,
-      fechaColumna: body.fechaColumna || body.fecha,
-      totalAlumnos: body.records.length,
-      presentes: presentCount,
-      retardos: lateCount,
-      faltas: absentCount,
-      participaciones: partCount,
-      copyableColumn: copyableRows,
-      webhookCalled,
-      webhookStatus: webhookResponseStatus,
-      webhookResponse: webhookResponseBody,
+      message: `Actualización procesada para ${results.length} materias oficiales (${totalAlumnosOverall} alumnos en total).`,
+      coursesCount: results.length,
+      totalAlumnos: totalAlumnosOverall,
+      courses: results,
       timestamp: new Date().toISOString(),
     });
   } catch (error: any) {

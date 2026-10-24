@@ -61,6 +61,7 @@ import { getTijuanaDateString } from '@/lib/tijuanaTime';
 import BulkUploadAlumnosModal from '@/components/BulkUploadAlumnosModal';
 import BulkUploadDocentesModal, { resolveCarreraAbreviatura } from '@/components/BulkUploadDocentesModal';
 import BulkUploadHorariosModal from '@/components/BulkUploadHorariosModal';
+import AttendanceParticipationReport from '@/components/AttendanceParticipationReport';
 import {
   db,
   Docente,
@@ -88,7 +89,8 @@ type TabType =
   | 'grados_secciones'
   | 'carreras_materias'
   | 'auditoria'
-  | 'anuncios';
+  | 'anuncios'
+  | 'reportes';
 
 export default function AdminDashboardPage() {
   const { user, role, isLoading: authLoading } = useAuth();
@@ -1684,6 +1686,21 @@ export default function AdminDashboardPage() {
           >
             <Bell className="w-3.5 h-3.5" />
             <span>8. Anuncios Globales</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveTab('reportes');
+              setSearchQuery('');
+            }}
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 ${
+              activeTab === 'reportes'
+                ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-600/40 ring-1 ring-purple-400/40'
+                : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+            }`}
+          >
+            <BarChart3 className="w-3.5 h-3.5 text-purple-300" />
+            <span>9. Reportes por Fecha & Materia</span>
           </button>
         </div>
 
@@ -3591,6 +3608,15 @@ export default function AdminDashboardPage() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* ========================================================= */}
+        {/* TAB 9: REPORTE DE ASISTENCIA Y PARTICIPACIÓN POR FECHA Y MATERIA */}
+        {/* ========================================================= */}
+        {activeTab === 'reportes' && (
+          <div className="space-y-6">
+            <AttendanceParticipationReport />
           </div>
         )}
       </div>

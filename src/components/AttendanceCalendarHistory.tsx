@@ -18,7 +18,9 @@ import {
   Award,
   Filter,
   ExternalLink,
-  BookOpen
+  BookOpen,
+  Trash2,
+  RotateCcw
 } from 'lucide-react';
 import type { Asistencia, Participacion } from '@/lib/db';
 import type { StudentItem } from './AttendanceSheet';
@@ -37,6 +39,7 @@ interface AttendanceCalendarHistoryProps {
   currentDate?: string;
   onSelectDateForEditing?: (dateStr: string) => void;
   onUpdateGoogleSheetForDate?: (dateStr: string) => void;
+  onDeleteRecordsForDate?: (dateStr: string) => Promise<void> | void;
 }
 
 const MONTH_NAMES_ES = [
@@ -58,6 +61,7 @@ export default function AttendanceCalendarHistory({
   currentDate,
   onSelectDateForEditing,
   onUpdateGoogleSheetForDate,
+  onDeleteRecordsForDate,
 }: AttendanceCalendarHistoryProps) {
   // Inicializar mes/año basado en la fecha actual seleccionada o la fecha del sistema (2026-10-17)
   const initialDate = useMemo(() => {
@@ -718,6 +722,18 @@ export default function AttendanceCalendarHistory({
                 <Download className="w-3.5 h-3.5 text-cyan-400" />
                 <span>Exportar Día (.xlsx)</span>
               </button>
+
+              {onDeleteRecordsForDate && (
+                <button
+                  type="button"
+                  onClick={() => onDeleteRecordsForDate(selectedDayData.date)}
+                  className="px-3.5 py-2 rounded-xl bg-rose-600/20 hover:bg-rose-600/40 border border-rose-500/40 text-rose-300 font-bold text-xs transition-all flex items-center space-x-1.5 cursor-pointer"
+                  title="Eliminar permanentemente los registros de este día de la Base de Datos y Google Sheets"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Borrar Día</span>
+                </button>
+              )}
             </div>
 
           </div>

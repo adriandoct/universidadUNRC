@@ -33,9 +33,9 @@ export default function HomePage() {
 
   // Quick Login state for institutional access (Image 1 colors)
   const [showQuickLogin, setShowQuickLogin] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<'admin' | 'teacher' | 'student'>('admin');
-  const [credentialInput, setCredentialInput] = useState('admin@admin.com');
-  const [passwordInput, setPasswordInput] = useState('••••••••••••');
+  const [selectedRole, setSelectedRole] = useState<'admin' | 'teacher' | 'student'>('student');
+  const [credentialInput, setCredentialInput] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState('');
@@ -67,13 +67,13 @@ export default function HomePage() {
     setLoginError('');
     if (r === 'admin') {
       setCredentialInput('admin@admin.com');
-      setPasswordInput('admin123');
+      setPasswordInput('');
     } else if (r === 'teacher') {
       setCredentialInput('DOC-UNRC-03');
-      setPasswordInput('2026-2');
+      setPasswordInput('');
     } else {
-      setCredentialInput('UNRC-2026-005');
-      setPasswordInput('2026-2');
+      setCredentialInput('');
+      setPasswordInput('');
     }
   };
 
@@ -82,15 +82,18 @@ export default function HomePage() {
     setLoginLoading(true);
     setLoginError('');
     try {
+      if (!passwordInput.trim()) {
+        throw new Error('Por seguridad institucional, ingrese su contraseña oficial.');
+      }
       if (selectedRole === 'admin') {
-        const res = await loginAsAdmin(credentialInput, passwordInput === '••••••••••••' ? 'admin123' : passwordInput);
+        const res = await loginAsAdmin(credentialInput, passwordInput);
         if (!res.success) throw new Error(res.error || 'Credenciales incorrectas');
         window.location.href = '/admin';
       } else {
         const res = await loginWithCredentials(
           selectedRole === 'teacher' ? 'docente' : 'alumno',
           credentialInput,
-          passwordInput === '••••••••••••' ? '2026-2' : passwordInput
+          passwordInput
         );
         if (!res.success) throw new Error(res.error || 'Credenciales incorrectas');
         window.location.href = selectedRole === 'teacher' ? '/teacher' : '/student';

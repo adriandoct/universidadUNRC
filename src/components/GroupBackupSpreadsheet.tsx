@@ -47,6 +47,8 @@ interface GroupBackupSpreadsheetProps {
   classDates: string[];
   onSyncGoogleSheet?: () => void;
   onUpdateGoogleSheet?: () => void;
+  onUpdateAllGoogleSheets?: () => void;
+  onSyncAllGoogleSheets?: () => void;
   onNavigateToDate?: (dateStr: string) => void;
 }
 
@@ -65,6 +67,8 @@ export default function GroupBackupSpreadsheet({
   classDates = [],
   onSyncGoogleSheet,
   onUpdateGoogleSheet,
+  onUpdateAllGoogleSheets,
+  onSyncAllGoogleSheets,
   onNavigateToDate,
 }: GroupBackupSpreadsheetProps) {
   const [viewMode, setViewMode] = useState<'matrix' | 'detailed'>('matrix');
@@ -76,22 +80,23 @@ export default function GroupBackupSpreadsheet({
   const activeMateria = courseMateria || courseName;
   const activeGrupo = courseGrupo || sheetConfig?.grupo || 'Grupo';
 
-  // Usar fechas de clase oficiales si están disponibles, o extraer fechas con registros
+  // Combinar fechas oficiales del curso con cualquier fecha registrada en asistencias o participaciones
   const datesToUse = useMemo(() => {
+    const dateSet = new Set<string>();
+
     if (sheetConfig?.classDates && sheetConfig.classDates.length > 0) {
-      return sheetConfig.classDates;
+      sheetConfig.classDates.forEach((d) => dateSet.add(d));
     }
     if (classDates && classDates.length > 0) {
-      return classDates;
+      classDates.forEach((d) => dateSet.add(d));
     }
-    // Extraer de asistencias únicas ordenadas
-    const dateSet = new Set<string>();
     allAsistencias.forEach((a) => {
       if (a.fecha) dateSet.add(a.fecha);
     });
     allParticipaciones.forEach((p) => {
       if (p.fecha) dateSet.add(p.fecha);
     });
+
     return Array.from(dateSet).sort();
   }, [sheetConfig, classDates, allAsistencias, allParticipaciones]);
 
@@ -327,7 +332,7 @@ export default function GroupBackupSpreadsheet({
               </a>
             )}
 
-            {/* Botón Sincronizar / Actualizar */}
+            {/* Botón Sincronizar / Actualizar Materia Actual */}
             {onUpdateGoogleSheet && (
               <button
                 type="button"
@@ -337,6 +342,32 @@ export default function GroupBackupSpreadsheet({
               >
                 <UploadCloud className="w-3.5 h-3.5 text-cyan-400" />
                 <span>Actualizar Hoja</span>
+              </button>
+            )}
+
+            {/* Botón Actualizar TODAS las Materias */}
+            {onUpdateAllGoogleSheets && (
+              <button
+                type="button"
+                onClick={onUpdateAllGoogleSheets}
+                className="px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500/30 to-amber-600/30 hover:from-amber-500/50 hover:to-amber-600/50 border border-amber-400/40 text-amber-300 font-bold text-xs transition-all flex items-center space-x-1.5 cursor-pointer shadow-md shadow-amber-950/40"
+                title="Actualizar las hojas de cálculo de Google Sheets de TODAS las 5 materias oficiales"
+              >
+                <UploadCloud className="w-3.5 h-3.5 text-amber-400" />
+                <span>Actualizar Todas las Materias</span>
+              </button>
+            )}
+
+            {/* Botón Sincronizar TODAS las Materias */}
+            {onSyncAllGoogleSheets && (
+              <button
+                type="button"
+                onClick={onSyncAllGoogleSheets}
+                className="px-3 py-2.5 rounded-xl bg-black/60 hover:bg-black/80 border border-emerald-500/30 text-emerald-300 font-bold text-xs transition-all flex items-center space-x-1.5 cursor-pointer"
+                title="Sincronizar las 5 materias oficiales desde Google Sheets"
+              >
+                <RefreshCw className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Sincronizar Todo</span>
               </button>
             )}
 

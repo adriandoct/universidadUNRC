@@ -36,7 +36,14 @@ import {
   UploadCloud,
   FileSpreadsheet,
   Code2,
-  Settings
+  Settings,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  History,
+  AlertTriangle,
+  RotateCcw,
+  Layers
 } from 'lucide-react';
 import { db, Participacion, Asistencia, Alumno } from '@/lib/db';
 import { getTijuanaDateString } from '@/lib/tijuanaTime';
@@ -46,6 +53,9 @@ import {
   formatDateColumnLabel,
   encodeRecordToSheetCode,
   sendAttendanceUpdateToGoogleSheet,
+  clearAttendanceColumnInGoogleSheet,
+  syncAllOfficialGoogleSheets,
+  updateAllCoursesToGoogleSheets,
   GOOGLE_APPS_SCRIPT_TEMPLATE,
   CourseGoogleSheetConfig,
   OFFICIAL_GOOGLE_SHEETS_REGISTRY,
@@ -55,10 +65,14 @@ import {
   LAC_GOOGLE_SHEET_URL,
   LAC_CLASS_DATES,
   exportGroupSecondaryBackupExcel,
-  formatDatePill
+  formatDatePill,
+  HOSPEDAJE_STUDENTS_OFFICIAL,
+  LAC_STUDENTS_OFFICIAL
 } from '@/lib/googleSheetsSync';
+import AttendanceCalendarWidget from './AttendanceCalendarWidget';
 import AttendanceCalendarHistory from './AttendanceCalendarHistory';
 import GroupBackupSpreadsheet from './GroupBackupSpreadsheet';
+import AttendanceParticipationReport from './AttendanceParticipationReport';
 import confetti from 'canvas-confetti';
 import * as XLSX from 'xlsx';
 
@@ -94,8 +108,9 @@ export default function AttendanceSheet({
   onAttendanceSubmitted,
 }: AttendanceSheetProps) {
   // Current active view tab
-  const [activeTab, setActiveTab] = useState<'sheet' | 'board' | 'calendar' | 'spreadsheet'>('sheet');
+  const [activeTab, setActiveTab] = useState<'sheet' | 'board' | 'calendar' | 'spreadsheet' | 'report'>('sheet');
   const [selectedDate, setSelectedDate] = useState<string>(() => getTijuanaDateString());
+  const [isCalendarWidgetOpen, setIsCalendarWidgetOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [allCourseAsistencias, setAllCourseAsistencias] = useState<Asistencia[]>([]);
 
@@ -164,6 +179,12 @@ export default function AttendanceSheet({
     }
     return '';
   });
+  const [modalScope, setModalScope] = useState<'single' | 'all'>('single');
+  const [isUpdatingAllSheets, setIsUpdatingAllSheets] = useState(false);
+  const [isSyncingAllSheets, setIsSyncingAllSheets] = useState(false);
+  const [allCoursesUpdateResult, setAllCoursesUpdateResult] = useState<any>(null);
+  const [selectedMateriaTabInModal, setSelectedMateriaTabInModal] = useState<string>('hospedaje');
+
   const [lastUpdateStats, setLastUpdateStats] = useState<{
     fechaColumna: string;
     copyableColumn: string;
@@ -226,6 +247,7 @@ export default function AttendanceSheet({
       });
 
       if (!auto) {
+        setModalScope('single');
         setIsGoogleSheetModalOpen(true);
       }
 
@@ -243,6 +265,37 @@ export default function AttendanceSheet({
       });
     } finally {
       setIsUpdatingSheet(false);
+    }
+  };
+
+  const handleUpdateAllGoogleSheets = async () => {
+    setIsUpdatingAllSheets(true);
+    try {
+      const res = await updateAllCoursesToGoogleSheets({
+        fecha: selectedDate,
+        webhookUrl: webhookUrlInput || undefined,
+        allAlumnos: allAlumnosList,
+        allAsistencias: allCourseAsistencias,
+        allParticipaciones: allParticipaciones,
+      });
+
+      setAllCoursesUpdateResult(res);
+      setModalScope('all');
+      setIsGoogleSheetModalOpen(true);
+      playChime('success');
+      setFeedback({
+        type: 'success',
+        message: `📊 ${res.message}. Hojas de cálculo oficiales listas.`,
+      });
+      setTimeout(() => setFeedback(null), 8000);
+    } catch (err: any) {
+      console.error('Error al actualizar todas las hojas de Google Sheets:', err);
+      setFeedback({
+        type: 'error',
+        message: `❌ Error al actualizar hojas de Google Sheets: ${err?.message || err}`,
+      });
+    } finally {
+      setIsUpdatingAllSheets(false);
     }
   };
 
@@ -294,6 +347,42 @@ export default function AttendanceSheet({
       });
     } finally {
       setIsSyncingSheet(false);
+    }
+  };
+
+  const handleSyncAllGoogleSheets = async () => {
+    setIsSyncingAllSheets(true);
+    try {
+      const res = await syncAllOfficialGoogleSheets(true);
+      playChime('success');
+      try {
+        confetti({
+          particleCount: 100,
+          spread: 80,
+          origin: { y: 0.6 }
+        });
+      } catch (_) {}
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('unrc-sync-complete'));
+      }
+
+      await reloadData();
+      const updatedList = await db.getAlumnos();
+      setAllAlumnosList(updatedList || []);
+
+      setFeedback({
+        type: 'success',
+        message: `📊 ${res.message}`
+      });
+      setTimeout(() => setFeedback(null), 8000);
+    } catch (err: any) {
+      setFeedback({
+        type: 'error',
+        message: `❌ Error sincronizando todas las materias: ${err?.message || err}`
+      });
+    } finally {
+      setIsSyncingAllSheets(false);
     }
   };
 
@@ -693,7 +782,7 @@ export default function AttendanceSheet({
         estado: statusMap[data.status] || 'A',
         fecha: selectedDate,
         curso_id: courseId,
-        materia: courseName,
+        materia: activeMateria || courseMateria || courseName,
         observaciones: data.notes || undefined,
       }));
 
@@ -702,7 +791,7 @@ export default function AttendanceSheet({
         tipo: data.participation,
         fecha: selectedDate,
         curso_id: courseId,
-        materia: courseName,
+        materia: activeMateria || courseMateria || courseName,
         observaciones: data.notes || undefined,
       }));
 
@@ -740,6 +829,96 @@ export default function AttendanceSheet({
     }
   };
 
+  // Navegación de un día hacia atrás o adelante
+  const handleShiftDate = (days: number) => {
+    try {
+      const [y, m, d] = selectedDate.split('-').map(Number);
+      const dt = new Date(y, m - 1, d);
+      dt.setDate(dt.getDate() + days);
+      const nextStr = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+      setSelectedDate(nextStr);
+    } catch (_) {}
+  };
+
+  // Borrar todos los registros de asistencia y participación para una fecha
+  const handleDeleteRecordsForDate = async (targetDate: string) => {
+    if (!confirm(`¿Estás seguro de que deseas eliminar permanentemente todos los registros de asistencia y participación del día ${targetDate}? Esta acción actualizará la Base de Datos y la Hoja de Google Sheets.`)) {
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const res = await db.eliminarRegistrosFecha(targetDate, courseId, activeMateria);
+
+      // Si el curso tiene Hoja de Google Sheets configurada, limpiar la columna correspondiente
+      if (currentSheetConfig) {
+        await clearAttendanceColumnInGoogleSheet({
+          config: currentSheetConfig,
+          fecha: targetDate,
+          students,
+          webhookUrl: webhookUrlInput || undefined,
+        });
+      }
+
+      await reloadData();
+
+      // Resetear estado diario a presente / ninguna
+      const resetState: Record<string, { status: AttendanceStatusType; participation: ParticipationType; notes: string }> = {};
+      students.forEach((s) => {
+        resetState[s.id] = { status: 'present', participation: 'NINGUNA', notes: '' };
+      });
+      setAttendanceState(resetState);
+
+      playChime('success');
+      setFeedback({
+        type: 'info',
+        message: `🗑️ Registros del día ${targetDate} eliminados permanentemente (${res.asistenciasEliminadas} asistencias, ${res.participacionesEliminadas} participaciones) y Google Sheets actualizado.`,
+      });
+      setTimeout(() => setFeedback(null), 8000);
+    } catch (err: any) {
+      console.error('Error al eliminar registros del día:', err);
+      setFeedback({
+        type: 'error',
+        message: `❌ Error al eliminar registros de la fecha: ${err?.message || err}`,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Resetear un alumno individual para la fecha seleccionada
+  const handleResetStudentDay = (studentId: string) => {
+    setAttendanceState((prev) => ({
+      ...prev,
+      [studentId]: { status: 'present', participation: 'NINGUNA', notes: '' }
+    }));
+  };
+
+  // Estadísticas del día seleccionado actualmente
+  const selectedDateStats = useMemo(() => {
+    const dayAsist = allCourseAsistencias.filter((a) => a.fecha === selectedDate);
+    const dayParts = allParticipaciones.filter((p) => p.fecha === selectedDate);
+    const pres = dayAsist.filter((a) => a.estado === 'A').length;
+    const ret = dayAsist.filter((a) => a.estado === 'R').length;
+    const fal = dayAsist.filter((a) => a.estado === 'F').length;
+    const just = dayAsist.filter((a) => a.estado === 'J').length;
+    const todayStr = getTijuanaDateString();
+    const isPast = selectedDate < todayStr;
+    const isToday = selectedDate === todayStr;
+
+    return {
+      hasRecords: dayAsist.length > 0 || dayParts.length > 0,
+      totalAlumnos: dayAsist.length,
+      pres,
+      ret,
+      fal,
+      just,
+      partsCount: dayParts.length,
+      totalPoints: dayParts.reduce((acc, p) => acc + (p.puntos || 0), 0),
+      isPast,
+      isToday,
+    };
+  }, [allCourseAsistencias, allParticipaciones, selectedDate]);
+
   // Submit single live participation from modal
   const handleQuickParticipationSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -752,7 +931,7 @@ export default function AttendanceSheet({
         quickNote.trim() || undefined,
         selectedDate,
         courseId,
-        courseName
+        activeMateria || courseName
       );
 
       // Sync local sheet state as well
@@ -876,22 +1055,88 @@ export default function AttendanceSheet({
           </p>
         </div>
 
-        {/* Date Selector con Zona Horaria Tijuana */}
-        <div className="flex items-center space-x-3 bg-black/60 px-4 py-2 rounded-2xl border border-blue-500/30 shadow-inner">
-          <Calendar className="w-5 h-5 text-blue-400 shrink-0" />
-          <div className="flex flex-col">
-            <span className="text-[9px] font-extrabold text-blue-300 uppercase tracking-wider">
-              Fecha de Sesión (Tijuana)
-            </span>
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="bg-transparent text-white text-xs font-bold focus:outline-none cursor-pointer"
-            />
+        {/* Date Selector con Widget Calendario Integrado & Zona Horaria Tijuana */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          {/* Navegación rápida de fechas */}
+          <div className="flex items-center space-x-1 bg-black/60 p-1.5 rounded-2xl border border-blue-500/30 shadow-inner">
+            <button
+              type="button"
+              onClick={() => handleShiftDate(-1)}
+              className="p-1.5 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+              title="Día anterior"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+
+            <div className="flex items-center space-x-2 px-2 py-0.5">
+              <Calendar className="w-4 h-4 text-cyan-400 shrink-0" />
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="bg-transparent text-white text-xs font-mono font-bold focus:outline-none cursor-pointer"
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={() => handleShiftDate(1)}
+              className="p-1.5 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+              title="Día siguiente"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSelectedDate(getTijuanaDateString())}
+              className="px-2.5 py-1 rounded-xl bg-cyan-600/30 hover:bg-cyan-600/50 text-cyan-200 text-[10px] font-bold transition-all cursor-pointer"
+              title="Ir al día de hoy"
+            >
+              Hoy
+            </button>
           </div>
+
+          {/* Botón para desplegar / contraer Widget Calendario */}
+          <button
+            type="button"
+            onClick={() => setIsCalendarWidgetOpen((prev) => !prev)}
+            className={`px-3.5 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center justify-center space-x-2 border shadow-lg cursor-pointer ${
+              isCalendarWidgetOpen
+                ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white border-cyan-400 ring-2 ring-cyan-400/40 shadow-cyan-500/30'
+                : 'bg-black/70 hover:bg-black/90 text-cyan-300 border-cyan-500/40 hover:border-cyan-400 shadow-inner'
+            }`}
+          >
+            <CalendarDays className="w-4 h-4 text-cyan-300" />
+            <span>{isCalendarWidgetOpen ? 'Ocultar Calendario' : '📅 Widget Calendario'}</span>
+            <span className="px-1.5 py-0.5 rounded-full bg-cyan-500/20 text-[10px] font-mono text-cyan-200">
+              {selectedDateStats.hasRecords ? '✓ Registros' : 'Historial'}
+            </span>
+          </button>
         </div>
       </div>
+
+      {/* WIDGET CALENDARIO DESPLEGABLE EN VIVO */}
+      {isCalendarWidgetOpen && (
+        <div className="animate-fadeIn">
+          <AttendanceCalendarWidget
+            selectedDate={selectedDate}
+            onSelectDate={(newDate) => {
+              setSelectedDate(newDate);
+            }}
+            allAsistencias={allCourseAsistencias}
+            allParticipaciones={allParticipaciones}
+            classDates={currentSheetConfig?.classDates || []}
+            courseMateria={activeMateria}
+            courseGrupo={courseGrupo}
+            onDeleteRecordsForDate={handleDeleteRecordsForDate}
+            onSyncGoogleSheetForDate={(dStr) => {
+              setSelectedDate(dStr);
+              handleUpdateGoogleSheet(false);
+            }}
+          />
+        </div>
+      )}
 
       {/* ========================================================================= */}
       {/* BANNER: SINCRONIZACIÓN OFICIAL GOOGLE SHEETS (LAC MATEMÁTICAS)           */}
@@ -927,27 +1172,63 @@ export default function AttendanceSheet({
               </div>
             </div>
 
-            {/* Lado Derecho: Los 2 Botones EXACTOS a la Captura */}
-            <div className="flex items-center space-x-2.5 self-stretch sm:self-auto">
+            {/* Lado Derecho: Botones de Sincronización y Actualización Multi-Materia */}
+            <div className="flex flex-wrap items-center gap-2 self-stretch sm:self-auto">
               
-              {/* BOTÓN 1: Sincronizar Google Sheet (Verde brillante con resplandor) */}
+              {/* BOTÓN: Actualizar Hoja Actual */}
+              <button
+                type="button"
+                onClick={() => handleUpdateGoogleSheet(false)}
+                disabled={isUpdatingSheet}
+                className="px-3.5 py-2.5 rounded-2xl bg-cyan-500 hover:bg-cyan-400 text-black font-extrabold text-xs shadow-lg shadow-cyan-500/20 transition-all flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
+                title="Actualizar y enviar registros del día a la Hoja de Google Sheets de esta materia"
+              >
+                <UploadCloud className={`w-3.5 h-3.5 text-black ${isUpdatingSheet ? 'animate-bounce' : ''}`} />
+                <span>{isUpdatingSheet ? 'Enviando...' : 'Actualizar Hoja'}</span>
+              </button>
+
+              {/* BOTÓN: Actualizar TODAS las Materias */}
+              <button
+                type="button"
+                onClick={handleUpdateAllGoogleSheets}
+                disabled={isUpdatingAllSheets}
+                className="px-3.5 py-2.5 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-black font-black text-xs shadow-lg shadow-amber-500/30 transition-all flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
+                title="Actualizar las hojas de cálculo de Google Sheets de las 5 materias oficiales"
+              >
+                <UploadCloud className={`w-3.5 h-3.5 text-black ${isUpdatingAllSheets ? 'animate-bounce' : ''}`} />
+                <span>{isUpdatingAllSheets ? 'Actualizando 5 Hojas...' : 'Actualizar TODAS las Materias'}</span>
+              </button>
+
+              {/* BOTÓN: Sincronizar Google Sheet (Materia actual) */}
               <button
                 type="button"
                 onClick={handleSyncGoogleSheet}
                 disabled={isSyncingSheet}
-                className="px-4 py-2.5 rounded-2xl bg-[#00E599] hover:bg-[#00c985] text-black font-black text-xs shadow-lg shadow-emerald-500/30 transition-all flex items-center space-x-2 cursor-pointer disabled:opacity-50"
+                className="px-3.5 py-2.5 rounded-2xl bg-[#00E599] hover:bg-[#00c985] text-black font-black text-xs shadow-lg shadow-emerald-500/30 transition-all flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
                 title="Sincronizar y actualizar registros oficiales con Google Sheets"
               >
                 <RefreshCw className={`w-3.5 h-3.5 text-black ${isSyncingSheet ? 'animate-spin' : ''}`} />
-                <span>{isSyncingSheet ? 'Sincronizando...' : 'Sincronizar Google Sheet'}</span>
+                <span>{isSyncingSheet ? 'Sincronizando...' : 'Sincronizar'}</span>
               </button>
 
-              {/* BOTÓN 2: Ver Hoja Google (Botón oscuro con borde esmeralda) */}
+              {/* BOTÓN: Sincronizar TODAS las Materias */}
+              <button
+                type="button"
+                onClick={handleSyncAllGoogleSheets}
+                disabled={isSyncingAllSheets}
+                className="px-3 py-2.5 rounded-2xl bg-black/60 hover:bg-black/90 border border-emerald-400/40 text-emerald-300 font-bold text-xs transition-all flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
+                title="Sincronizar todas las 5 materias oficiales desde Google Sheets a la plataforma"
+              >
+                <RefreshCw className={`w-3 h-3 text-emerald-400 ${isSyncingAllSheets ? 'animate-spin' : ''}`} />
+                <span>{isSyncingAllSheets ? '...' : 'Sincronizar Todo'}</span>
+              </button>
+
+              {/* BOTÓN: Ver Hoja Google */}
               <a
                 href={currentSheetConfig.sheetUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-4 py-2.5 rounded-2xl bg-black/60 hover:bg-black/80 border border-emerald-500/40 text-emerald-300 font-bold text-xs transition-all flex items-center space-x-2 cursor-pointer"
+                className="px-3 py-2.5 rounded-2xl bg-black/60 hover:bg-black/80 border border-emerald-500/40 text-emerald-300 font-bold text-xs transition-all flex items-center space-x-1.5 cursor-pointer"
                 title="Abrir la hoja de cálculo de Google Sheets en una nueva pestaña"
               >
                 <span>Ver Hoja Google</span>
@@ -1235,6 +1516,19 @@ export default function AttendanceSheet({
               {allParticipaciones.length}
             </span>
           </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('report')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 ${
+              activeTab === 'report'
+                ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-black shadow-lg shadow-purple-600/30'
+                : 'text-gray-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <BarChart3 className="w-4 h-4 text-purple-300" />
+            <span>📊 Reporte por Fecha</span>
+          </button>
         </div>
 
         {/* Live Counters */}
@@ -1295,6 +1589,81 @@ export default function AttendanceSheet({
       {activeTab === 'sheet' && (
         <div className="space-y-6 animate-fadeIn">
           
+          {/* BANNER HISTÓRICO: Indicador de fecha, resumen y acciones rápidas */}
+          <div className={`p-4 sm:p-5 rounded-2xl border transition-all ${
+            selectedDateStats.hasRecords
+              ? 'bg-gradient-to-r from-[#0C1B33] via-[#092238] to-[#0A2E24] border-cyan-500/40 shadow-xl'
+              : 'bg-black/40 border-white/10'
+          }`}>
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border ${
+                    selectedDateStats.isToday
+                      ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
+                      : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                  }`}>
+                    {selectedDateStats.isToday ? '📅 SESIÓN DE HOY' : '⏮️ HISTÓRICO DE CLASE'}
+                  </span>
+                  <span className="text-white font-mono font-bold text-xs">{selectedDate}</span>
+                  {selectedDateStats.hasRecords ? (
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold">
+                      ✓ Registros guardados ({selectedDateStats.pres} presentes, {selectedDateStats.fal} faltas, {selectedDateStats.partsCount} part.)
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-full bg-white/10 text-gray-400 text-[10px]">
+                      ⚪ Sin registros guardados para esta fecha
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-gray-300">
+                  {selectedDateStats.hasRecords
+                    ? 'Estás visualizando el histórico de este día. Puedes modificar la asistencia (A/R/F/J), puntos de participación u observaciones, guardar cambios permanentes o borrar la fecha.'
+                    : 'Pasa lista y asigna participaciones para este día. Al guardar, quedará registrado permanentemente en la Base de Datos y se sincronizará con Google Sheets.'}
+                </p>
+              </div>
+
+              {/* Botones de acción directa del banner */}
+              <div className="flex flex-wrap items-center gap-2 self-stretch lg:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setIsCalendarWidgetOpen((prev) => !prev)}
+                  className="px-3.5 py-2 rounded-xl bg-black/60 hover:bg-black/80 border border-cyan-500/40 text-cyan-300 text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer"
+                  title="Abrir o cerrar el calendario interactivo"
+                >
+                  <CalendarDays className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>{isCalendarWidgetOpen ? 'Ocultar Calendario' : 'Abrir Calendario'}</span>
+                </button>
+
+                {currentSheetConfig && (
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateGoogleSheet(false)}
+                    disabled={isUpdatingSheet}
+                    className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all flex items-center space-x-1.5 shadow-lg shadow-emerald-600/20 cursor-pointer disabled:opacity-50"
+                    title="Enviar la columna de esta fecha a Google Sheets"
+                  >
+                    <UploadCloud className="w-3.5 h-3.5 text-white" />
+                    <span>{isUpdatingSheet ? 'Subiendo...' : 'Subir a Google Sheets'}</span>
+                  </button>
+                )}
+
+                {selectedDateStats.hasRecords && (
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteRecordsForDate(selectedDate)}
+                    disabled={isSubmitting}
+                    className="px-3.5 py-2 rounded-xl bg-rose-600/20 hover:bg-rose-600/40 border border-rose-500/40 text-rose-300 text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
+                    title="Eliminar permanentemente los registros de esta fecha de la Base de Datos y Google Sheets"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Borrar este Día</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* Controls Bar: Search & Bulk Presets */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
             {/* Search */}
@@ -1358,6 +1727,7 @@ export default function AttendanceSheet({
                     </th>
                     <th className="p-3.5">Observación / Nota</th>
                     <th className="p-3.5 text-center">Ptos. Acumulados</th>
+                    <th className="p-3.5 text-center w-12">Restablecer</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5 bg-black/30">
@@ -1556,6 +1926,18 @@ export default function AttendanceSheet({
                               <span>{totalPuntos} pts</span>
                               <span className="text-gray-500 font-normal text-[10px]">({studentParts.length})</span>
                             </div>
+                          </td>
+
+                          {/* Restablecer Alumno */}
+                          <td className="p-3.5 text-center">
+                            <button
+                              type="button"
+                              onClick={() => handleResetStudentDay(st.id)}
+                              className="p-1.5 rounded-lg bg-white/5 hover:bg-rose-500/20 text-gray-400 hover:text-rose-300 transition-colors cursor-pointer"
+                              title={`Restablecer asistencia y participaciones de ${st.name} para hoy`}
+                            >
+                              <RotateCcw className="w-3.5 h-3.5" />
+                            </button>
                           </td>
 
                         </tr>
@@ -1871,6 +2253,7 @@ export default function AttendanceSheet({
             setSelectedDate(dStr);
             handleUpdateGoogleSheet(false);
           }}
+          onDeleteRecordsForDate={handleDeleteRecordsForDate}
         />
       )}
 
@@ -1893,10 +2276,25 @@ export default function AttendanceSheet({
           classDates={currentSheetConfig?.classDates || []}
           onSyncGoogleSheet={handleSyncGoogleSheet}
           onUpdateGoogleSheet={() => handleUpdateGoogleSheet(false)}
+          onUpdateAllGoogleSheets={handleUpdateAllGoogleSheets}
+          onSyncAllGoogleSheets={handleSyncAllGoogleSheets}
           onNavigateToDate={(dStr) => {
             setSelectedDate(dStr);
             setActiveTab('sheet');
           }}
+        />
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB 5: REPORTE OFICIAL DE ASISTENCIA Y PARTICIPACIÓN POR FECHA Y MATERIA  */}
+      {/* ========================================================================= */}
+      {activeTab === 'report' && (
+        <AttendanceParticipationReport
+          initialMateria={activeMateria || courseMateria || courseName}
+          initialGrupo={courseGrupo || currentSheetConfig?.grupo}
+          initialDate={selectedDate}
+          allCoursesList={allCoursesList}
+          embedded={true}
         />
       )}
 
@@ -2365,6 +2763,49 @@ export default function AttendanceSheet({
               </button>
             </div>
 
+            {/* Scope Switcher: Materia Actual vs Todas las Materias */}
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setModalScope('single')}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
+                    modalScope === 'single'
+                      ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30 font-black'
+                      : 'bg-black/40 text-gray-400 hover:text-white'
+                  }`}
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5" />
+                  <span>Materia Actual: {currentSheetConfig.materia.length > 25 ? `${currentSheetConfig.materia.slice(0, 25)}...` : currentSheetConfig.materia}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModalScope('all');
+                    if (!allCoursesUpdateResult) {
+                      handleUpdateAllGoogleSheets();
+                    }
+                  }}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
+                    modalScope === 'all'
+                      ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-black shadow-lg shadow-amber-500/30 font-black'
+                      : 'bg-amber-500/10 text-amber-300 border border-amber-500/30 hover:bg-amber-500/20'
+                  }`}
+                >
+                  <Layers className="w-3.5 h-3.5 text-current" />
+                  <span>🌐 TODAS las Materias (5 Hojas Oficiales)</span>
+                </button>
+              </div>
+
+              {modalScope === 'all' && (
+                <div className="text-[11px] text-amber-300 font-mono flex items-center space-x-1">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-amber-400" />
+                  <span>5 Materias UNRC listas</span>
+                </div>
+              )}
+            </div>
+
             {/* Modal Tabs */}
             <div className="flex items-center space-x-2 border-b border-white/10 pb-3">
               <button
@@ -2377,7 +2818,9 @@ export default function AttendanceSheet({
                 }`}
               >
                 <Table className="w-3.5 h-3.5" />
-                <span>Registros del Día ({students.length})</span>
+                <span>
+                  {modalScope === 'all' ? 'Vista Consolidada (5 Hojas)' : `Registros del Día (${students.length})`}
+                </span>
               </button>
 
               <button
@@ -2409,145 +2852,257 @@ export default function AttendanceSheet({
 
             {/* TAB 1: PREVIEW & DIRECT ACTIONS */}
             {modalTab === 'preview' && (
-              <div className="space-y-4">
-                
-                {/* Action Bar */}
-                <div className="p-3.5 rounded-2xl bg-black/60 border border-emerald-500/20 flex flex-wrap items-center justify-between gap-2.5">
-                  <div className="flex items-center space-x-2">
-                    <button
-                      type="button"
-                      onClick={() => handleUpdateGoogleSheet(false)}
-                      disabled={isUpdatingSheet}
-                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-300 hover:to-emerald-400 text-black font-extrabold text-xs shadow-lg shadow-emerald-500/30 transition-all flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
-                    >
-                      <UploadCloud className={`w-4 h-4 text-black ${isUpdatingSheet ? 'animate-bounce' : ''}`} />
-                      <span>{isUpdatingSheet ? 'Enviando...' : 'Enviar Actualización'}</span>
-                    </button>
+              modalScope === 'all' ? (
+                /* VISTA CONSOLIDADA: TODAS LAS 5 MATERIAS */
+                <div className="space-y-4">
+                  {/* Master Action Bar */}
+                  <div className="p-3.5 rounded-2xl bg-black/60 border border-amber-500/30 flex flex-wrap items-center justify-between gap-3 shadow-lg">
+                    <div className="space-y-0.5">
+                      <span className="text-xs font-black text-amber-300 uppercase tracking-wider block">
+                        Actualización de Hojas de Cálculo Oficiales UNRC
+                      </span>
+                      <p className="text-[11px] text-gray-300">
+                        Sesión: <strong className="text-white">{selectedDate} ({formatDateColumnLabel(selectedDate)})</strong> • 5 Materias listas
+                      </p>
+                    </div>
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const copyText = (lastUpdateStats?.copyableColumn) || students.map((st) => {
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleUpdateAllGoogleSheets}
+                        disabled={isUpdatingAllSheets}
+                        className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-black font-black text-xs shadow-lg shadow-amber-500/30 transition-all flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
+                      >
+                        <UploadCloud className={`w-4 h-4 text-black ${isUpdatingAllSheets ? 'animate-bounce' : ''}`} />
+                        <span>{isUpdatingAllSheets ? 'Actualizando 5 Hojas...' : 'Actualizar TODAS las Hojas'}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleSyncAllGoogleSheets}
+                        disabled={isSyncingAllSheets}
+                        className="px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs shadow-md transition-all flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 text-black ${isSyncingAllSheets ? 'animate-spin' : ''}`} />
+                        <span>{isSyncingAllSheets ? 'Sincronizando...' : 'Sincronizar Todo'}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 5 Materias Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-96 overflow-y-auto pr-1">
+                    {OFFICIAL_GOOGLE_SHEETS_REGISTRY.map((c) => {
+                      const batchInfo = allCoursesUpdateResult?.courses?.find((co: any) => co.sheetId === c.sheetId);
+                      const studentsCount = c.id === 'hospedaje' ? 6 : c.id === 'lac_matematicas' ? 22 : 6;
+
+                      return (
+                        <div
+                          key={c.id}
+                          className={`p-3.5 rounded-2xl border transition-all flex flex-col justify-between space-y-3 ${
+                            c.id === 'hospedaje'
+                              ? 'bg-gradient-to-b from-[#09221C]/80 to-[#0B132B]/90 border-emerald-500/40 shadow-lg shadow-emerald-950/20'
+                              : 'bg-[#091222]/80 border-white/10 hover:border-white/20'
+                          }`}
+                        >
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] px-2 py-0.5 rounded-full font-mono font-bold bg-white/10 text-white">
+                                {c.grupo}
+                              </span>
+                              <span className="text-[10px] text-emerald-400 font-bold">
+                                {studentsCount} Alumnos Oficiales
+                              </span>
+                            </div>
+                            <h4 className="text-xs font-black text-white leading-snug">
+                              {c.materia}
+                            </h4>
+                            <p className="text-[10px] text-gray-400">
+                              {c.carrera} • {c.classDates.length} fechas registradas
+                            </p>
+                          </div>
+
+                          <div className="flex items-center justify-between gap-2 pt-2 border-t border-white/5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                let columnData = batchInfo?.copyableColumn;
+                                if (!columnData) {
+                                  if (c.id === 'hospedaje') {
+                                    columnData = HOSPEDAJE_STUDENTS_OFFICIAL.map((s) => s.records[s.records.length - 1] || 'A').join('\n');
+                                  } else if (c.id === 'lac_matematicas') {
+                                    columnData = LAC_STUDENTS_OFFICIAL.map((s) => s.records[s.records.length - 1] || 'A').join('\n');
+                                  } else {
+                                    columnData = Array.from({ length: 6 }).map(() => 'A').join('\n');
+                                  }
+                                }
+                                navigator.clipboard.writeText(columnData);
+                                setCopiedColumn(true);
+                                playChime('success');
+                                setTimeout(() => setCopiedColumn(false), 3000);
+                              }}
+                              className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-bold flex items-center space-x-1 cursor-pointer"
+                              title="Copiar los valores en columna para pegar con Ctrl+V en Google Sheets"
+                            >
+                              <Copy className="w-3 h-3 text-white" />
+                              <span>Copiar Columna</span>
+                            </button>
+
+                            <a
+                              href={c.sheetUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-3 py-1.5 rounded-xl bg-black/60 hover:bg-black/90 border border-emerald-500/30 text-emerald-300 text-[11px] font-bold flex items-center space-x-1 cursor-pointer"
+                            >
+                              <span>Abrir Hoja</span>
+                              <ExternalLink className="w-3 h-3 text-emerald-400" />
+                            </a>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                /* VISTA INDIVIDUAL: MATERIA ACTUAL */
+                <div className="space-y-4">
+                  {/* Action Bar */}
+                  <div className="p-3.5 rounded-2xl bg-black/60 border border-emerald-500/20 flex flex-wrap items-center justify-between gap-2.5">
+                    <div className="flex items-center space-x-2">
+                      <button
+                        type="button"
+                        onClick={() => handleUpdateGoogleSheet(false)}
+                        disabled={isUpdatingSheet}
+                        className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-300 hover:to-emerald-400 text-black font-extrabold text-xs shadow-lg shadow-emerald-500/30 transition-all flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
+                      >
+                        <UploadCloud className={`w-4 h-4 text-black ${isUpdatingSheet ? 'animate-bounce' : ''}`} />
+                        <span>{isUpdatingSheet ? 'Enviando...' : 'Enviar Actualización'}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const copyText = (lastUpdateStats?.copyableColumn) || students.map((st) => {
+                            const state = attendanceState[st.id] || { status: 'present', participation: 'NINGUNA', notes: '' };
+                            const stParts = allParticipaciones.filter((p) => (p.alumno_id === st.id || p.alumno_id === st.student_code) && p.fecha === selectedDate);
+                            const isDouble = stParts.length >= 2 || (state.participation === 'AP' && stParts.length >= 2);
+                            return encodeRecordToSheetCode(state.status, state.participation, isDouble);
+                          }).join('\n');
+
+                          navigator.clipboard.writeText(copyText);
+                          setCopiedColumn(true);
+                          playChime('success');
+                          setTimeout(() => setCopiedColumn(false), 3000);
+                        }}
+                        className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs transition-all flex items-center space-x-1.5 cursor-pointer shadow-md shadow-blue-600/30"
+                        title="Copia todos los valores en vertical listos para pegar con Ctrl+V en la columna de la fecha en Google Sheets"
+                      >
+                        {copiedColumn ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4 text-white" />}
+                        <span>{copiedColumn ? '¡Copiado al Portapapeles!' : 'Copiar Columna (Ctrl+V)'}</span>
+                      </button>
+                    </div>
+
+                    <a
+                      href={currentSheetConfig.sheetUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3.5 py-2 rounded-xl bg-black/80 hover:bg-black border border-white/20 text-emerald-300 hover:text-emerald-200 text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer"
+                    >
+                      <span>Abrir en Google Sheets</span>
+                      <ExternalLink className="w-3.5 h-3.5 text-emerald-400" />
+                    </a>
+                  </div>
+
+                  {/* Stat Badges */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    <div className="p-3 rounded-2xl bg-black/40 border border-white/5 text-center">
+                      <div className="text-[10px] uppercase font-bold text-gray-400">Total Alumnos</div>
+                      <div className="text-xl font-extrabold text-white mt-0.5">{students.length}</div>
+                    </div>
+                    <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-center">
+                      <div className="text-[10px] uppercase font-bold text-emerald-400">Presentes (A)</div>
+                      <div className="text-xl font-extrabold text-emerald-300 mt-0.5">{dailyPresentCount}</div>
+                    </div>
+                    <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-center">
+                      <div className="text-[10px] uppercase font-bold text-amber-400">Participando</div>
+                      <div className="text-xl font-extrabold text-amber-300 mt-0.5">{dailyParticipatingCount}</div>
+                    </div>
+                    <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-center">
+                      <div className="text-[10px] uppercase font-bold text-rose-400">Faltas (F)</div>
+                      <div className="text-xl font-extrabold text-rose-300 mt-0.5">{dailyAbsentCount}</div>
+                    </div>
+                  </div>
+
+                  {/* Table Preview */}
+                  <div className="border border-white/10 rounded-2xl overflow-hidden bg-black/50 max-h-64 overflow-y-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-black/80 text-gray-400 text-[10px] uppercase font-extrabold border-b border-white/10 sticky top-0 z-10">
+                        <tr>
+                          <th className="py-2.5 px-3">#</th>
+                          <th className="py-2.5 px-3">Alumno</th>
+                          <th className="py-2.5 px-3">Matrícula</th>
+                          <th className="py-2.5 px-3">Asistencia</th>
+                          <th className="py-2.5 px-3">Participación</th>
+                          <th className="py-2.5 px-3 text-right">Código Hoja</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/5">
+                        {students.map((st, idx) => {
                           const state = attendanceState[st.id] || { status: 'present', participation: 'NINGUNA', notes: '' };
                           const stParts = allParticipaciones.filter((p) => (p.alumno_id === st.id || p.alumno_id === st.student_code) && p.fecha === selectedDate);
                           const isDouble = stParts.length >= 2 || (state.participation === 'AP' && stParts.length >= 2);
-                          return encodeRecordToSheetCode(state.status, state.participation, isDouble);
-                        }).join('\n');
+                          const code = encodeRecordToSheetCode(state.status, state.participation, isDouble);
 
-                        navigator.clipboard.writeText(copyText);
-                        setCopiedColumn(true);
-                        playChime('success');
-                        setTimeout(() => setCopiedColumn(false), 3000);
-                      }}
-                      className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs transition-all flex items-center space-x-1.5 cursor-pointer shadow-md shadow-blue-600/30"
-                      title="Copia todos los valores en vertical listos para pegar con Ctrl+V en la columna de la fecha en Google Sheets"
-                    >
-                      {copiedColumn ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4 text-white" />}
-                      <span>{copiedColumn ? '¡Copiado al Portapapeles!' : 'Copiar Columna (Ctrl+V)'}</span>
-                    </button>
+                          return (
+                            <tr key={st.id} className="hover:bg-white/5 transition-colors">
+                              <td className="py-2 px-3 font-mono text-gray-500">{idx + 1}</td>
+                              <td className="py-2 px-3 font-bold text-white">{st.name}</td>
+                              <td className="py-2 px-3 font-mono text-[11px] text-gray-400">{st.student_code}</td>
+                              <td className="py-2 px-3">
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                  state.status === 'present' ? 'bg-emerald-500/20 text-emerald-300' :
+                                  state.status === 'late' ? 'bg-amber-500/20 text-amber-300' :
+                                  state.status === 'excused' ? 'bg-blue-500/20 text-blue-300' :
+                                  'bg-rose-500/20 text-rose-300'
+                                }`}>
+                                  {state.status === 'present' ? 'Presente' : state.status === 'late' ? 'Retardo' : state.status === 'excused' ? 'Justificado' : 'Falta'}
+                                </span>
+                              </td>
+                              <td className="py-2 px-3">
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                  isDouble ? 'bg-amber-400/20 text-amber-300 border border-amber-400/30' :
+                                  state.participation === 'AP' ? 'bg-emerald-500/20 text-emerald-300' :
+                                  state.participation === 'RP' ? 'bg-orange-500/20 text-orange-300' :
+                                  state.participation === 'REGULAR' ? 'bg-blue-500/20 text-blue-300' :
+                                  'text-gray-500'
+                                }`}>
+                                  {isDouble ? '⭐ Doble (20 pts)' : state.participation === 'AP' ? '⭐ Aprobada (10 pts)' : state.participation === 'RP' ? '🔸 Mínima (5 pts)' : state.participation === 'REGULAR' ? 'Regular (7.5 pts)' : 'Sin part.'}
+                                </span>
+                              </td>
+                              <td className="py-2 px-3 text-right">
+                                <span className={`inline-block min-w-8 text-center font-mono font-black text-xs px-2.5 py-0.5 rounded-lg shadow-sm ${
+                                  code === 'App' ? 'bg-amber-400 text-black ring-1 ring-white' :
+                                  code === 'Ap' ? 'bg-emerald-400 text-black' :
+                                  code === 'A' ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/30' :
+                                  code === 'Rp' || code === 'Rpp' ? 'bg-amber-500 text-black' :
+                                  code === 'R' ? 'bg-amber-950 text-amber-300 border border-amber-500/30' :
+                                  code === 'J' ? 'bg-blue-900 text-blue-300' :
+                                  'bg-rose-950 text-rose-400 border border-rose-500/30'
+                                }`}>
+                                  {code}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
 
-                  <a
-                    href={currentSheetConfig.sheetUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-3.5 py-2 rounded-xl bg-black/80 hover:bg-black border border-white/20 text-emerald-300 hover:text-emerald-200 text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer"
-                  >
-                    <span>Abrir en Google Sheets</span>
-                    <ExternalLink className="w-3.5 h-3.5 text-emerald-400" />
-                  </a>
+                  <div className="text-[11px] text-gray-400 flex items-center justify-between pt-1">
+                    <span>💡 <strong>Consejo rápido:</strong> Al presionar <em>"Copiar Columna"</em>, solo abre la hoja de cálculo en la fecha deseada y pulsa <strong>Ctrl + V</strong> en la celda del primer alumno.</span>
+                  </div>
                 </div>
-
-                {/* Stat Badges */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                  <div className="p-3 rounded-2xl bg-black/40 border border-white/5 text-center">
-                    <div className="text-[10px] uppercase font-bold text-gray-400">Total Alumnos</div>
-                    <div className="text-xl font-extrabold text-white mt-0.5">{students.length}</div>
-                  </div>
-                  <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-center">
-                    <div className="text-[10px] uppercase font-bold text-emerald-400">Presentes (A)</div>
-                    <div className="text-xl font-extrabold text-emerald-300 mt-0.5">{dailyPresentCount}</div>
-                  </div>
-                  <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-center">
-                    <div className="text-[10px] uppercase font-bold text-amber-400">Participando</div>
-                    <div className="text-xl font-extrabold text-amber-300 mt-0.5">{dailyParticipatingCount}</div>
-                  </div>
-                  <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-center">
-                    <div className="text-[10px] uppercase font-bold text-rose-400">Faltas (F)</div>
-                    <div className="text-xl font-extrabold text-rose-300 mt-0.5">{dailyAbsentCount}</div>
-                  </div>
-                </div>
-
-                {/* Table Preview */}
-                <div className="border border-white/10 rounded-2xl overflow-hidden bg-black/50 max-h-64 overflow-y-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-black/80 text-gray-400 text-[10px] uppercase font-extrabold border-b border-white/10 sticky top-0 z-10">
-                      <tr>
-                        <th className="py-2.5 px-3">#</th>
-                        <th className="py-2.5 px-3">Alumno</th>
-                        <th className="py-2.5 px-3">Matrícula</th>
-                        <th className="py-2.5 px-3">Asistencia</th>
-                        <th className="py-2.5 px-3">Participación</th>
-                        <th className="py-2.5 px-3 text-right">Código Hoja</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/5">
-                      {students.map((st, idx) => {
-                        const state = attendanceState[st.id] || { status: 'present', participation: 'NINGUNA', notes: '' };
-                        const stParts = allParticipaciones.filter((p) => (p.alumno_id === st.id || p.alumno_id === st.student_code) && p.fecha === selectedDate);
-                        const isDouble = stParts.length >= 2 || (state.participation === 'AP' && stParts.length >= 2);
-                        const code = encodeRecordToSheetCode(state.status, state.participation, isDouble);
-
-                        return (
-                          <tr key={st.id} className="hover:bg-white/5 transition-colors">
-                            <td className="py-2 px-3 font-mono text-gray-500">{idx + 1}</td>
-                            <td className="py-2 px-3 font-bold text-white">{st.name}</td>
-                            <td className="py-2 px-3 font-mono text-[11px] text-gray-400">{st.student_code}</td>
-                            <td className="py-2 px-3">
-                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                state.status === 'present' ? 'bg-emerald-500/20 text-emerald-300' :
-                                state.status === 'late' ? 'bg-amber-500/20 text-amber-300' :
-                                state.status === 'excused' ? 'bg-blue-500/20 text-blue-300' :
-                                'bg-rose-500/20 text-rose-300'
-                              }`}>
-                                {state.status === 'present' ? 'Presente' : state.status === 'late' ? 'Retardo' : state.status === 'excused' ? 'Justificado' : 'Falta'}
-                              </span>
-                            </td>
-                            <td className="py-2 px-3">
-                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                isDouble ? 'bg-amber-400/20 text-amber-300 border border-amber-400/30' :
-                                state.participation === 'AP' ? 'bg-emerald-500/20 text-emerald-300' :
-                                state.participation === 'RP' ? 'bg-orange-500/20 text-orange-300' :
-                                state.participation === 'REGULAR' ? 'bg-blue-500/20 text-blue-300' :
-                                'text-gray-500'
-                              }`}>
-                                {isDouble ? '⭐ Doble (20 pts)' : state.participation === 'AP' ? '⭐ Aprobada (10 pts)' : state.participation === 'RP' ? '🔸 Mínima (5 pts)' : state.participation === 'REGULAR' ? 'Regular (7.5 pts)' : 'Sin part.'}
-                              </span>
-                            </td>
-                            <td className="py-2 px-3 text-right">
-                              <span className={`inline-block min-w-8 text-center font-mono font-black text-xs px-2.5 py-0.5 rounded-lg shadow-sm ${
-                                code === 'App' ? 'bg-amber-400 text-black ring-1 ring-white' :
-                                code === 'Ap' ? 'bg-emerald-400 text-black' :
-                                code === 'A' ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/30' :
-                                code === 'Rp' || code === 'Rpp' ? 'bg-amber-500 text-black' :
-                                code === 'R' ? 'bg-amber-950 text-amber-300 border border-amber-500/30' :
-                                code === 'J' ? 'bg-blue-900 text-blue-300' :
-                                'bg-rose-950 text-rose-400 border border-rose-500/30'
-                              }`}>
-                                {code}
-                              </span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="text-[11px] text-gray-400 flex items-center justify-between pt-1">
-                  <span>💡 <strong>Consejo rápido:</strong> Al presionar <em>"Copiar Columna"</em>, solo abre la hoja de cálculo en la fecha deseada y pulsa <strong>Ctrl + V</strong> en la celda del primer alumno.</span>
-                </div>
-              </div>
+              )
             )}
 
             {/* TAB 2: WEBHOOK AUTOMÁTICO */}

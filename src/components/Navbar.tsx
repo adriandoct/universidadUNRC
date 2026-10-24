@@ -67,6 +67,12 @@ export const Navbar: React.FC = () => {
                 👨‍🏫 Panel Docente
               </Link>
               <Link 
+                href="/reporte" 
+                className={`py-2 px-4 rounded-xl transition-colors ${pathname === '/reporte' ? 'text-purple-300 bg-purple-500/20 font-bold border border-purple-500/40 shadow-sm' : 'hover:text-white hover:bg-white/5'}`}
+              >
+                📊 Reportes
+              </Link>
+              <Link 
                 href="/scanner" 
                 className={`py-2 px-4 rounded-xl transition-colors ${pathname === '/scanner' ? 'text-blue-400 bg-blue-500/10 font-bold border border-blue-500/30' : 'hover:text-white hover:bg-white/5'}`}
               >
@@ -82,6 +88,12 @@ export const Navbar: React.FC = () => {
                 className={`py-2 px-4 rounded-xl transition-colors ${pathname === '/admin' ? 'text-amber-400 bg-amber-500/10 font-bold border border-amber-500/30' : 'hover:text-amber-400 hover:bg-white/5'}`}
               >
                 ⚡ Consola Base de Datos
+              </Link>
+              <Link 
+                href="/reporte" 
+                className={`py-2 px-4 rounded-xl transition-colors ${pathname === '/reporte' ? 'text-purple-300 bg-purple-500/20 font-bold border border-purple-500/40 shadow-sm' : 'hover:text-purple-300 hover:bg-white/5'}`}
+              >
+                📊 Reportes
               </Link>
               <Link 
                 href="/scanner" 
