@@ -823,6 +823,18 @@ const initLocalStorage = () => {
     }
   }
 
+  // Auto-migration v4: Force repair and re-seed of asistencias and participaciones with full materia and curso_id integrity
+  if (!localStorage.getItem('unrc_asistencias_integrity_v4')) {
+    try {
+      seedLacMatematicasDataSync(true);
+      seedHospedajeDataSync(true);
+      seedLcdnStudentsSync();
+      localStorage.setItem('unrc_asistencias_integrity_v4', 'true');
+    } catch (e) {
+      console.warn('Error during auto-seed v4 integrity:', e);
+    }
+  }
+
   // Seed Auditorias
   if (!localStorage.getItem('unrc_auditorias')) {
     const mockAuditorias: AuditoriaLog[] = [
@@ -2727,14 +2739,62 @@ export const db = {
   // Asistencia operations
   getAsistencias: async (): Promise<Asistencia[]> => {
     initLocalStorage();
-    const raw = localStorage.getItem('unrc_asistencias');
-    const list: Asistencia[] = raw ? JSON.parse(raw) : [];
+    let raw = localStorage.getItem('unrc_asistencias');
+    let list: Asistencia[] = raw ? JSON.parse(raw) : [];
+
+    // Si la lista está vacía o tiene menos de 5 registros, auto-sincronizar los datasets oficiales
+    if (list.length < 5) {
+      try {
+        seedLacMatematicasDataSync(true);
+        seedHospedajeDataSync(true);
+        seedLcdnStudentsSync();
+        raw = localStorage.getItem('unrc_asistencias');
+        list = raw ? JSON.parse(raw) : [];
+      } catch (e) {
+        console.warn('Auto-seed in getAsistencias notice:', e);
+      }
+    }
+
+    // Unir con Supabase si existen registros remotos
+    if (supabase) {
+      try {
+        const { data: supaAsist, error } = await supabase.from('asistencias').select('*');
+        if (!error && supaAsist && supaAsist.length > 0) {
+          supaAsist.forEach((sa: any) => {
+            if (!list.some(la => la.id === sa.id || (la.alumno_id === sa.alumno_id && la.fecha === sa.fecha && la.hora === sa.hora))) {
+              list.push(sa as Asistencia);
+            }
+          });
+        }
+      } catch (e) {
+        console.warn('Supabase getAsistencias notice:', e);
+      }
+    }
+
     const alumnos = await db.getAlumnos();
     
-    const enriched = list.map(item => ({
-      ...item,
-      alumno: alumnos.find(al => al.id === item.alumno_id || al.matricula === item.alumno_id)
-    }));
+    const enriched = list.map(item => {
+      const alumno = alumnos.find(al => al.id === item.alumno_id || al.matricula === item.alumno_id);
+      let materia = item.materia;
+      if (!materia) {
+        const g = (item.grupo_id || '').toLowerCase();
+        const cid = (item.curso_id || '').toLowerCase();
+        const iid = (item.id || '').toLowerCase();
+        if (g.includes('203') || g.includes('lac') || g.includes('adm') || cid.includes('lac') || cid.includes('matemat') || iid.includes('lac')) {
+          materia = 'Matemáticas';
+        } else if (g.includes('201') || g.includes('tur') || cid.includes('hospedaje') || iid.includes('tur')) {
+          materia = 'Hospedaje';
+        } else if (g.includes('301') || g.includes('lcdn') || cid.includes('lcdn') || iid.includes('lcdn')) {
+          materia = 'Estructura de Datos';
+        }
+      }
+
+      return {
+        ...item,
+        materia: materia || item.materia,
+        alumno
+      };
+    });
     
     return enriched.sort((a, b) => new Date(b.created_at || b.fecha || '').getTime() - new Date(a.created_at || a.fecha || '').getTime());
   },
@@ -2942,14 +3002,62 @@ export const db = {
   // Participaciones Operations
   getParticipaciones: async (): Promise<Participacion[]> => {
     initLocalStorage();
-    const raw = localStorage.getItem('unrc_participaciones');
-    const list: Participacion[] = raw ? JSON.parse(raw) : [];
+    let raw = localStorage.getItem('unrc_participaciones');
+    let list: Participacion[] = raw ? JSON.parse(raw) : [];
+
+    // Si no hay participaciones, auto-sincronizar los datasets oficiales
+    if (list.length < 5) {
+      try {
+        seedLacMatematicasDataSync(true);
+        seedHospedajeDataSync(true);
+        seedLcdnStudentsSync();
+        raw = localStorage.getItem('unrc_participaciones');
+        list = raw ? JSON.parse(raw) : [];
+      } catch (e) {
+        console.warn('Auto-seed in getParticipaciones notice:', e);
+      }
+    }
+
+    // Unir con Supabase si existen registros remotos
+    if (supabase) {
+      try {
+        const { data: supaPart, error } = await supabase.from('participaciones').select('*');
+        if (!error && supaPart && supaPart.length > 0) {
+          supaPart.forEach((sp: any) => {
+            if (!list.some(lp => lp.id === sp.id || (lp.alumno_id === sp.alumno_id && lp.fecha === sp.fecha))) {
+              list.push(sp as Participacion);
+            }
+          });
+        }
+      } catch (e) {
+        console.warn('Supabase getParticipaciones notice:', e);
+      }
+    }
+
     const alumnos = await db.getAlumnos();
     
-    return list.map(item => ({
-      ...item,
-      alumno: alumnos.find(al => al.id === item.alumno_id || al.matricula === item.alumno_id)
-    }));
+    return list.map(item => {
+      const alumno = alumnos.find(al => al.id === item.alumno_id || al.matricula === item.alumno_id);
+      let materia = item.materia;
+      if (!materia) {
+        const g = (item.grupo_id || '').toLowerCase();
+        const cid = (item.curso_id || '').toLowerCase();
+        const iid = (item.id || '').toLowerCase();
+        if (g.includes('203') || g.includes('lac') || g.includes('adm') || cid.includes('lac') || cid.includes('matemat') || iid.includes('lac')) {
+          materia = 'Matemáticas';
+        } else if (g.includes('201') || g.includes('tur') || cid.includes('hospedaje') || iid.includes('tur')) {
+          materia = 'Hospedaje';
+        } else if (g.includes('301') || g.includes('lcdn') || cid.includes('lcdn') || iid.includes('lcdn')) {
+          materia = 'Estructura de Datos';
+        }
+      }
+
+      return {
+        ...item,
+        materia: materia || item.materia,
+        alumno
+      };
+    });
   },
 
   registrarParticipacion: async (

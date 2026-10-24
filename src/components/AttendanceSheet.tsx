@@ -416,12 +416,34 @@ export default function AttendanceSheet({
         db.getParticipaciones(),
       ]);
 
+      // Helper robusto para emparejar grupo y materia
+      const normText = (s?: string) => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+      const normMat = normText(activeMateria || courseMateria || courseName);
+      const normGrp = normText(courseGrupo);
+
       // Filter participations relevant to this course and materia
       const courseParticipaciones = participacionesList.filter((p) => {
         if (p.curso_id === courseId || p.grupo_id === courseId) return true;
-        if (activeMateria && p.materia && p.materia.trim().toLowerCase() === activeMateria.trim().toLowerCase()) return true;
-        if (courseMateria && p.materia && p.materia.trim().toLowerCase() === courseMateria.trim().toLowerCase()) return true;
-        return !p.curso_id && !p.materia;
+        if (courseGrupo && p.grupo_id === courseGrupo) return true;
+        
+        const pM = normText(p.materia);
+        if (normMat && pM && (pM === normMat || pM.includes(normMat) || normMat.includes(pM))) return true;
+
+        const pG = normText(p.grupo_id || p.curso_id);
+        if (normGrp && pG && (pG === normGrp || pG.includes(normGrp) || normGrp.includes(pG))) return true;
+        if (normGrp.includes('203') && pG.includes('203')) return true;
+        if (normGrp.includes('tur') && pG.includes('tur')) return true;
+        if (normGrp.includes('301') && pG.includes('301')) return true;
+
+        // Si el alumno está en la lista de alumnos del curso
+        const studentMatch = students.some(
+          (st) => st.id === p.alumno_id || st.student_code === p.alumno_id || st.student_code === p.alumno?.matricula
+        );
+        if (studentMatch && (!pM || pM === normMat || normMat.includes(pM) || pM.includes(normMat))) {
+          return true;
+        }
+
+        return false;
       });
       setAllParticipaciones(courseParticipaciones);
 
@@ -429,21 +451,31 @@ export default function AttendanceSheet({
       const courseAsistencias = asistenciasList.filter((a) => {
         if (a.grupo_id === courseId || (a as any).curso_id === courseId) return true;
         if (courseGrupo && a.grupo_id === courseGrupo) return true;
-        if (activeMateria && (a as any).materia && (a as any).materia.trim().toLowerCase() === activeMateria.trim().toLowerCase()) return true;
-        if (courseMateria && (a as any).materia && (a as any).materia.trim().toLowerCase() === courseMateria.trim().toLowerCase()) return true;
+
+        const aM = normText((a as any).materia);
+        if (normMat && aM && (aM === normMat || aM.includes(normMat) || normMat.includes(aM))) return true;
+
+        const aG = normText(a.grupo_id || (a as any).curso_id);
+        if (normGrp && aG && (aG === normGrp || aG.includes(normGrp) || normGrp.includes(aG))) return true;
+        if (normGrp.includes('203') && aG.includes('203')) return true;
+        if (normGrp.includes('tur') && aG.includes('tur')) return true;
+        if (normGrp.includes('301') && aG.includes('301')) return true;
+
+        // Si el alumno pertenece a este curso
+        const studentMatch = students.some(
+          (st) => st.id === a.alumno_id || st.student_code === a.alumno_id || st.student_code === a.alumno?.matricula
+        );
+        if (studentMatch && (!aM || aM === normMat || normMat.includes(aM) || aM.includes(normMat))) {
+          return true;
+        }
+
         return false;
       });
       setAllCourseAsistencias(courseAsistencias);
 
       // Pre-populate sheet if records already exist for selectedDate
-      const dateAsistencias = asistenciasList.filter(
-        (a) =>
-          a.fecha === selectedDate &&
-          (a.grupo_id === courseId ||
-            (a as any).curso_id === courseId ||
-            (courseGrupo && a.grupo_id === courseGrupo) ||
-            (activeMateria && (a as any).materia === activeMateria) ||
-            (courseMateria && (a as any).materia === courseMateria))
+      const dateAsistencias = courseAsistencias.filter(
+        (a) => a.fecha === selectedDate
       );
       const dateParticipaciones = courseParticipaciones.filter(
         (p) => p.fecha === selectedDate

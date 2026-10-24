@@ -33,6 +33,7 @@ import {
   BadgeCheck
 } from 'lucide-react';
 import { db, Alumno, Asistencia, Participacion, Materia, Grupo, Docente } from '@/lib/db';
+import { seedLacMatematicasDataSync, seedHospedajeDataSync, seedLcdnStudentsSync } from '@/lib/googleSheetsSync';
 import { getTijuanaDateString, formatTijuanaDisplayDate } from '@/lib/tijuanaTime';
 import {
   ReporteItemAlumno,
@@ -86,11 +87,21 @@ export default function AttendanceParticipationReport({
   const [statusFilter, setStatusFilter] = useState<'all' | 'A' | 'R' | 'F' | 'J' | 'con_participacion' | 'sin_participacion'>('all');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Carga de datos inicial
-  const loadData = async () => {
+  // Carga de datos inicial con auto-recuperación de registros históricos
+  const loadData = async (forceSync = false) => {
     try {
       setIsRefreshing(true);
-      const [alumnosData, asistData, partData, matData, grpData, docData] = await Promise.all([
+      if (forceSync) {
+        try {
+          seedLacMatematicasDataSync(true);
+          seedHospedajeDataSync(true);
+          seedLcdnStudentsSync();
+        } catch (e) {
+          console.warn('Error during manual force sync:', e);
+        }
+      }
+
+      let [alumnosData, asistData, partData, matData, grpData, docData] = await Promise.all([
         db.getAlumnos(),
         db.getAsistencias(),
         db.getParticipaciones(),
@@ -98,6 +109,22 @@ export default function AttendanceParticipationReport({
         db.getGrupos(),
         db.getDocentes()
       ]);
+
+      // Si no hay asistencias o hay muy pocas, auto-sembrar los datasets oficiales de UNRC
+      if (!asistData || asistData.length < 5) {
+        try {
+          seedLacMatematicasDataSync(true);
+          seedHospedajeDataSync(true);
+          seedLcdnStudentsSync();
+          [alumnosData, asistData, partData] = await Promise.all([
+            db.getAlumnos(),
+            db.getAsistencias(),
+            db.getParticipaciones()
+          ]);
+        } catch (e) {
+          console.warn('Auto-seed check notice in loadData:', e);
+        }
+      }
 
       setAlumnos(alumnosData || []);
       setAsistencias(asistData || []);
@@ -118,7 +145,48 @@ export default function AttendanceParticipationReport({
   }, []);
 
   // Normalizador de texto para emparejar materias
-  const norm = (s: string) => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  const norm = (s?: string) => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+
+  // Helper inteligente para verificar si una asistencia o participación corresponde a la materia/grupo seleccionados
+  const matchesTargetMateria = (item: { materia?: string; grupo_id?: string; curso_id?: string }) => {
+    if (!selectedMateria) return true;
+    const targetNorm = norm(selectedMateria);
+
+    // 1. Coincidencia por nombre de materia
+    if (item.materia) {
+      const itemMatNorm = norm(item.materia);
+      if (itemMatNorm === targetNorm || itemMatNorm.includes(targetNorm) || targetNorm.includes(itemMatNorm)) {
+        return true;
+      }
+    }
+
+    // 2. Coincidencia por ID de curso (ej: 'course-phlac-203-tij-matematicas')
+    if (item.curso_id) {
+      const cursoNorm = norm(item.curso_id);
+      if (cursoNorm.includes(targetNorm) || targetNorm.includes(cursoNorm)) {
+        return true;
+      }
+    }
+
+    // 3. Asociación institucional UNRC por clave de grupo histórica
+    const grp = (item.grupo_id || '').toUpperCase();
+    if (targetNorm.includes('matemat') && (grp.includes('203') || grp.includes('LAC'))) {
+      return true;
+    }
+    if ((targetNorm.includes('hospedaj') || targetNorm.includes('turism')) && (grp.includes('201') || grp.includes('LG'))) {
+      return true;
+    }
+    if ((targetNorm.includes('estruct') || targetNorm.includes('dato') || targetNorm.includes('program')) && (grp.includes('301') || grp.includes('LCDN'))) {
+      return true;
+    }
+
+    // 4. Si hay grupo seleccionado y coincide con grupo_id
+    if (selectedGrupo && item.grupo_id && (item.grupo_id === selectedGrupo || norm(item.grupo_id) === norm(selectedGrupo))) {
+      return true;
+    }
+
+    return false;
+  };
 
   // Catálogo unificado de materias disponibles
   const availableMaterias = useMemo(() => {
@@ -155,23 +223,36 @@ export default function AttendanceParticipationReport({
   // Fechas que tienen registros reales para la materia seleccionada
   const recordedDatesForMateria = useMemo(() => {
     if (!selectedMateria) return [];
-    const normMat = norm(selectedMateria);
     const dateSet = new Set<string>();
 
     asistencias.forEach((a) => {
-      if (a.fecha && a.materia && norm(a.materia) === normMat) {
+      if (a.fecha && matchesTargetMateria(a)) {
         dateSet.add(a.fecha);
       }
     });
 
     participaciones.forEach((p) => {
-      if (p.fecha && p.materia && norm(p.materia) === normMat) {
+      if (p.fecha && matchesTargetMateria(p)) {
         dateSet.add(p.fecha);
       }
     });
 
     return Array.from(dateSet).sort().reverse();
   }, [asistencias, participaciones, selectedMateria]);
+
+  // Si la fecha actual seleccionada no tiene registros pero sí hay fechas históricas registradas,
+  // seleccionar automáticamente la fecha con registros más reciente para que no aparezca vacío
+  useEffect(() => {
+    if (recordedDatesForMateria.length > 0) {
+      const hasRecordsOnSelected =
+        asistencias.some((a) => a.fecha === selectedDate && matchesTargetMateria(a)) ||
+        participaciones.some((p) => p.fecha === selectedDate && matchesTargetMateria(p));
+
+      if (!hasRecordsOnSelected) {
+        setSelectedDate(recordedDatesForMateria[0]);
+      }
+    }
+  }, [recordedDatesForMateria, selectedMateria]);
 
   // Grupos disponibles para la materia seleccionada
   const availableGrupos = useMemo(() => {
@@ -248,10 +329,10 @@ export default function AttendanceParticipationReport({
 
       // O si ya tiene algún registro de asistencia/participación en esta materia
       const hasAtt = asistencias.some(
-        (a) => (a.alumno_id === al.id || a.alumno_id === al.matricula) && a.materia && norm(a.materia) === normMat
+        (a) => (a.alumno_id === al.id || a.alumno_id === al.matricula) && matchesTargetMateria(a)
       );
       const hasPart = participaciones.some(
-        (p) => (p.alumno_id === al.id || p.alumno_id === al.matricula) && p.materia && norm(p.materia) === normMat
+        (p) => (p.alumno_id === al.id || p.alumno_id === al.matricula) && matchesTargetMateria(p)
       );
 
       if (belongs || hasAtt || hasPart) {
@@ -264,8 +345,8 @@ export default function AttendanceParticipationReport({
     );
 
     // 2. Extraer registros históricos de toda la materia
-    const allAttForMateria = asistencias.filter((a) => a.materia && norm(a.materia) === normMat);
-    const allPartForMateria = participaciones.filter((p) => p.materia && norm(p.materia) === normMat);
+    const allAttForMateria = asistencias.filter((a) => matchesTargetMateria(a));
+    const allPartForMateria = participaciones.filter((p) => matchesTargetMateria(p));
 
     // 3. Extraer registros en la fecha o rango seleccionado
     const dateAttForMateria = allAttForMateria.filter((a) => isDateInFilter(a.fecha));
@@ -522,6 +603,19 @@ export default function AttendanceParticipationReport({
     window.print();
   };
 
+  const handleForceSync = async () => {
+    try {
+      setIsRefreshing(true);
+      await loadData(true);
+      setToastMessage('✅ Historial de asistencias y participaciones sincronizado y restaurado con éxito');
+      setTimeout(() => setToastMessage(null), 5000);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   return (
     <div className={`space-y-6 ${embedded ? '' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'}`}>
       
@@ -562,7 +656,18 @@ export default function AttendanceParticipationReport({
           <div className="flex flex-wrap items-center gap-2 self-stretch lg:self-auto shrink-0 print:hidden">
             <button
               type="button"
-              onClick={loadData}
+              onClick={handleForceSync}
+              disabled={isRefreshing}
+              className="px-3.5 py-2.5 rounded-2xl bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white text-xs font-black transition-all flex items-center space-x-1.5 shadow-lg shadow-amber-900/30 cursor-pointer disabled:opacity-50"
+              title="Restaurar y sincronizar historial completo desde registros oficiales"
+            >
+              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span>Sincronizar Historial</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => loadData(false)}
               disabled={isRefreshing}
               className="p-2.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 hover:text-white transition-all cursor-pointer disabled:opacity-50"
               title="Refrescar datos en vivo"
